@@ -99,7 +99,7 @@ class PlayService extends cds.ApplicationService {
       const b = eng.initBoard(roomId, room.game, room.settings);
       await UPDATE(Rooms, roomId).with({ status: 'playing' });
 
-      await this.emit('started', { room: roomId, firstTurn: b.turn });
+      await this.emit('started', { room: roomId, firstTurn: b.turn, state: JSON.stringify(b.state) });
       LOG.info('START', roomId, 'firstTurn=' + b.turn);
     });
 
@@ -150,7 +150,7 @@ class PlayService extends cds.ApplicationService {
       if (err) return;
       const b = eng.initBoard(roomId, room.game, room.settings);
       await UPDATE(Rooms, roomId).with({ status: 'playing' });
-      await this.emit('rematched', { room: roomId, firstTurn: b.turn });
+      await this.emit('rematched', { room: roomId, firstTurn: b.turn, state: JSON.stringify(b.state) });
       LOG.info('REMATCH', roomId, 'by', req.user.id);
     });
 

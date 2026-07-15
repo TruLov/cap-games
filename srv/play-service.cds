@@ -23,10 +23,10 @@ service PlayService {
   // --- Server → Client (events, all room-scoped) ---
   event joined             { @ws.context room: String; player: String; symbol: String; host: Boolean; status: GameStatus; }
   event configured         { @ws.context room: String; settings: String; }
-  event started            { @ws.context room: String; firstTurn: String; }
+  event started            { @ws.context room: String; firstTurn: String; state: String; }
   event moved              { @ws.context room: String; data: String; }
   event finished           { @ws.context room: String; winner: String; state: String; }
-  event rematched          { @ws.context room: String; firstTurn: String; }
+  event rematched          { @ws.context room: String; firstTurn: String; state: String; }
   event lobbyReset         { @ws.context room: String; }
   event playerLeft         { @ws.context room: String; player: String; symbol: String; newHost: String; }
   event playerKicked       { @ws.context room: String; player: String; }

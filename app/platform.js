@@ -111,8 +111,9 @@ function onJoined({ room, player, symbol, host, status }) {
   updateControls();
 }
 
-function onStarted({ firstTurn }) {
+function onStarted({ firstTurn, state: stateJson }) {
   state.roomStatus = 'playing';
+  renderBoard(JSON.parse(stateJson));
   setStatus('room', `Playing — ${firstTurn} goes first`);
   updateControls();
 }
@@ -132,9 +133,9 @@ function onFinished({ winner, state: stateJson }) {
   updateControls();
 }
 
-function onRematched({ firstTurn }) {
+function onRematched({ firstTurn, state: stateJson }) {
   state.roomStatus = 'playing';
-  $('board-container').innerHTML = '';
+  renderBoard(JSON.parse(stateJson));
   setStatus('room', `Rematch — ${firstTurn} goes first`);
   updateControls();
 }
