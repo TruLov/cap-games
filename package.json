@@ -1,0 +1,37 @@
+{
+  "name": "cap-games",
+  "version": "1.0.0",
+  "description": "Browser mini games with CAP backend",
+  "scripts": {
+    "start": "cds-serve",
+    "dev": "cds watch"
+  },
+  "dependencies": {
+    "@cap-js-community/websocket": "^1",
+    "@sap/cds": "^10",
+    "@sap/xssec": "^4",
+    "express": "^4"
+  },
+  "devDependencies": {
+    "@cap-js/sqlite": "*",
+    "@sap/cds-dk": "^10"
+  },
+  "cds": {
+    "requires": {
+      "auth": {
+        "[development]": {
+          "kind": "mocked"
+        },
+        "[production]": {
+          "kind": "ias"
+        }
+      },
+      "[production]": {
+        "auth": "ias"
+      }
+    },
+    "websocket": {
+      "kind": "ws"
+    }
+  }
+}

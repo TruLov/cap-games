@@ -1,0 +1,85 @@
+_schema-version: 3.3.0
+ID: cap-games
+version: 1.0.0
+description: "Browser mini games with CAP backend"
+parameters:
+  enable-parallel-deployments: true
+build-parameters:
+  before-all:
+    - builder: custom
+      commands:
+        - npm ci
+        - npx cds build --production
+modules:
+  - name: cap-games-srv
+    type: nodejs
+    path: gen/srv
+    parameters:
+      instances: 1
+      buildpack: nodejs_buildpack
+      routes:
+        - route: "${default-url}"
+        - route: "${default-host}.cert.${default-domain}"
+    build-parameters:
+      builder: npm-ci
+    provides:
+      - name: srv-api # required by consumers of CAP services (e.g. approuter)
+        properties:
+          srv-url: ${default-url}
+          srv-cert-url: '${protocol}://${default-host}.cert.${default-domain}'
+    requires:
+      - name: cap-games-ias
+        parameters:
+          config:
+            credential-type: X509_GENERATED
+            app-identifier: srv
+
+  - name: cap-games
+    type: approuter.nodejs
+    path: app/router
+    requires:
+      - name: cap-games-ias
+        parameters:
+          config:
+            credential-type: X509_GENERATED
+            app-identifier: approuter
+      - name: srv-api
+        group: destinations
+        properties:
+          url: ~{srv-cert-url}
+          forwardAuthCertificates: true
+          forwardAuthToken: true
+          strictSSL: true
+    parameters:
+      keep-existing-routes: true
+      disk-quota: 256M
+      memory: 256M
+    provides:
+      - name: app-api
+        properties:
+          app-protocol: ${protocol}
+          app-uri: ${default-uri}
+
+resources:
+  - name: cap-games-ias
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: identity
+      service-name: cap-games-ias
+      service-plan: application
+      config:
+        provided-apis:
+          - name: cap-games-ias-api
+            description: API exposed by the application
+        display-name: cap-games
+        oauth2-configuration:
+          token-policy:
+            access-token-format: "jwt"
+          redirect-uris:
+            - http://localhost:5000/login/callback?authType=ias
+            - ~{app-api/app-protocol}://*~{app-api/app-uri}/login/callback
+          post-logout-redirect-uris:
+            - ~{app-api/app-protocol}://*~{app-api/app-uri}/*/logout.html
+        xsuaa-cross-consumption: true
+    requires:
+      - name: app-api
