@@ -10,6 +10,13 @@
       "csrfProtection": false
     },
     {
+      "source": "^/odata/(.*)$",
+      "target": "/odata/$1",
+      "destination": "srv-api",
+      "authenticationType": "ias",
+      "csrfProtection": true
+    },
+    {
       "source": "^/(.*)$",
       "target": "$1",
       "destination": "srv-api",

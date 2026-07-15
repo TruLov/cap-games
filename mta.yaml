@@ -23,7 +23,7 @@ modules:
     build-parameters:
       builder: npm-ci
     provides:
-      - name: srv-api # required by consumers of CAP services (e.g. approuter)
+      - name: srv-api
         properties:
           srv-url: ${default-url}
           srv-cert-url: '${protocol}://${default-host}.cert.${default-domain}'
@@ -33,6 +33,7 @@ modules:
           config:
             credential-type: X509_GENERATED
             app-identifier: srv
+      - name: cap-games-hana
 
   - name: cap-games
     type: approuter.nodejs
@@ -83,3 +84,9 @@ resources:
         xsuaa-cross-consumption: true
     requires:
       - name: app-api
+
+  - name: cap-games-hana
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: hana
+      service-plan: hdi-shared

@@ -1,7 +1,7 @@
 {
-  "name": "approuter",
+  "name": "cap-games-router",
   "dependencies": {
-    "@sap/approuter": "^22.0.0"
+    "@sap/approuter": "*"
   },
   "scripts": {
     "start": "node node_modules/@sap/approuter/approuter.js"

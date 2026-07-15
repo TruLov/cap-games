@@ -1,43 +1,38 @@
 # cap-games
 
-Multiplayer browser games over WebSocket, built with CAP Node.js.
+Multiplayer browser game platform on SAP BTP — built with CAP Node.js.
+Games are plugin packages. Add a game: 3 files, one dependency line, done.
 
-Currently implemented: **TicTacToe** (2 players).
+**Included:** TicTacToe
+
+---
 
 ## Architecture
 
 ```
-websocat / Browser
-     │ WSS
-     ▼
-Approuter (IAS auth, websockets.enabled)
-     │ Bearer token forwarded
-     ▼
-CAP srv  @protocol:'ws' GameService
+Browser (Lobby: REST / Gameplay: WebSocket)
      │
-     ├─ game-service.js      thin action handlers
-     ├─ games/engine.js      generic: host, lobby, reconnect, succession, auto-delete
-     └─ games/tictactoe.js   game logic only (init / applyMove)
+Approuter (IAS auth, websockets.enabled)
+     │
+CAP Server (app/)
+  ├─ LobbyService  (OData /odata/v4/lobby)   — browse games, create rooms, leaderboard
+  └─ PlayService   (WebSocket /ws/play)       — join, play, chat, host controls
+
+platform/
+  ├─ db/schema.cds      Rooms, Players, Matches, Leaderboard
+  ├─ srv/engine.js      transient board state, reconnect grace, scoring
+  ├─ srv/registry.js    game plugin registry (reads cds.env.games)
+  ├─ lobby-service.*    OData service
+  └─ play-service.*     WebSocket service
+
+games/tictactoe/        @cap-games/tictactoe plugin
+  ├─ cds-plugin.js      self-registers via cds.env.games (auto-loaded by CAP)
+  └─ game.js            game logic only (init / applyMove / score)
 ```
 
-Room isolation via `@ws.context` — plugin broadcasts events only to clients in the same room. No Redis needed (single instance).
-
-## Adding a new game
-
-Create `srv/games/mygame.js` implementing the interface:
-```js
-module.exports = {
-  minPlayers: 2,
-  maxPlayers: 4,
-  init()                        // → fresh state object
-  applyMove(state, move, symbol) // → { state, end: null | { winner } } or { error }
-}
-```
-Register in `game-service.js`:
-```js
-GAMES['mygame'] = require('./games/mygame');
-```
-Done. All lobby/host/reconnect/kick logic is handled by the engine.
+Room isolation via `@ws.context` — plugin broadcasts events only to clients in the same room.
+Persistent state: Rooms, Players, Matches, Leaderboard in SQLite (dev) / HANA (prod).
+Transient: live board state, chat (not persisted — intentional).
 
 ---
 
@@ -45,69 +40,61 @@ Done. All lobby/host/reconnect/kick logic is handled by the engine.
 
 ```sh
 npm install
-cds watch
+cds watch app
 ```
 
-Server: `http://localhost:4004` — GameService at `ws://localhost:4004/ws/game`.
+- LobbyService: `http://localhost:4004/odata/v4/lobby`
+- PlayService:  `ws://localhost:4004/ws/play`
+- Auth: `mocked` locally. Users: `alice`, `bob`, `carol`
 
-Auth: `mocked` locally. Default users: `alice`, `bob`, `carol`.
-
-### Install websocat
+### Tools
 
 ```sh
-nix shell nixpkgs#websocat
-# or permanently: add websocat to environment.systemPackages
+# websocat for WebSocket testing
+nix shell nixpkgs#websocat       # or add to environment.systemPackages
 ```
 
 ---
 
-## Game Flow
+## Quick Game (copy-paste)
 
-```
-lobby ──(host: start)──► playing ──(win/draw)──► finished
-  ▲                          │                       │
-  │ host: backToLobby        │ host: backToLobby     │ host: rematch → playing
-  └──────────────────────────┘                       │
-  ▲                                                  │
-  └──────────────── host: backToLobby ───────────────┘
-```
-
-Disconnect during `playing` → `paused` (60s grace). Reconnect via `join` resumes game.
-
----
-
-## Quick game (copy-paste)
-
-Open **two terminals**.
-
-**Terminal A — alice (becomes X):**
+**Step 1 — Create room (HTTP/REST, alice is host+X):**
 ```sh
-websocat -t -H="Cookie: X-Authorization=Basic YWxpY2U6YWxpY2U" ws://localhost:4004/ws/game
+curl -X POST http://localhost:4004/odata/v4/lobby/createRoom \
+  -H "Authorization: Basic YWxpY2U6YWxpY2U=" \
+  -H "Content-Type: application/json" \
+  -d '{"game":"tictactoe"}'
+# → {"value":"<roomId>"}
 ```
 
-**Terminal B — bob (becomes O):**
+**Step 2 — Terminal A (alice = X):**
 ```sh
-websocat -t -H="Cookie: X-Authorization=Basic Ym9iOmJvYg==" ws://localhost:4004/ws/game
+websocat -t -H="Cookie: X-Authorization=Basic YWxpY2U6YWxpY2U" ws://localhost:4004/ws/play
+```
+```
+{"event":"join","data":{"room":"<roomId>"}}
+{"event":"start","data":{"room":"<roomId>"}}
 ```
 
-Paste line by line, alternating terminals:
+**Step 3 — Terminal B (bob = O):**
+```sh
+websocat -t -H="Cookie: X-Authorization=Basic Ym9iOmJvYg==" ws://localhost:4004/ws/play
+```
+```
+{"event":"join","data":{"room":"<roomId>"}}
+```
 
-**A:** `{"event":"join","data":{"room":"r1","game":"tictactoe"}}`
-**B:** `{"event":"join","data":{"room":"r1","game":"tictactoe"}}`
-**A (host):** `{"event":"configure","data":{"room":"r1","firstPlayer":"X"}}`
-**A (host):** `{"event":"start","data":{"room":"r1"}}`
-**A:** `{"event":"move","data":{"room":"r1","data":"{\"cell\":0}"}}`
-**B:** `{"event":"move","data":{"room":"r1","data":"{\"cell\":1}"}}`
-**A:** `{"event":"move","data":{"room":"r1","data":"{\"cell\":4}"}}`
-**B:** `{"event":"move","data":{"room":"r1","data":"{\"cell\":2}"}}`
-**A:** `{"event":"move","data":{"room":"r1","data":"{\"cell\":8}"}}`
-
+**Step 4 — Play (alice X first, alternating):**
+```
+{"event":"move","data":{"room":"<roomId>","data":"{\"cell\":0}"}}
+{"event":"move","data":{"room":"<roomId>","data":"{\"cell\":1}"}}
+{"event":"move","data":{"room":"<roomId>","data":"{\"cell\":4}"}}
+{"event":"move","data":{"room":"<roomId>","data":"{\"cell\":2}"}}
+{"event":"move","data":{"room":"<roomId>","data":"{\"cell\":8}"}}
+```
 → `finished` winner: X
 
-**Rematch:** `{"event":"rematch","data":{"room":"r1"}}`
-**Back to lobby:** `{"event":"backToLobby","data":{"room":"r1"}}`
-
-### Board layout (TicTacToe)
+**Board layout:**
 ```
  0 | 1 | 2
 -----------
@@ -116,115 +103,188 @@ Paste line by line, alternating terminals:
  6 | 7 | 8
 ```
 
+**After game (host only):**
+```
+{"event":"rematch","data":{"room":"<roomId>"}}
+{"event":"backToLobby","data":{"room":"<roomId>"}}
+```
+
 ---
 
-## Actions
+## Lobby REST API
+
+`GET /odata/v4/lobby/Games` — game catalogue
+`GET /odata/v4/lobby/Rooms` — active rooms
+`GET /odata/v4/lobby/Leaderboard` — leaderboard
+`POST /odata/v4/lobby/createRoom` body: `{"game":"tictactoe"}` → roomId
+
+Auth header: `Authorization: Basic <base64(user:user)>` (dev mocked)
+
+---
+
+## WebSocket Actions (PlayService)
 
 | Action | Who | Status | Effect |
 |--------|-----|--------|--------|
-| `join(room, game?)` | anyone | any | Join room; first player = host |
-| `configure(room, firstPlayer)` | host | lobby | Set `firstPlayer`: X / O / random |
+| `join(room)` | anyone | any | Join room; creator (via createRoom) is host+X |
+| `configure(room, settings)` | host | lobby | Set game settings (JSON string) |
 | `start(room)` | host | lobby | → playing |
-| `move(room, data)` | X / O | playing | Game-specific move (JSON string) |
+| `move(room, data)` | X/O | playing | Game move (JSON string, game-specific) |
 | `rematch(room)` | host | finished | → playing, keep players |
-| `backToLobby(room)` | host | any | → lobby, all clients notified |
+| `backToLobby(room)` | host | any | → lobby, all notified |
 | `kick(room, user)` | host | any | Remove player/spectator |
 | `leave(room)` | anyone | any | Leave voluntarily |
+| `chat(room, text)` | anyone | any | Broadcast chat message (transient) |
 
-## Events
+## WebSocket Events
 
-| Event | Payload |
-|-------|---------|
+| Event | Key payload |
+|-------|-------------|
 | `joined` | `{ room, player, symbol, host, status }` |
-| `configured` | `{ room, firstPlayer }` |
-| `started` | `{ room, firstPlayer }` |
-| `moved` | `{ room, data }` — `data` = JSON game state |
+| `configured` | `{ room, settings }` |
+| `started` | `{ room, firstTurn }` |
+| `moved` | `{ room, data }` — JSON game state |
 | `finished` | `{ room, winner, state }` |
-| `rematched` | `{ room }` |
+| `rematched` | `{ room, firstTurn }` |
 | `lobbyReset` | `{ room }` |
 | `playerLeft` | `{ room, player, symbol, newHost }` |
 | `playerKicked` | `{ room, player }` |
-| `playerDisconnected` | `{ room, player, symbol, remaining }` |
+| `playerDisconnected` | `{ room, player, symbol }` |
 | `playerReconnected` | `{ room, player, symbol }` |
+| `chatMessage` | `{ room, player, text, ts }` |
 | `gameError` | `{ room, message }` |
-
-## gameError messages
-
-| Message | Cause |
-|---------|-------|
-| `only host can do this` | Non-host called host-only action |
-| `cannot <action> when status is <status>` | Invalid status transition |
-| `need N players to start` | Not enough players in lobby |
-| `not your turn` | Wrong player moved |
-| `invalid cell` | Cell outside 0–8 |
-| `cell taken` | Cell already occupied |
-| `you are a spectator` | Spectator tried to move |
-| `cannot kick yourself` | Host tried to kick themselves |
-| `unknown game: <x>` | Unknown game identifier |
 
 ## Reconnect
 
-If a player closes their terminal during `playing`:
-1. Game → `paused`, both clients get `playerDisconnected`
-2. Moves blocked for 60 seconds
-3. Reconnect: open new websocat + send `join` with same room → `playerReconnected`, game resumes
-4. Timeout (60s): player is removed, host succession applies, room → lobby
+Disconnect during `playing` → room paused (60s grace).
+Reconnect: `join` same room → `playerReconnected`, game resumes.
+Timeout (60s): player removed, host succession, room → lobby.
 
-## Host succession
+## Host Succession
 
-When host leaves/disconnects/is kicked: O becomes new host (ruckt auf X slot). If no O: first spectator. If room empty: room deleted automatically.
+Host leaves/disconnects/is kicked → next remaining player becomes host.
+Room auto-deleted when all players gone.
 
 ---
 
-## Debug logging
+## Adding a new game (Plugin)
+
+Three files, then one dependency:
+
+**1. `games/mygame/package.json`**
+```json
+{
+  "name": "@cap-games/mygame",
+  "version": "1.0.0",
+  "main": "game.js",
+  "dependencies": { "@cap-games/platform": "*" }
+}
+```
+
+**2. `games/mygame/cds-plugin.js`** — always identical, change name only
+```js
+const cds = require('@sap/cds');
+(cds.env.games ??= {}).mygame = require('./game');
+```
+CAP auto-loads `cds-plugin.js` from any installed package. No platform changes needed.
+
+**3. `games/mygame/game.js`** — only real work
+```js
+module.exports = {
+  meta: { name: 'My Game', minPlayers: 2, maxPlayers: 4 },
+
+  settingsSchema: {
+    difficulty: { type: 'enum', values: ['easy','hard'], default: 'easy' }
+  },
+
+  // Return initial game state
+  init(settings = {}) {
+    return { /* your state */ };
+  },
+
+  // Apply a move. Return { state, end: null } or { state, end: { winner } } or { error }
+  applyMove(state, move, symbol) {
+    // validate move...
+    return { state: newState, end: null };
+    // or: return { error: 'invalid move' };
+    // or: return { state: finalState, end: { winner: symbol } };
+  },
+
+  // Optional: custom scoring. Default: winner=3pts, draw=1pt, loss=0pt
+  score(end, players) {
+    return players.map(p => ({
+      user: p.user,
+      result: end.winner === 'draw' ? 'draw' : p.symbol === end.winner ? 'win' : 'loss',
+      points: end.winner === 'draw' ? 1 : p.symbol === end.winner ? 3 : 0,
+    }));
+  },
+
+  // Optional: add game-specific WebSocket actions/events to PlayService
+  extendService(srv) {
+    srv.on('myAction', req => { /* ... */ });
+  },
+};
+```
+
+**Activate:** `npm add @cap-games/mygame -w app && npm install`
+**Test isolated:** `cds watch games/mygame`
+
+The platform provides: lobby, host, join, kick, settings, chat, reconnect, status machine, leaderboard persistence — automatically. Your game only implements the rules.
+
+---
+
+## Debug Logging
 
 ```sh
-CDS_LOG_LEVELS_game=info cds watch    # game events (default)
-DEBUG=websocket cds watch             # WS transport: connect/disconnect/upgrade
+CDS_LOG_LEVELS_game=info cds watch app    # game events (default on)
+DEBUG=websocket cds watch app             # WS transport: connect/disconnect
 ```
 
 ---
 
 ## Deploy to BTP (Cloud Foundry Trial)
 
-### Prerequisites
-- CF CLI + MBT: `npm i -g mbt`
-- Logged in: `cf login -a https://api.cf.<region>.hana.ondemand.com`
-
-### Build & Deploy
 ```sh
 mbt build
 cf deploy mta_archives/cap-games_1.0.0.mtar
 ```
 
 Creates:
-- `cap-games-srv` — CAP Node.js backend
-- `cap-games` — Approuter with IAS auth
-- `cap-games-ias` — IAS identity service instance
+- `cap-games-srv` — CAP server
+- `cap-games` — Approuter (IAS auth)
+- `cap-games-ias` — IAS identity service
+- `cap-games-hana` — HANA HDI container
 
-### Post-Deploy: IAS Self-Registration
-
+**Post-deploy — IAS Self-Registration:**
 1. BTP Cockpit → Services → Instances → `cap-games-ias` → open IAS Admin Console
 2. Applications → `cap-games` → Authentication & Access
 3. Enable **Self-Registration** → Save
 
-### Connect (deployed)
-
+**Connect (deployed):**
 ```sh
 cf app cap-games   # get approuter URL
-websocat -t -H="Cookie: <session-cookie>" wss://<approuter-url>/ws/game
+# REST: https://<approuter-url>/odata/v4/lobby/Games
+# WS:   wss://<approuter-url>/ws/play  (after IAS login for session cookie)
 ```
-
-Open `https://<approuter-url>` in browser to trigger IAS login, then copy session cookie.
 
 ---
 
-## base64 reference
+## base64 reference (local mocked auth)
 
-```sh
-printf 'alice:alice' | base64   # YWxpY2U6YWxpY2U=
-printf 'bob:bob'   | base64     # Ym9iOmJvYg==
-printf 'carol:carol' | base64   # Y2Fyb2w6Y2Fyb2w=
-```
+| Header type | User | Value |
+|---|---|---|
+| `Authorization: Basic <value>` | alice | `YWxpY2U6YWxpY2U=` |
+| `Authorization: Basic <value>` | bob | `Ym9iOmJvYg==` |
+| `Authorization: Basic <value>` | carol | `Y2Fyb2w6Y2Fyb2w=` |
+| `Cookie: X-Authorization=Basic <value>` | alice | `YWxpY2U6YWxpY2U` |
+| `Cookie: X-Authorization=Basic <value>` | bob | `Ym9iOmJvYg==` |
 
-Password is ignored for mock users — only the username matters.
+HTTP (OData): use `Authorization` header.
+WebSocket (websocat): use `Cookie: X-Authorization=Basic ...` header.
+
+---
+
+## TODO (later)
+
+- Short join codes (4-char) instead of UUIDs — friendlier room sharing
+- Team-play support (multiple players per symbol/side)
