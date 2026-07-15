@@ -230,6 +230,7 @@ function setStatus(view, msg) {
 // ── Room management ───────────────────────────────────────────
 async function joinRoom(roomId) {
   setView('room');
+  $('room-id-display').textContent = roomId;   // show immediately
   state.room    = { id: roomId };
   state.players = [];
   $('player-list').innerHTML   = '';
@@ -307,8 +308,8 @@ $('btn-chat').onclick      = () => {
   wsSend('chat', { room: state.room.id, text: t });
   $('chat-input').value = '';
 };
-$('chat-input').onkeydown  = e => e.key === 'Enter' && $('btn-chat').click();
-$('join-room-id').onkeydown= e => e.key === 'Enter' && $('btn-join').click();
+$('chat-input').onkeydown   = e => { if (e.key === 'Enter') $('btn-chat').click(); };
+$('join-room-id').onkeydown = e => { if (e.key === 'Enter') $('btn-join').click(); };
 
 // restore session
 renderLoginView();

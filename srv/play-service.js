@@ -36,9 +36,15 @@ class PlayService extends cds.ApplicationService {
         return player?.symbol ?? 'spectator';
       }
 
-      // -- already in room (idempotent)
+      // -- already in room (idempotent) — re-emit joined so client can build view
       const existing = await SELECT.one.from(Players).where({ room_ID: roomId, user });
-      if (existing) return existing.symbol;
+      if (existing) {
+        await this.emit('joined', {
+          room: roomId, player: user, symbol: existing.symbol,
+          host: existing.isHost, status: room.status,
+        });
+        return existing.symbol;
+      }
 
       // -- assign slot
       const players = await SELECT.from(Players).where({ room_ID: roomId });
