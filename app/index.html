@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>cap-games</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ── Login ─────────────────────────────────────────────── -->
+  <section id="view-login" class="view">
+    <h1>cap-games</h1>
+    <p>Choose your player (local dev)</p>
+    <div class="user-list" id="user-list"></div>
+  </section>
+
+  <!-- ── Lobby ─────────────────────────────────────────────── -->
+  <section id="view-lobby" class="view hidden">
+    <header>
+      <h2>Lobby</h2>
+      <span id="lobby-user"></span>
+      <button id="btn-logout" class="small">← logout</button>
+    </header>
+
+    <h3>Games</h3>
+    <ul id="game-list"></ul>
+
+    <h3>Join a room</h3>
+    <div class="row">
+      <input id="join-room-id" placeholder="Room ID" />
+      <button id="btn-join">Join</button>
+    </div>
+
+    <div id="lobby-status" class="status"></div>
+  </section>
+
+  <!-- ── Room ──────────────────────────────────────────────── -->
+  <section id="view-room" class="view hidden">
+    <header>
+      <h2 id="room-title">Room</h2>
+      <code id="room-id-display"></code>
+      <button id="btn-leave" class="small danger">Leave</button>
+    </header>
+
+    <div id="room-status" class="status"></div>
+
+    <!-- players -->
+    <ul id="player-list"></ul>
+
+    <!-- host controls -->
+    <div id="host-controls" class="hidden">
+      <button id="btn-start">Start game</button>
+    </div>
+    <div id="post-game-controls" class="hidden">
+      <button id="btn-rematch">Rematch</button>
+      <button id="btn-back-lobby">Back to lobby</button>
+    </div>
+
+    <!-- game board (injected by board module) -->
+    <div id="board-container"></div>
+
+    <!-- chat -->
+    <div id="chat-box">
+      <div id="chat-messages"></div>
+      <div class="row">
+        <input id="chat-input" placeholder="Chat…" />
+        <button id="btn-chat">Send</button>
+      </div>
+    </div>
+  </section>
+
+  <script type="module" src="platform.js"></script>
+</body>
+</html>

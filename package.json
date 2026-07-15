@@ -4,7 +4,7 @@
   "description": "Multiplayer browser game platform on SAP BTP",
   "scripts": {
     "start": "cds-serve",
-    "dev":   "cds watch"
+    "dev":   "cds watch --include games"
   },
   "workspaces": [
     "games/*"
