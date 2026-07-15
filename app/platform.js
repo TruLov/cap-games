@@ -107,7 +107,7 @@ function onJoined({ room, player, symbol, host, status }) {
       ? 'You are spectating'
       : `You are ${symbol}${host ? ' (host)' : ''} — waiting for players…`);
   }
-  addPlayer({ player, symbol, host: symbol === state.players.find(p=>p.player===player)?.host });
+  addPlayer({ player, symbol });
   updateControls();
 }
 
@@ -179,7 +179,11 @@ function onReconnected({ player, symbol }) {
 function onChat({ player, text }) {
   const el = document.createElement('div');
   el.className = 'chat-msg';
-  el.innerHTML = `<strong>${player}:</strong> ${text}`;
+  const name = document.createElement('strong');
+  name.textContent = player + ':';
+  const msg = document.createTextNode(' ' + text);
+  el.appendChild(name);
+  el.appendChild(msg);
   $('chat-messages').appendChild(el);
   $('chat-messages').scrollTop = 9999;
 }

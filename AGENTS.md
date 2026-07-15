@@ -159,3 +159,5 @@ Activate: `npm add @cap-games/mygame -w .` (or add to root `package.json` depend
 - Short room join codes (4-char) instead of UUIDs — friendlier sharing
 - Team-play support (multiple players per symbol)
 - `cds.test` test suite to replace ad-hoc Node scripts
+- UI: initial player list sync when joining an existing room
+- UI: kick button in host controls
