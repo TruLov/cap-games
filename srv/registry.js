@@ -43,4 +43,4 @@ function loadAll() {
   return games;
 }
 
-module.exports = { get, all, loadAll, validate };
+module.exports = { get, all, loadAll };

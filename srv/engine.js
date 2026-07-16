@@ -87,7 +87,6 @@ function defaultScore(end, players) {
 }
 
 module.exports = {
-  GRACE_MS,
   guardStatus, guardHost,
   getBoard, deleteBoard, initBoard,
   setGraceTimer, clearGraceTimer, hasGraceTimer, allGraceTimers,

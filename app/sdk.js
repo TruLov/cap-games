@@ -1,7 +1,7 @@
 /**
  * sdk.js — Platform SDK factory
  *
- * Shell calls makeSdk(room, me, wsSend, wsOnce) once per game session.
+ * Shell calls makeSdk({ room, me, wsSend, emitter, toastFn, leaveFn }) once per game session.
  * Game receives sdk via mount(rootEl, sdk) and uses it freely.
  *
  * sdk = {

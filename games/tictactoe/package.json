@@ -2,5 +2,8 @@
   "name": "@cap-games/tictactoe",
   "version": "1.0.0",
   "description": "TicTacToe game plugin for cap-games platform",
-  "main": "game.js"
+  "main": "game.js",
+  "dependencies": {
+    "express": "^4"
+  }
 }

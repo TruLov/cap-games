@@ -173,7 +173,7 @@ games/mygame/
 
 **`ui/index.js`** is served automatically at `/games/<name>/index.js` by the game's own `cds-plugin.js` bootstrap hook. The platform shell (`app/platform.js`) dynamically imports it and calls `mount()` once when the room starts.
 
-Board contract:
+Game UI contract:
 ```js
 export default {
   mount(rootEl, sdk) {
@@ -218,4 +218,3 @@ Activate: add `"@cap-games/mygame": "*"` to root `package.json` dependencies, th
 - Team-play support (multiple players per symbol)
 - `cds.test` test suite to replace ad-hoc Node scripts
 - UI: initial player list sync when joining an existing room
-- UI: kick button in host controls
