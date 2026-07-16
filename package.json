@@ -13,7 +13,7 @@
     "games/*"
   ],
   "dependencies": {
-    "@cap-games/sushigo": "*",
+    "@cap-games/kaiten": "*",
     "@cap-games/tictactoe": "*",
     "@cap-js-community/websocket": "^1",
     "@sap/cds": "^10",

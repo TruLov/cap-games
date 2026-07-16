@@ -1,6 +1,6 @@
-# Implementation Plan — Sushi Go Party! (CAP Game Plugin)
+# Implementation Plan — Kaiten Party! (CAP Game Plugin)
 
-This is a step-by-step, test-driven plan to implement Sushi Go Party! as a self-registering
+This is a step-by-step, test-driven plan to implement Kaiten Party! as a self-registering
 CAP game plugin inside the `cap-games` platform. It follows the platform's game contract
 (`meta` / `settingsSchema` / `init` / `applyMove` / `score` / `extendService`) and the
 project's [constitution.md](constitution.md) and [specification.md](specification.md).
@@ -12,9 +12,9 @@ project's [constitution.md](constitution.md) and [specification.md](specificatio
 ## 0. Key architectural challenge (read first)
 
 The platform's reference game (TicTacToe) is **turn-based, single-mover**: one player moves,
-`applyMove` validates the turn, emits `moved`, next player moves. Sushi Go is fundamentally different:
+`applyMove` validates the turn, emits `moved`, next player moves. Kaiten is fundamentally different:
 
-| Concern | TicTacToe (reference) | Sushi Go Party! |
+| Concern | TicTacToe (reference) | Kaiten Party! |
 |---|---|---|
 | Turn model | Sequential, one mover | **Simultaneous** — everyone picks, then reveal |
 | Rounds | 1 | **3 rounds** + menu-selection phase |
@@ -25,7 +25,7 @@ The platform's reference game (TicTacToe) is **turn-based, single-mover**: one p
 
 **Design decision — buffer simultaneous selections inside game state.**
 The platform's `move` handler does **not** enforce whose turn it is — it delegates entirely to
-`game.applyMove(state, move, symbol)`. So Sushi Go's `applyMove` will:
+`game.applyMove(state, move, symbol)`. So Kaiten's `applyMove` will:
 
 1. Record the calling player's card selection into `state.pending[symbol]`.
 2. If **not all** active players have selected yet → return updated `state` with **no reveal**
@@ -52,20 +52,20 @@ it to all clients via the `moved` event. Because hands are hidden information, t
 Create the four-file plugin skeleton:
 
 ```
-games/sushigo/
-  package.json         { "name": "@cap-games/sushigo", "version": "1.0.0", "main": "game.js" }
-  cds-plugin.js        register backend + static UI mount at /games/sushigo
+games/kaiten/
+  package.json         { "name": "@cap-games/kaiten", "version": "1.0.0", "main": "game.js" }
+  cds-plugin.js        register backend + static UI mount at /games/kaiten
   game.js              exports the platform game interface
   ui/index.js          exports default { mount(rootEl, sdk) }
 ```
 
 - `cds-plugin.js`: copy tictactoe's verbatim, swap the id:
   ```js
-  (cds.env.games ??= {}).sushigo = require('./game');
+  (cds.env.games ??= {}).kaiten = require('./game');
   cds.on('bootstrap', app =>
-    app.use('/games/sushigo', express.static(path.join(__dirname, 'ui'))));
+    app.use('/games/kaiten', express.static(path.join(__dirname, 'ui'))));
   ```
-- Activate the game: add `"@cap-games/sushigo": "*"` to the **root** `package.json` dependencies,
+- Activate the game: add `"@cap-games/kaiten": "*"` to the **root** `package.json` dependencies,
   then run `npm install` so CAP auto-discovers the plugin.
 
 **Do not touch `srv/`, `db/`, or `app/`** — the platform stays generic (per AGENTS.md).
@@ -78,10 +78,10 @@ games/sushigo/
 
 The constitution mandates test-driven development. Establish tests **before** logic.
 
-- Add a `games/sushigo/test/` folder.
+- Add a `games/kaiten/test/` folder.
 - Use Node's built-in test runner (`node:test` + `node:assert`) to keep the game logic pure and
   dependency-free (the game must have **no CAP imports**, per AGENTS.md conventions).
-- Add an npm script at the plugin (or root) level: `"test:sushigo": "node --test games/sushigo/test/"`.
+- Add an npm script at the plugin (or root) level: `"test:kaiten": "node --test games/kaiten/test/"`.
 - Write the **first failing tests** for the card catalogue and deck assembly (Step 3) before coding.
 
 Every card strategy (Step 4) and every game-flow transition (Steps 5–8) gets a test written first.
@@ -90,7 +90,7 @@ Every card strategy (Step 4) and every game-flow transition (Steps 5–8) gets a
 
 ## 3. Card catalogue & deck model
 
-Create `games/sushigo/cards/catalogue.js` — the static data for all 181 cards.
+Create `games/kaiten/cards/catalogue.js` — the static data for all 181 cards.
 
 - Define each card **type** with: `id`, `displayName`, `category`
   (`nigiri | roll | appetizer | special | dessert`), count in the full pool, and any per-card
@@ -99,7 +99,7 @@ Create `games/sushigo/cards/catalogue.js` — the static data for all 181 cards.
 - Model an individual card instance as a small immutable object (e.g.
   `{ type: 'nigiri', variant: 'squid' }`).
 
-Create `games/sushigo/deck.js`:
+Create `games/kaiten/deck.js`:
 - `assembleDeck(menu, playerCount)` → builds the pool from the selected menu
   (Nigiri always + 1 roll + 3 appetizers + 2 specials + 1 dessert).
 - `dealCounts(playerCount)` → hand size per player (10/9/8/7).
@@ -115,7 +115,7 @@ menu restrictions (Menu/Special Order banned at 7–8p; Spoon/Edamame banned at 
 
 The constitution requires the **strategy pattern**: most cards share behavior, some need extra logic.
 
-Create `games/sushigo/cards/strategies/` with one strategy per card type implementing a common
+Create `games/kaiten/cards/strategies/` with one strategy per card type implementing a common
 interface. Suggested interface:
 
 ```js
@@ -156,7 +156,7 @@ interface. Suggested interface:
 In `game.js`:
 
 ```js
-meta: { name: 'Sushi Go Party!', minPlayers: 2, maxPlayers: 8 }
+meta: { name: 'Kaiten Party!', minPlayers: 2, maxPlayers: 8 }
 ```
 
 `settingsSchema` drives the host's pre-game configuration (via the platform `configure` action).
@@ -259,7 +259,7 @@ one card left, Spoon naming an absent card type).
 ## 9. `score(end, players)` — leaderboard mapping
 
 The platform upserts `Leaderboard` (wins/losses/draws/points) from `score()`'s return.
-Map Sushi Go's final ranking:
+Map Kaiten's final ranking:
 
 ```js
 score(end, players) {
@@ -269,7 +269,7 @@ score(end, players) {
 ```
 
 - Top rank → `win`; a shared top rank → all `draw`; everyone else → `loss`.
-- `points` = each player's final Sushi Go score (so the leaderboard reflects real totals).
+- `points` = each player's final Kaiten score (so the leaderboard reflects real totals).
 - Map `symbol` back to `user` via the `players` array.
 
 **Tests first:** ranking → result/points mapping including ties.
@@ -300,7 +300,7 @@ state decided in Step 0). Never trust the client to hide cards it received.
 
 ## 11. Integration & end-to-end validation
 
-- Run the full unit suite: `node --test games/sushigo/test/`.
+- Run the full unit suite: `node --test games/kaiten/test/`.
 - Manual multiplayer smoke test: start the server, open multiple browser sessions, run a full
   2-player and a 4-player game through all 3 rounds, exercising each menu and each special card.
 - Verify reconnect grace (disconnect mid-round → rejoin within 60s → hand restored).

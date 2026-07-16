@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const flow = require('../flow');
 
 const START = (players, extra = {}) =>
-  flow.init({ players, preset: 'sushi_go', seed: 12345, ...extra });
+  flow.init({ players, preset: 'classic', seed: 12345, ...extra });
 
 test('init deals correct hand sizes and sets up state', () => {
   const s = START(['X', 'O']);
@@ -20,7 +20,7 @@ test('init deals correct hand sizes and sets up state', () => {
 });
 
 test('init rejects fewer than 2 players', () => {
-  assert.throws(() => flow.init({ players: ['X'], preset: 'sushi_go' }));
+  assert.throws(() => flow.init({ players: ['X'], preset: 'classic' }));
 });
 
 test('applyMove buffers until all players have selected', () => {
@@ -55,7 +55,7 @@ test('turn resolves and rotates hands when all selected', () => {
 });
 
 test('nigiri auto-places on an unoccupied wasabi and triples', () => {
-  const s = flow.init({ players: ['X', 'O'], preset: 'sushi_go', seed: 1 });
+  const s = flow.init({ players: ['X', 'O'], preset: 'classic', seed: 1 });
   // craft hands directly for a deterministic scenario
   s.hands.X = [{ type: 'wasabi', color: 'wasabi' }, { type: 'nigiri', color: 'nigiri', variant: 'squid', value: 3 }];
   s.hands.O = [{ type: 'maki', color: 'maki', icons: 1 }, { type: 'maki', color: 'maki', icons: 1 }];
@@ -127,7 +127,7 @@ test('state is JSON-serializable after a turn', () => {
 });
 
 test('chopsticks: played one turn, activated a later turn to play two cards', () => {
-  const s = flow.init({ players: ['X', 'O'], preset: 'sushi_go', seed: 1 });
+  const s = flow.init({ players: ['X', 'O'], preset: 'classic', seed: 1 });
 
   // Turn 1: X plays chopsticks normally → it stacks in front of X.
   s.hands.X = [{ type: 'chopsticks', color: 'chopsticks' }, { type: 'maki', color: 'maki', icons: 1 }, { type: 'maki', color: 'maki', icons: 2 }];
@@ -153,7 +153,7 @@ test('chopsticks: played one turn, activated a later turn to play two cards', ()
 });
 
 test('chopsticks: cannot use pick2 without a chopsticks in the tableau', () => {
-  const s = flow.init({ players: ['X', 'O'], preset: 'sushi_go', seed: 1 });
+  const s = flow.init({ players: ['X', 'O'], preset: 'classic', seed: 1 });
   s.hands.X = [{ type: 'maki', color: 'maki', icons: 1 }, { type: 'maki', color: 'maki', icons: 2 }];
   const r = flow.applyMove(s, { pick: 0, pick2: 1 }, 'X');
   assert.match(r.error, /no chopsticks/);

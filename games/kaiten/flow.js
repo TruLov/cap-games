@@ -1,12 +1,12 @@
 /**
- * Sushi Go Party! — Game flow engine.
+ * Kaiten — Game flow engine.
  *
  * Implements the platform game contract's stateful core:
  *   init(settings) -> state
  *   applyMove(state, move, symbol) -> { state, end } | { error }
  *
  * The platform's `move` handler does NOT enforce turn order — it delegates all
- * validity to this module. Sushi Go is a *simultaneous* game, so applyMove
+ * validity to this module. Kaiten is a *simultaneous* game, so applyMove
  * buffers each player's selection into `state.pending` and only resolves the
  * turn once every active player has selected.
  *

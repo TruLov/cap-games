@@ -1,5 +1,5 @@
 /**
- * Sushi Go Party! — Game UI. mount(rootEl, sdk)
+ * Kaiten — Game UI. mount(rootEl, sdk)
  *
  * The game owns its whole UI area. It reuses shell components (chat, players)
  * via dynamic import, and drives the platform via sdk.send / sdk.on.
@@ -13,7 +13,7 @@ import { mountChat }    from '/shell/chat.js';
 import { mountPlayers } from '/shell/players.js';
 
 const MENU_PRESETS = [
-  ['sushi_go',       'Sushi Go! (classic)'],
+  ['classic',        'Kaiten (classic)'],
   ['my_first_meal',  'My First Meal'],
   ['party_sampler',  'Party Sampler'],
   ['master_menu',    'Master Menu'],

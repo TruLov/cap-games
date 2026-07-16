@@ -1,5 +1,5 @@
 /**
- * Sushi Go Party! — Card scoring strategies (Strategy pattern).
+ * Kaiten — Card scoring strategies (Strategy pattern).
  *
  * Each card type maps to a strategy object. A strategy may implement:
  *   scoreRound(player, ctx) -> number   end-of-round points for this player

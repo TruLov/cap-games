@@ -1,5 +1,5 @@
 /**
- * Sushi Go Party! — Card catalogue (static data for the full 181-card pool).
+ * Kaiten — Card catalogue (static data for the full 181-card pool).
  *
  * Pure data + pool builders. No CAP imports, no game state.
  *

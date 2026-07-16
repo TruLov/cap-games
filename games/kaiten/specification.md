@@ -1,4 +1,4 @@
-# Specification (Sushi Go Party!)
+# Specification (Kaiten Party!)
 
 - This is a card game. It can be played with 2 to 8 players
 - There is a fixed pool of 181 cards, but only a chosen subset is used in each game (see Menu Selection below)
@@ -30,7 +30,7 @@
 | Menu | Rolls | Appetizers | Specials | Dessert | Notes |
 |---|---|---|---|---|---|
 | **My First Meal** | Maki Roll | Tempura, Sashimi, Miso Soup | Wasabi, Tea | Green Tea Ice Cream | Good for first-time players (2–5 players) |
-| **Sushi Go!** | Maki Roll | Tempura, Sashimi, Dumpling | Chopsticks, Wasabi | Pudding | Replicates the classic original game (2–5 players) |
+| **Kaiten!** | Maki Roll | Tempura, Sashimi, Dumpling | Chopsticks, Wasabi | Pudding | Replicates the classic original game (2–5 players) |
 | **Party Sampler** | Temaki | Tempura, Dumpling, Tofu | Wasabi, Menu | Green Tea Ice Cream | Introduces new cards from this edition (2–6 players) |
 | **Master Menu** | Temaki | Onigiri, Tofu, Sashimi | Spoon, Takeout Box | Fruit | For experienced players (3–8 players) |
 | **Points Platter** | Uramaki | Onigiri, Dumpling, Edamame | Special Order, Tea | Green Tea Ice Cream | High-scoring combinations (3–8 players) |

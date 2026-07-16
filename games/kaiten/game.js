@@ -1,5 +1,5 @@
 /**
- * Sushi Go Party! — Platform game module.
+ * Kaiten — Platform game module.
  *
  * Implements the cap-games game interface:
  *   meta, settingsSchema, init(settings), applyMove(state, move, symbol),
@@ -9,12 +9,12 @@
  * lives in ./flow (turn engine) and ./scoring (card strategies).
  *
  * ── Roster in settings ─────────────────────────────────────────────────────
- * The platform calls init(settings) without a player roster. Sushi Go needs the
+ * The platform calls init(settings) without a player roster. Kaiten needs the
  * roster to deal hands, so the host UI must include it in the room settings:
  *
  *   settings = {
  *     players: ['X','O',...],           // player symbols (from join events)
- *     preset:  'sushi_go',              // OR a custom menu:
+ *     preset:  'classic',              // OR a custom menu:
  *     roll, appetizers:[3], specials:[2], dessert
  *   }
  *
@@ -35,7 +35,7 @@ const { MENUS } = require('./deck');
 module.exports = {
 
   meta: {
-    name: 'Sushi Go Party!',
+    name: 'Kaiten',
     minPlayers: 2,
     // Platform currently provides 6 player symbols (X,O,A,B,C,D); 7–8 player
     // games require platform symbol expansion. Menu rules still validate 7–8p.
@@ -46,7 +46,7 @@ module.exports = {
     preset: {
       type: 'enum',
       values: [...Object.keys(MENUS), 'custom'],
-      default: 'sushi_go',
+      default: 'classic',
     },
   },
 

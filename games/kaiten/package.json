@@ -1,7 +1,7 @@
 {
-  "name": "@cap-games/sushigo",
+  "name": "@cap-games/kaiten",
   "version": "1.0.0",
-  "description": "Sushi Go Party! game plugin for cap-games platform",
+  "description": "Kaiten game plugin for cap-games platform",
   "main": "game.js",
   "scripts": {
     "test": "node --test-reporter=tap --test \"test/**/*.test.js\""

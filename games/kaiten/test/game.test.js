@@ -15,7 +15,7 @@ test('exposes the required platform interface', () => {
 });
 
 test('init + applyMove round-trip through the module', () => {
-  const s = game.init({ players: ['X', 'O'], preset: 'sushi_go', seed: 7 });
+  const s = game.init({ players: ['X', 'O'], preset: 'classic', seed: 7 });
   assert.equal(s.hands.X.length, 10);
   const r = game.applyMove(s, { pick: 0 }, 'X');
   assert.equal(r.end, null);
@@ -53,7 +53,7 @@ test('score ignores spectators', () => {
 });
 
 test('publicState hides all hidden information', () => {
-  const s = game.init({ players: ['X', 'O'], preset: 'sushi_go', seed: 7 });
+  const s = game.init({ players: ['X', 'O'], preset: 'classic', seed: 7 });
   const pub = game.publicState(s);
   assert.equal(pub.hands, undefined);
   assert.equal(pub.drawPile, undefined);
@@ -65,7 +65,7 @@ test('publicState hides all hidden information', () => {
 });
 
 test('publicState reveals only that a player has selected, not what', () => {
-  const s = game.init({ players: ['X', 'O'], preset: 'sushi_go', seed: 7 });
+  const s = game.init({ players: ['X', 'O'], preset: 'classic', seed: 7 });
   game.applyMove(s, { pick: 3 }, 'X');
   const pub = game.publicState(s);
   assert.equal(pub.selected.X, true);
@@ -76,7 +76,7 @@ test('publicState reveals only that a player has selected, not what', () => {
 });
 
 test('privateState exposes only the requesting player hand', () => {
-  const s = game.init({ players: ['X', 'O'], preset: 'sushi_go', seed: 7 });
+  const s = game.init({ players: ['X', 'O'], preset: 'classic', seed: 7 });
   const priv = game.privateState(s, 'X');
   assert.equal(priv.myHand.length, 10);
   assert.equal(priv.hands, undefined);

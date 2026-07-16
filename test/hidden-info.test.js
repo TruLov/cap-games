@@ -4,7 +4,7 @@
  * Integration test — hidden-information projection.
  *
  * Boots the CAP server in-memory, connects two WebSocket clients (alice, bob),
- * plays through the start of a Sushi Go game, and asserts that an opponent
+ * plays through the start of a Kaiten game, and asserts that an opponent
  * NEVER receives another player's hand (or the draw pile) over the wire, while
  * each player privately receives their own hand.
  *
@@ -71,11 +71,11 @@ before(async () => {
     setTimeout(() => reject(new Error('server did not start in time:\n' + buf)), 30000);
   });
 
-  // alice creates a sushigo room (she becomes host with symbol X)
+  // alice creates a kaiten room (she becomes host with symbol X)
   const res = await fetch(`http://localhost:${port}/odata/v4/lobby/createRoom`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: basic('alice') },
-    body: JSON.stringify({ game: 'sushigo' }),
+    body: JSON.stringify({ game: 'kaiten' }),
   });
   assert.equal(res.status, 200, `createRoom status ${res.status}`);
   const body = await res.json();
@@ -104,7 +104,7 @@ test('two players join and get distinct symbols', async () => {
 });
 
 test('start: opponents receive public state only; own hand arrives privately', async () => {
-  send(alice, 'configure', { room: roomId, settings: JSON.stringify({ preset: 'sushi_go', players: ['X', 'O'] }) });
+  send(alice, 'configure', { room: roomId, settings: JSON.stringify({ preset: 'classic', players: ['X', 'O'] }) });
   send(alice, 'start', { room: roomId });
 
   const bStarted = await waitFor(bob, 'started');

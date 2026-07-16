@@ -1,5 +1,5 @@
 /**
- * Sushi Go Party! — Deck assembly, menus, and deterministic shuffling.
+ * Kaiten — Deck assembly, menus, and deterministic shuffling.
  *
  * Pure logic. No CAP imports, no game state.
  */
@@ -15,8 +15,8 @@ const MENUS = Object.freeze({
     roll: 'maki', appetizers: ['tempura', 'sashimi', 'miso'],
     specials: ['wasabi', 'tea'], dessert: 'green_tea_ice_cream',
   },
-  'sushi_go': {
-    name: 'Sushi Go!',
+  'classic': {
+    name: 'Kaiten Classic',
     roll: 'maki', appetizers: ['tempura', 'sashimi', 'dumpling'],
     specials: ['chopsticks', 'wasabi'], dessert: 'pudding',
   },
@@ -85,7 +85,7 @@ function restrictedTypes(playerCount) {
 
 /**
  * Resolve a menu configuration into a concrete menu object.
- * @param {object} config either { preset: 'sushi_go' } or a full custom menu
+ * @param {object} config either { preset: 'classic' } or a full custom menu
  *        { roll, appetizers: [3], specials: [2], dessert }
  * @param {number} playerCount used for restriction validation
  * @returns {{ roll, appetizers, specials, dessert, name? }}

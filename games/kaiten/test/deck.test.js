@@ -57,7 +57,7 @@ test('menu composition must be exactly 1/3/2/1', () => {
 });
 
 test('base deck excludes desserts and has 54 cards', () => {
-  const menu = resolveMenu({ preset: 'sushi_go' }, 3);
+  const menu = resolveMenu({ preset: 'classic' }, 3);
   const deck = baseDeck(menu);
   // nigiri 12 + maki 12 + (3 appetizers × 8 = 24) + (2 specials × 3 = 6) = 54
   assert.equal(deck.length, 54);
@@ -65,7 +65,7 @@ test('base deck excludes desserts and has 54 cards', () => {
 });
 
 test('dessert pool is 15 cards of the menu dessert type', () => {
-  const menu = resolveMenu({ preset: 'sushi_go' }, 3);
+  const menu = resolveMenu({ preset: 'classic' }, 3);
   const pool = dessertPool(menu);
   assert.equal(pool.length, 15);
   assert.ok(pool.every(c => c.type === 'pudding'));

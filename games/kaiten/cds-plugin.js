@@ -1,5 +1,5 @@
 /**
- * Sushi Go Party! cds-plugin.js
+ * Kaiten cds-plugin.js
  * Self-registers backend logic AND frontend UI serving.
  * No changes to platform needed.
  */
@@ -8,8 +8,8 @@ const express = require('express');
 const path    = require('path');
 
 // Backend: register game logic
-(cds.env.games ??= {}).sushigo = require('./game');
+(cds.env.games ??= {}).kaiten = require('./game');
 
-// Frontend: mount ui/ as /games/sushigo/
+// Frontend: mount ui/ as /games/kaiten/
 cds.on('bootstrap', app =>
-  app.use('/games/sushigo', express.static(path.join(__dirname, 'ui'))));
+  app.use('/games/kaiten', express.static(path.join(__dirname, 'ui'))));

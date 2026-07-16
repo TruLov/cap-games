@@ -1,5 +1,5 @@
 /**
- * Sushi Go Party! — Scoring orchestrator.
+ * Kaiten — Scoring orchestrator.
  *
  * Runs the Strategy registry across all players:
  *   scoreRound(players, playerCount, state) -> { [symbol]: points }
