@@ -8,67 +8,48 @@
 </head>
 <body>
 
+  <!-- ── Shell Header (always visible) ────────────────────── -->
+  <header class="sh-header">
+    <span class="sh-logo">🎮 cap-games</span>
+    <nav class="sh-nav">
+      <span id="sh-who" class="sh-user"></span>
+      <code id="sh-room-id" hidden></code>
+      <span id="sh-toast" class="sh-toast" hidden></span>
+      <span id="sh-user-display" class="sh-small"></span>
+      <button id="sh-btn-leave" class="sh-small danger" hidden>Leave</button>
+      <button id="sh-btn-logout" class="sh-small">Logout</button>
+    </nav>
+  </header>
+
   <!-- ── Login ─────────────────────────────────────────────── -->
-  <section id="view-login" class="view">
+  <main id="view-login" class="sh-view sh-center">
     <h1>cap-games</h1>
-    <p>Choose your player (local dev)</p>
-    <div class="user-list" id="user-list"></div>
-  </section>
+    <p>Choose your player</p>
+    <div id="sh-user-list" class="sh-user-list"></div>
+  </main>
 
   <!-- ── Lobby ─────────────────────────────────────────────── -->
-  <section id="view-lobby" class="view hidden">
-    <header>
-      <h2>Lobby</h2>
-      <span id="lobby-user"></span>
-      <button id="btn-logout" class="small">← logout</button>
-    </header>
+  <main id="view-lobby" class="sh-view" hidden>
+    <h2>Lobby</h2>
 
-    <h3>Games</h3>
-    <ul id="game-list"></ul>
+    <section>
+      <h3>Games</h3>
+      <ul id="sh-game-list" class="sh-list"></ul>
+    </section>
 
-    <h3>Join a room</h3>
-    <div class="row">
-      <input id="join-room-id" placeholder="Room ID" />
-      <button id="btn-join">Join</button>
-    </div>
-
-    <div id="lobby-status" class="status"></div>
-  </section>
-
-  <!-- ── Room ──────────────────────────────────────────────── -->
-  <section id="view-room" class="view hidden">
-    <header>
-      <h2 id="room-title">Room</h2>
-      <code id="room-id-display"></code>
-      <button id="btn-leave" class="small danger">Leave</button>
-    </header>
-
-    <div id="room-status" class="status"></div>
-
-    <!-- players -->
-    <ul id="player-list"></ul>
-
-    <!-- host controls -->
-    <div id="host-controls" class="hidden">
-      <button id="btn-start">Start game</button>
-    </div>
-    <div id="post-game-controls" class="hidden">
-      <button id="btn-rematch">Rematch</button>
-      <button id="btn-back-lobby">Back to lobby</button>
-    </div>
-
-    <!-- game board (injected by board module) -->
-    <div id="board-container"></div>
-
-    <!-- chat -->
-    <div id="chat-box">
-      <div id="chat-messages"></div>
-      <div class="row">
-        <input id="chat-input" placeholder="Chat…" />
-        <button id="btn-chat">Send</button>
+    <section>
+      <h3>Join a room</h3>
+      <div class="sh-row">
+        <input id="sh-join-input" placeholder="Room ID" />
+        <button id="sh-btn-join">Join</button>
       </div>
-    </div>
-  </section>
+    </section>
+  </main>
+
+  <!-- ── Room — game owns everything inside #game-root ──────── -->
+  <main id="view-room" class="sh-view" hidden>
+    <div id="game-root"></div>
+  </main>
 
   <script type="module" src="platform.js"></script>
 </body>

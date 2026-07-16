@@ -1,25 +1,56 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-body {
-  font-family: system-ui, sans-serif;
-  background: #0f1117;
-  color: #e2e8f0;
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  padding: 2rem 1rem;
+:root {
+  --bg:      #0f1117;
+  --surface: #1e293b;
+  --border:  #334155;
+  --text:    #e2e8f0;
+  --muted:   #94a3b8;
+  --accent:  #3b82f6;
+  --danger:  #ef4444;
+  --success: #22c55e;
 }
 
-.view { width: 100%; max-width: 480px; }
-.hidden { display: none !important; }
+body {
+  font-family: system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 
-h1 { font-size: 2rem; margin-bottom: .5rem; }
+/* ── Shell Header ───────────────────────────────────────── */
+.sh-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .6rem 1.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sh-logo  { font-weight: bold; font-size: 1.1rem; }
+.sh-nav   { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.sh-user  { font-weight: 600; color: var(--accent); }
+.sh-toast { background: var(--border); border-radius: 4px; padding: .2rem .6rem; font-size: .85rem; }
+
+/* ── Views ──────────────────────────────────────────────── */
+.sh-view  { flex: 1; padding: 2rem 1.5rem; max-width: 900px; width: 100%; }
+.sh-center { display: flex; flex-direction: column; align-items: center; gap: 1rem; text-align: center; }
+
+/* #game-root fills available space */
+#view-room { max-width: 100%; padding: 0; }
+#game-root  { min-height: calc(100vh - 48px); }
+
+h1 { font-size: 2rem; }
 h2 { font-size: 1.4rem; margin-bottom: 1rem; }
-h3 { font-size: 1rem; color: #94a3b8; margin: 1.2rem 0 .4rem; }
+h3 { font-size: .95rem; color: var(--muted); margin: 1.2rem 0 .4rem; }
 
+/* ── Buttons ────────────────────────────────────────────── */
 button {
   cursor: pointer;
-  background: #3b82f6;
+  background: var(--accent);
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -27,131 +58,86 @@ button {
   font-size: .95rem;
   transition: background .15s;
 }
-button:hover  { background: #2563eb; }
-button:disabled { background: #334155; color: #64748b; cursor: default; }
-button.small  { font-size: .8rem; padding: .3rem .7rem; }
-button.danger { background: #ef4444; }
-button.danger:hover { background: #dc2626; }
+button:hover     { filter: brightness(1.15); }
+button:disabled  { background: var(--border); color: var(--muted); cursor: default; }
+button.sh-small  { font-size: .8rem; padding: .28rem .65rem; }
+button.danger    { background: var(--danger); }
 
+/* ── Inputs ─────────────────────────────────────────────── */
 input {
-  background: #1e293b;
-  border: 1px solid #334155;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 6px;
-  color: #e2e8f0;
+  color: var(--text);
   padding: .5rem .75rem;
   font-size: .95rem;
   flex: 1;
 }
-input:focus { outline: 2px solid #3b82f6; }
+input:focus { outline: 2px solid var(--accent); }
 
-.row { display: flex; gap: .5rem; align-items: center; }
+/* ── Utilities ──────────────────────────────────────────── */
+.sh-row   { display: flex; gap: .5rem; align-items: center; }
+.sh-small { font-size: .82rem; color: var(--muted); }
 
-/* login */
-.user-btn {
-  margin: .25rem;
-  background: #1e293b;
-  border: 1px solid #334155;
-  color: #e2e8f0;
-}
-.user-btn:hover { background: #334155; }
-
-/* lobby */
-#game-list { list-style: none; display: flex; flex-direction: column; gap: .4rem; }
-#game-list li {
-  display: flex;
-  align-items: center;
-  gap: .75rem;
-  background: #1e293b;
-  border-radius: 8px;
-  padding: .6rem 1rem;
-}
-#game-list .small { color: #64748b; flex: 1; }
-
-/* room header */
-header {
-  display: flex;
-  align-items: center;
-  gap: .75rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-}
-code {
-  font-size: .75rem;
-  background: #1e293b;
-  padding: .2rem .5rem;
-  border-radius: 4px;
-  color: #94a3b8;
-  flex: 1;
+.sh-list  { list-style: none; display: flex; flex-direction: column; gap: .4rem; }
+.sh-list li {
+  display: flex; align-items: center; gap: .75rem;
+  background: var(--surface); border-radius: 8px; padding: .6rem 1rem;
 }
 
-/* player list */
-#player-list { list-style: none; display: flex; flex-direction: column; gap: .3rem; margin-bottom: 1rem; }
-#player-list li {
-  background: #1e293b;
-  border-radius: 6px;
-  padding: .4rem .8rem;
-  display: flex;
-  gap: .5rem;
-  align-items: center;
+.sh-user-list { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; }
+.sh-user-btn  {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); border-radius: 8px; padding: .6rem 1.2rem;
 }
-.sym {
-  background: #334155;
-  border-radius: 4px;
-  padding: .1rem .4rem;
-  font-weight: bold;
-  font-size: .85rem;
-}
+.sh-user-btn:hover { background: var(--border); }
 
-/* status */
-.status {
-  margin: .6rem 0;
-  min-height: 1.2rem;
-  font-size: .9rem;
-  color: #94a3b8;
-}
+/* ── Shell components (used by game optionally) ─────────── */
 
-/* host controls */
-#host-controls, #post-game-controls {
-  display: flex;
-  gap: .5rem;
-  margin: .75rem 0;
-  flex-wrap: wrap;
-}
+/* Players */
+.sh-players  { list-style: none; display: flex; flex-direction: column; gap: .3rem; }
+.sh-player   { display: flex; align-items: center; gap: .5rem;
+               background: var(--surface); border-radius: 6px; padding: .35rem .7rem; }
+.sh-player.me { border: 1px solid var(--accent); }
+.sh-sym      { background: var(--border); border-radius: 4px; padding: .1rem .4rem;
+               font-weight: bold; font-size: .85rem; }
+.sh-name     { flex: 1; }
 
-/* tictactoe board */
+/* Host controls */
+.sh-host-controls { display: flex; gap: .5rem; flex-wrap: wrap; }
+
+/* Chat */
+.sh-chat        { display: flex; flex-direction: column; height: 100%; }
+.sh-chat-messages {
+  flex: 1; overflow-y: auto; background: var(--surface);
+  border-radius: 8px; padding: .75rem; display: flex;
+  flex-direction: column; gap: .25rem;
+}
+.sh-chat-msg    { font-size: .9rem; color: #cbd5e1; }
+.sh-chat-msg strong { color: #93c5fd; }
+.sh-chat-input  { display: flex; gap: .5rem; margin-top: .5rem; }
+
+/* TicTacToe board (game-owned, placed here for global access) */
 .ttt-board {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  max-width: 300px;
-  margin: 1rem 0;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 6px; max-width: 300px;
 }
 .ttt-cell {
-  aspect-ratio: 1;
-  font-size: 2rem;
-  font-weight: bold;
-  border-radius: 8px;
-  background: #1e293b;
-  border: 2px solid #334155;
-  color: #e2e8f0;
+  aspect-ratio: 1; font-size: 2rem; font-weight: bold;
+  border-radius: 8px; background: var(--surface);
+  border: 2px solid var(--border); color: var(--text);
   transition: background .1s;
 }
-.ttt-cell.open  { border-color: #3b82f6; }
-.ttt-cell.open:hover  { background: #1d3557; }
-.ttt-cell.win   { border-color: #22c55e; background: #14532d; color: #86efac; }
+.ttt-cell.open       { border-color: var(--accent); }
+.ttt-cell.open:hover { background: #1d3557; }
+.ttt-cell.win        { border-color: var(--success); background: #14532d; color: #86efac; }
 
-/* chat */
-#chat-box { margin-top: 1.5rem; }
-#chat-messages {
-  background: #1e293b;
-  border-radius: 8px;
-  padding: .75rem;
-  height: 140px;
-  overflow-y: auto;
-  margin-bottom: .5rem;
-  display: flex;
-  flex-direction: column;
-  gap: .3rem;
+/* TicTacToe game layout (game-owned, game sets it up) */
+.ttt-layout {
+  display: flex; gap: 2rem; padding: 1.5rem;
+  min-height: calc(100vh - 48px);
 }
-.chat-msg { font-size: .9rem; color: #cbd5e1; }
-.chat-msg strong { color: #93c5fd; }
+.ttt-main  { flex: 1; display: flex; flex-direction: column; gap: 1rem; }
+.ttt-aside { width: 240px; display: flex; flex-direction: column; }
+.ttt-status { font-size: 1rem; color: var(--muted); min-height: 1.4rem; }
+.ttt-board-wrap { flex: 1; }

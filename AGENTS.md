@@ -36,7 +36,9 @@ CAP Server (Node.js)
 | `srv/play-service.cds/.js` | WebSocket service — all realtime actions + events |
 | `srv/engine.js` | Transient board state, reconnect grace timers, default scoring |
 | `srv/registry.js` | Reads `cds.env.games` populated by game plugins at startup |
-| `app/router/` | Approuter config (`xs-app.json`, `default-env.json`) |
+| `app/` | Shell: login, lobby, header/nav. Static files served by CAP. |
+| `app/sdk.js` | SDK factory — `makeSdk()` + `makeEmitter()` |
+| `app/shell/` | Importable UI components: `chat.js`, `players.js`, `host.js` |
 | `games/<name>/` | Game plugin packages (npm workspaces) |
 
 ---
@@ -102,6 +104,38 @@ registry.js reads cds.env.games
 
 No change to platform code. No registry file to edit. Install → works.
 
+### UI Architecture: Shell + SDK + Game
+
+The shell owns login/lobby/header. Once a room is joined, the game owns its entire UI area.
+
+```
+Shell (thin)                         Game UI
+─────────────────────────────────    ────────────────────────────────────
+Header/Nav (always)                  mount(rootEl, sdk)
+Login + Lobby                          ├─ build own layout freely
+WS transport + reconnect               ├─ sdk.on('moved', redraw)
+Room lifecycle (join/leave)            ├─ sdk.send('move', payload)
+                                       └─ optional: import shell components
+                                            import { mountChat }    from '/shell/chat.js'
+                                            import { mountPlayers } from '/shell/players.js'
+                                            import { mountHostControls } from '/shell/host.js'
+```
+
+**SDK object** passed to `mount(rootEl, sdk)`:
+```js
+sdk = {
+  room,                    // { id, game }
+  me,                      // { user, symbol, isHost }
+  send(action, data),      // any WS action → PlayService (not just 'move')
+  on(event, fn),           // subscribe to any server event
+  off(event, fn),          // unsubscribe (call in unmount cleanup)
+  toast(msg),              // brief status in shell header
+  leave(),                 // leave room
+}
+```
+
+Shell components (`/shell/*.js`) are **optional** — game imports and places them where it wants, or skips them entirely. Each returns a cleanup function.
+
 ### Game Interface Contract
 
 **State rules (required by engine):**
@@ -132,19 +166,22 @@ Use `games/tictactoe/` as reference — copy and adapt.
 games/mygame/
   package.json     { "name": "@cap-games/mygame", "version": "1.0.0", "main": "game.js" }
   cds-plugin.js    (cds.env.games ??= {}).mygame = require('./game')
+                   + cds.on('bootstrap', app => app.use('/games/mygame', express.static(...)))
   game.js          backend — exports the interface above
-  ui/board.js      frontend — exports default { render(state, el, { onMove, mySymbol }) }
+  ui/index.js      frontend — exports default { mount(rootEl, sdk) }
 ```
 
-**`ui/board.js`** is served automatically at `/games/<name>/board.js` by `server.js` (bootstrap hook mounts `games/*/ui`). The platform shell (`app/platform.js`) dynamically imports it and calls `render()` after every state change.
+**`ui/index.js`** is served automatically at `/games/<name>/index.js` by the game's own `cds-plugin.js` bootstrap hook. The platform shell (`app/platform.js`) dynamically imports it and calls `mount()` once when the room starts.
 
 Board contract:
 ```js
 export default {
-  render(state, el, { onMove, mySymbol }) {
-    // draw your game UI into el
-    // call onMove(movePayload) when player makes a move
-    // movePayload must match what applyMove() expects as move argument
+  mount(rootEl, sdk) {
+    // build your full game UI into rootEl — layout, board, anything
+    // sdk.on('started'/'moved'/'finished', handler) — subscribe to events
+    // sdk.send('move', payload) — send moves (payload must match applyMove)
+    // optional: import + use shell components
+    return () => { /* cleanup: sdk.off, remove listeners */ };
   }
 };
 ```

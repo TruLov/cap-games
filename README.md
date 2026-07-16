@@ -173,17 +173,18 @@ Copy `games/tictactoe/` as a starting point. Four files:
 
 **1. `games/mygame/package.json`**
 ```json
-{
-  "name": "@cap-games/mygame",
-  "version": "1.0.0",
-  "main": "game.js"
-}
+{ "name": "@cap-games/mygame", "version": "1.0.0", "main": "game.js" }
 ```
 
-**2. `games/mygame/cds-plugin.js`** — always identical, change name only
+**2. `games/mygame/cds-plugin.js`** — self-registers backend + UI serving
 ```js
 const cds = require('@sap/cds');
+const express = require('express');
+const path = require('path');
+
 (cds.env.games ??= {}).mygame = require('./game');
+cds.on('bootstrap', app =>
+  app.use('/games/mygame', express.static(path.join(__dirname, 'ui'))));
 ```
 
 **3. `games/mygame/game.js`** — backend logic
@@ -192,36 +193,35 @@ module.exports = {
   meta: { name: 'My Game', minPlayers: 2, maxPlayers: 4 },
   settingsSchema: { /* optional */ },
 
-  // state.turn is required — platform reads it to track whose move it is
-  init(settings = {}) {
-    return { turn: 'X', /* your state */ };
-  },
+  // state.turn required — platform reads it to track whose move it is
+  init(settings = {}) { return { turn: 'X', /* your state */ }; },
 
-  // symbol = 'X'|'O'|… as assigned by platform; end.winner = symbol | 'draw'
+  // end.winner = symbol | 'draw'
   applyMove(state, move, symbol) {
-    // return { error: 'reason' }  on invalid move
-    // return { state: newState, end: null }  on valid move
-    // return { state: newState, end: { winner: symbol|'draw' } }  on game over
+    // return { error: 'reason' }
+    // return { state: newState, end: null }
+    // return { state: newState, end: { winner: symbol|'draw' } }
   },
-
-  // optional — omit to use platform default W:3 D:1 L:0
-  score(end, players) { /* → [{ user, result, points }] */ },
-
-  // optional — register extra WS actions/events on PlayService
-  extendService(srv) { /* srv.on('myAction', req => { ... }) */ },
+  score(end, players) { /* optional */ },
+  extendService(srv)  { /* optional */ },
 };
 ```
 
-**4. `games/mygame/ui/board.js`** — frontend (ES module, required for playability)
+**4. `games/mygame/ui/index.js`** — frontend (ES module, full UI control)
 ```js
 export default {
-  // called by platform after every state change
-  // draw your UI into el; call onMove(payload) on player input
-  // payload must match what applyMove() expects as the move argument
-  render(state, el, { onMove, mySymbol }) { }
+  mount(rootEl, sdk) {
+    // Build your complete game UI into rootEl.
+    // sdk.on('started'/'moved'/'finished', handler) — listen to server events
+    // sdk.send('move', payload) — send moves
+    // optional: import shell components
+    //   import { mountChat }    from '/shell/chat.js'
+    //   import { mountPlayers } from '/shell/players.js'
+    //   import { mountHostControls } from '/shell/host.js'
+    return () => { /* cleanup */ };
+  }
 };
 ```
-Served automatically at `/games/mygame/board.js` via `server.js` bootstrap hook.
 
 **Activate:** add `"@cap-games/mygame": "*"` to root `package.json` dependencies, then `npm install`.
 

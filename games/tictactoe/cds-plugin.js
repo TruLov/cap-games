@@ -1,7 +1,15 @@
 /**
  * TicTacToe cds-plugin.js
- * Auto-loaded by CAP runtime when package is installed.
- * Self-registers in cds.env.games — no changes to platform needed.
+ * Self-registers backend logic AND frontend UI serving.
+ * No changes to platform needed.
  */
-const cds = require('@sap/cds');
+const cds     = require('@sap/cds');
+const express = require('express');
+const path    = require('path');
+
+// Backend: register game logic
 (cds.env.games ??= {}).tictactoe = require('./game');
+
+// Frontend: mount ui/ as /games/tictactoe/
+cds.on('bootstrap', app =>
+  app.use('/games/tictactoe', express.static(path.join(__dirname, 'ui'))));
