@@ -13,6 +13,7 @@
     "@sap/cds":                      "^10",
     "@cap-js-community/websocket":   "^1",
     "@cap-games/tictactoe":          "*",
+    "@cap-games/sushigo":            "*",
     "express":                       "^4"
   },
   "devDependencies": {
