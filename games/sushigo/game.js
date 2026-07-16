@@ -21,9 +21,10 @@
  * The host UI sends `configure` with this JSON before `start`.
  *
  * ── Hidden information ─────────────────────────────────────────────────────
- * The platform broadcasts full state via the `moved`/`started` events. Use
- * `view(state, symbol)` on the client to render only the current player's hand.
- * (True server-side redaction would require platform support; see plan.)
+ * The platform redacts state per recipient via the publicState/privateState
+ * hooks: opponents only ever receive the public projection (played cards, hand
+ * counts, scores), while each player receives their own hand through a
+ * user-scoped `privateState` event.
  */
 
 'use strict';
@@ -83,19 +84,27 @@ module.exports = {
   },
 
   /**
-   * Client-side view projection — returns a copy of `state` exposing only the
-   * given player's hand (other hands are reduced to their card counts).
+   * Public projection broadcast to everyone in the room. Strips all hidden
+   * information: hand contents, the draw pile, the dessert pool order, and the
+   * identities of cards secretly selected this turn.
    */
-  view(state, symbol) {
-    const handCounts = Object.fromEntries(
-      Object.entries(state.hands ?? {}).map(([s, h]) => [s, h.length]));
+  publicState(state) {
+    const { hands, drawPile, dessertPool, pending, ...rest } = state;
     return {
-      ...state,
-      hands: undefined,
-      handCounts,
-      myHand: state.hands?.[symbol] ?? [],
-      hasSelected: Boolean(state.pending?.[symbol]),
-      pendingCount: Object.keys(state.pending ?? {}).length,
+      ...rest,
+      handCounts: Object.fromEntries(
+        Object.entries(hands ?? {}).map(([s, h]) => [s, h.length])),
+      selected: Object.fromEntries(
+        (state.symbols ?? []).map(s => [s, Boolean(pending?.[s])])),
+      pendingCount: Object.keys(pending ?? {}).length,
     };
+  },
+
+  /**
+   * Private projection delivered only to `symbol`'s player: the public view
+   * plus that player's own hand.
+   */
+  privateState(state, symbol) {
+    return { ...this.publicState(state), myHand: state.hands?.[symbol] ?? [] };
   },
 };

@@ -60,7 +60,8 @@ export default {
   mount(rootEl, sdk) {
     const me = sdk.me;
     const roster = new Set([me.symbol].filter(s => s && s !== 'spectator'));
-    let state = null;
+    let pub = null;      // public state (played, counts, scores) — seen by everyone
+    let myHand = [];      // this player's own hand — delivered privately
 
     rootEl.innerHTML = `
       <style>${STYLE}</style>
@@ -90,7 +91,7 @@ export default {
     // ---- lobby / config (host only) ------------------------------------
     function renderConfig() {
       const cfg = $('#sg-config');
-      if (state) { cfg.innerHTML = ''; return; }
+      if (pub) { cfg.innerHTML = ''; return; }
       if (!me.isHost) { cfg.innerHTML = '<p>Waiting for the host to start…</p>'; return; }
       cfg.innerHTML = `
         <div class="sg-menu">
@@ -113,16 +114,15 @@ export default {
     // ---- gameplay rendering --------------------------------------------
     function renderHand() {
       const el = $('#sg-hand');
-      if (!state || state.phase !== 'playing') { el.innerHTML = ''; return; }
-      const hand = state.hands?.[me.symbol] ?? [];
-      const mine = Boolean(state.pending?.[me.symbol]);
-      const waiting = Object.keys(state.pending ?? {}).length;
+      if (!pub || pub.phase !== 'playing') { el.innerHTML = ''; return; }
+      const mine = Boolean(pub.selected?.[me.symbol]);
+      const waiting = pub.pendingCount ?? 0;
       el.innerHTML = `
-        <div class="sg-status">Round ${state.round}/3 —
-          ${mine ? `<span class="sg-waiting">selected, waiting for others (${waiting}/${state.symbols.length})</span>`
+        <div class="sg-status">Round ${pub.round}/3 —
+          ${mine ? `<span class="sg-waiting">selected, waiting for others (${waiting}/${pub.symbols.length})</span>`
                  : 'pick a card to keep'}</div>
         <div class="sg-hand">
-          ${hand.map((c, i) =>
+          ${myHand.map((c, i) =>
             `<button class="sg-card ${mine ? '' : 'play'}" data-i="${i}" ${mine ? 'disabled' : ''}>${cardLabel(c)}</button>`
           ).join('')}
         </div>`;
@@ -133,11 +133,11 @@ export default {
 
     function renderTableau() {
       const el = $('#sg-tableau');
-      if (!state) { el.innerHTML = ''; return; }
-      el.innerHTML = state.symbols.map(s => {
-        const played = state.played?.[s] ?? [];
-        const desserts = state.desserts?.[s] ?? [];
-        const total = state.totals?.[s] ?? 0;
+      if (!pub) { el.innerHTML = ''; return; }
+      el.innerHTML = pub.symbols.map(s => {
+        const played = pub.played?.[s] ?? [];
+        const desserts = pub.desserts?.[s] ?? [];
+        const total = pub.totals?.[s] ?? 0;
         const chips = [...played, ...desserts]
           .map(c => `<span class="sg-chip">${cardLabel(c).replace(/<[^>]+>/g, ' ').trim()}</span>`).join('');
         return `<div class="sg-row">
@@ -155,27 +155,29 @@ export default {
       renderConfig();
     }
     function onPlayerLeft(e) { roster.delete(e.symbol); renderConfig(); }
-    function onStarted(e)  { state = JSON.parse(e.state); setStatus('Game started!'); redraw(); }
-    function onMoved(e)    { state = JSON.parse(e.data); redraw(); }
+    function onStarted(e)  { pub = JSON.parse(e.state); setStatus('Game started!'); redraw(); }
+    function onMoved(e)    { pub = JSON.parse(e.data); redraw(); }
+    function onPrivate(e)  { const p = JSON.parse(e.data); pub = p; myHand = p.myHand ?? []; redraw(); }
     function onFinished(e) {
-      state = JSON.parse(e.state);
-      const r = state.ranking ?? [];
+      pub = JSON.parse(e.state);
+      const r = pub.ranking ?? [];
       const msg = e.winner === 'draw' ? 'Draw!' : `${e.winner} wins!`;
       setStatus(`Game over — ${msg}  [${r.map(x => `${x.symbol}:${x.score}`).join('  ')}]`);
       renderHand(); renderTableau();
     }
-    function onLobbyReset() { state = null; setStatus('Back in lobby'); redraw(); }
-    function onRematched(e) { state = JSON.parse(e.state); setStatus('Rematch!'); redraw(); }
+    function onLobbyReset() { pub = null; myHand = []; setStatus('Back in lobby'); redraw(); }
+    function onRematched(e) { pub = JSON.parse(e.state); setStatus('Rematch!'); redraw(); }
     function onError(e)    { sdk.toast(e.message); }
 
-    sdk.on('joined',     onJoined);
-    sdk.on('playerLeft', onPlayerLeft);
-    sdk.on('started',    onStarted);
-    sdk.on('moved',      onMoved);
-    sdk.on('finished',   onFinished);
-    sdk.on('lobbyReset', onLobbyReset);
-    sdk.on('rematched',  onRematched);
-    sdk.on('gameError',  onError);
+    sdk.on('joined',       onJoined);
+    sdk.on('playerLeft',   onPlayerLeft);
+    sdk.on('started',      onStarted);
+    sdk.on('moved',        onMoved);
+    sdk.on('privateState', onPrivate);
+    sdk.on('finished',     onFinished);
+    sdk.on('lobbyReset',   onLobbyReset);
+    sdk.on('rematched',    onRematched);
+    sdk.on('gameError',    onError);
 
     setStatus(`You are ${me.symbol}${me.isHost ? ' (host)' : ''}`);
     redraw();
@@ -184,14 +186,15 @@ export default {
     return () => {
       cleanupPlayers?.();
       cleanupChat?.();
-      sdk.off('joined',     onJoined);
-      sdk.off('playerLeft', onPlayerLeft);
-      sdk.off('started',    onStarted);
-      sdk.off('moved',      onMoved);
-      sdk.off('finished',   onFinished);
-      sdk.off('lobbyReset', onLobbyReset);
-      sdk.off('rematched',  onRematched);
-      sdk.off('gameError',  onError);
+      sdk.off('joined',       onJoined);
+      sdk.off('playerLeft',   onPlayerLeft);
+      sdk.off('started',      onStarted);
+      sdk.off('moved',        onMoved);
+      sdk.off('privateState', onPrivate);
+      sdk.off('finished',     onFinished);
+      sdk.off('lobbyReset',   onLobbyReset);
+      sdk.off('rematched',    onRematched);
+      sdk.off('gameError',    onError);
     };
   }
 };

@@ -52,11 +52,35 @@ test('score ignores spectators', () => {
   assert.equal(scores[0].user, 'a');
 });
 
-test('view hides other hands but exposes own hand + counts', () => {
+test('publicState hides all hidden information', () => {
   const s = game.init({ players: ['X', 'O'], preset: 'sushi_go', seed: 7 });
-  const v = game.view(s, 'X');
-  assert.equal(v.hands, undefined);
-  assert.equal(v.myHand.length, 10);
-  assert.equal(v.handCounts.O, 10);
-  assert.equal(v.hasSelected, false);
+  const pub = game.publicState(s);
+  assert.equal(pub.hands, undefined);
+  assert.equal(pub.drawPile, undefined);
+  assert.equal(pub.dessertPool, undefined);
+  assert.equal(pub.pending, undefined);
+  assert.equal(pub.handCounts.X, 10);
+  assert.equal(pub.handCounts.O, 10);
+  assert.equal(pub.selected.X, false);
+});
+
+test('publicState reveals only that a player has selected, not what', () => {
+  const s = game.init({ players: ['X', 'O'], preset: 'sushi_go', seed: 7 });
+  game.applyMove(s, { pick: 3 }, 'X');
+  const pub = game.publicState(s);
+  assert.equal(pub.selected.X, true);
+  assert.equal(pub.selected.O, false);
+  assert.equal(pub.pendingCount, 1);
+  // the actual picked card index must not leak anywhere in the public payload
+  assert.ok(!JSON.stringify(pub).includes('"pick"'));
+});
+
+test('privateState exposes only the requesting player hand', () => {
+  const s = game.init({ players: ['X', 'O'], preset: 'sushi_go', seed: 7 });
+  const priv = game.privateState(s, 'X');
+  assert.equal(priv.myHand.length, 10);
+  assert.equal(priv.hands, undefined);
+  assert.equal(priv.handCounts.O, 10);
+  // O's actual cards are not present
+  assert.equal(priv.myHandForO, undefined);
 });

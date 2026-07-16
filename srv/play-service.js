@@ -32,6 +32,7 @@ class PlayService extends cds.ApplicationService {
           await UPDATE(Rooms, roomId).with({ status: 'playing' });
         }
         await this.emit('playerReconnected', { room: roomId, player: user, symbol: player?.symbol ?? '' });
+        await this._snapshotTo(roomId, room.game, user, player?.symbol ?? 'spectator');
         LOG.info('RECONNECT', roomId, user);
         return player?.symbol ?? 'spectator';
       }
@@ -43,6 +44,7 @@ class PlayService extends cds.ApplicationService {
           room: roomId, player: user, symbol: existing.symbol,
           host: existing.isHost, status: room.status,
         });
+        await this._snapshotTo(roomId, room.game, user, existing.symbol);
         return existing.symbol;
       }
 
@@ -69,6 +71,7 @@ class PlayService extends cds.ApplicationService {
         room: roomId, player: user, symbol,
         host: isHost, status: room.status,
       });
+      if (room.status === 'playing') await this._snapshotTo(roomId, room.game, user, symbol);
       LOG.info('JOIN', roomId, user, '→', symbol, isHost ? '(host)' : '');
       return symbol;
     });
@@ -99,7 +102,7 @@ class PlayService extends cds.ApplicationService {
       const b = eng.initBoard(roomId, room.game, room.settings);
       await UPDATE(Rooms, roomId).with({ status: 'playing' });
 
-      await this.emit('started', { room: roomId, firstTurn: b.turn, state: JSON.stringify(b.state) });
+      await this._broadcastState(roomId, room.game, b, 'started', { firstTurn: b.turn });
       LOG.info('START', roomId, 'firstTurn=' + b.turn);
     });
 
@@ -133,12 +136,10 @@ class PlayService extends cds.ApplicationService {
         await UPDATE(Rooms, roomId).with({ status: 'finished' });
         const allPlayers = await SELECT.from(Players).where({ room_ID: roomId });
         await this._persistMatch(room, roomId, result, allPlayers);
-        await this.emit('finished', {
-          room: roomId, winner: result.end.winner, state: JSON.stringify(b.state),
-        });
+        await this._broadcastState(roomId, room.game, b, 'finished', { winner: result.end.winner });
         LOG.info('END', roomId, 'winner=' + result.end.winner);
       } else {
-        await this.emit('moved', { room: roomId, data: JSON.stringify(b.state) });
+        await this._broadcastState(roomId, room.game, b, 'moved', {});
         LOG.info('MOVE', roomId, `${user}(${player.symbol})`, 'next=' + b.turn);
       }
     });
@@ -150,7 +151,7 @@ class PlayService extends cds.ApplicationService {
       if (err) return;
       const b = eng.initBoard(roomId, room.game, room.settings);
       await UPDATE(Rooms, roomId).with({ status: 'playing' });
-      await this.emit('rematched', { room: roomId, firstTurn: b.turn, state: JSON.stringify(b.state) });
+      await this._broadcastState(roomId, room.game, b, 'rematched', { firstTurn: b.turn });
       LOG.info('REMATCH', roomId, 'by', req.user.id);
     });
 
@@ -265,6 +266,61 @@ class PlayService extends cds.ApplicationService {
 
   _error(req, room, message) {
     return this.emit('gameError', { room: room ?? '', message });
+  }
+
+  /**
+   * Broadcast game state, redacting hidden information when the game opts in.
+   *
+   * If the game defines publicState()/privateState(), the room-scoped event
+   * carries only the public projection, and each player additionally receives a
+   * `privateState` event (delivered to that user only) with their private slice.
+   * Otherwise the full state is broadcast (unchanged legacy behaviour).
+   *
+   * @param extra event-specific public fields, e.g. { firstTurn } or { winner }
+   */
+  async _broadcastState(roomId, gameId, b, event, extra = {}) {
+    const game = reg.get(gameId);
+    const hasProjection = typeof game.publicState === 'function'
+                       && typeof game.privateState === 'function';
+
+    if (!hasProjection) {
+      const full = JSON.stringify(b.state);
+      await this.emit(event, { room: roomId, ...extra, state: full, data: full });
+      return;
+    }
+
+    const pub = JSON.stringify(game.publicState(b.state));
+    await this.emit(event, { room: roomId, ...extra, state: pub, data: pub });
+
+    const players = await SELECT.from('cap.games.Players').where({ room_ID: roomId });
+    for (const p of players) {
+      const slice = p.symbol === 'spectator'
+        ? pub
+        : JSON.stringify(game.privateState(b.state, p.symbol));
+      await this.emit('privateState', { room: roomId, data: slice }, { user: { include: [p.user] } });
+    }
+  }
+
+  /**
+   * Send the current state snapshot to a single (re)joining user: their private
+   * slice plus the public table, so they can render immediately. No-op if the
+   * game has no active board or does not use projection.
+   */
+  async _snapshotTo(roomId, gameId, user, symbol) {
+    const b = eng.getBoard(roomId);
+    if (!b) return;
+    const game = reg.get(gameId);
+    if (typeof game.publicState !== 'function' || typeof game.privateState !== 'function') {
+      // legacy games: resend full state to this user only
+      const full = JSON.stringify(b.state);
+      await this.emit('moved', { room: roomId, data: full }, { user: { include: [user] } });
+      return;
+    }
+    const slice = symbol === 'spectator'
+      ? JSON.stringify(game.publicState(b.state))
+      : JSON.stringify(game.privateState(b.state, symbol));
+    await this.emit('privateState', { room: roomId, data: slice }, { user: { include: [user] } });
+    await this.emit('moved', { room: roomId, data: JSON.stringify(game.publicState(b.state)) }, { user: { include: [user] } });
   }
 
   async _doLeave(user, roomId, fromTimeout = false) {
