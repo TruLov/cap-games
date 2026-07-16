@@ -54,12 +54,16 @@ function init(settings = {}) {
     played:   Object.fromEntries(symbols.map(s => [s, []])),
     desserts: Object.fromEntries(symbols.map(s => [s, []])),
     pending:  {},
+    menuOffer: {},                    // symbol -> 4 cards revealed by a Menu (private)
+    menuHold:  {},                    // symbol -> the Menu card set aside during a choice
     dessertsUsed: 0,                   // how many dessert cards already inserted
     dessertPool: deck.dessertPool(menu),
     drawPile: [],
     uramakiPlaceIndex: 0,
     roundScores: Object.fromEntries(symbols.map(s => [s, []])),
     totals: Object.fromEntries(symbols.map(s => [s, 0])),
+    history: Object.fromEntries(symbols.map(s => [s, []])),    // per-round card snapshots
+    dessertScores: Object.fromEntries(symbols.map(s => [s, 0])), // end-of-game dessert pts
   };
 
   dealRound(state);
@@ -94,11 +98,21 @@ function dealRound(state) {
 function applyMove(state, move, symbol) {
   if (state.phase !== 'playing') return { error: 'game is not in progress' };
   if (!state.symbols.includes(symbol)) return { error: 'not a player in this game' };
+
+  // Menu — step 2: choosing one of the 4 offered cards
+  if (move && move.menuChoice != null) return resolveMenuChoice(state, symbol, move.menuChoice);
+
+  // must finish an in-progress Menu before doing anything else
+  if (state.menuOffer && state.menuOffer[symbol]) return { error: 'resolve your Menu selection first' };
+
   if (state.pending[symbol]) return { error: 'you have already selected this turn' };
 
   const hand = state.hands[symbol];
-  const err = validateSelection(state, hand, move);
+  const err = validateSelection(state, hand, move, symbol);
   if (err) return { error: err };
+
+  // Menu — step 1: reveal 4 cards from the draw pile for this player to choose from
+  if (move.bonus === 'menu') return offerMenu(state, symbol, move);
 
   state.pending[symbol] = move;
 
@@ -111,27 +125,66 @@ function applyMove(state, move, symbol) {
 }
 
 /** Validate a player's selection against their current hand. */
-function validateSelection(state, hand, move) {
+function validateSelection(state, hand, move, symbol) {
   if (!move || typeof move.pick !== 'number') return 'must pick a card';
   if (move.pick < 0 || move.pick >= hand.length) return 'invalid card index';
 
+  if (move.bonus === 'menu') {
+    if (hand[move.pick].type !== 'menu') return 'that card is not a Menu';
+    return null;
+  }
+
   if (move.pick2 != null) {
     // Chopsticks: play a second card. Requires an unused chopsticks already played.
-    if (!hasUnusedChopsticks(state, currentSymbolOf(state, hand))) return 'no chopsticks to use';
+    if (!hasUnusedChopsticks(state, symbol)) return 'no chopsticks to use';
     if (move.pick2 < 0 || move.pick2 >= hand.length) return 'invalid second card index';
     if (move.pick2 === move.pick) return 'cannot pick the same card twice';
     if (hand.length < 2) return 'not enough cards for chopsticks';
   }
-  return null;
-}
 
-// helper: find which symbol owns a hand reference (used during validation)
-function currentSymbolOf(state, hand) {
-  return state.symbols.find(s => state.hands[s] === hand);
+  if (move.bonus === 'spoon') {
+    if (!hasUnusedSpoon(state, symbol)) return 'no spoon to use';
+    if (typeof move.cardType !== 'string' || !move.cardType) return 'name a card type for spoon';
+  }
+  return null;
 }
 
 function hasUnusedChopsticks(state, symbol) {
   return state.played[symbol]?.some(c => c.type === 'chopsticks') ?? false;
+}
+
+function hasUnusedSpoon(state, symbol) {
+  return state.played[symbol]?.some(c => c.type === 'spoon') ?? false;
+}
+
+// --- Menu (two-phase) ------------------------------------------------------
+
+/** Menu step 1: set aside the Menu card and reveal up to 4 cards from the pile. */
+function offerMenu(state, symbol, move) {
+  state.menuOffer ??= {};
+  state.menuHold ??= {};
+  const menuCard = state.hands[symbol].splice(move.pick, 1)[0];
+  state.menuHold[symbol] = menuCard;
+  state.menuOffer[symbol] = state.drawPile.splice(0, 4);
+  return { state, end: null };
+}
+
+/** Menu step 2: play the chosen card, return the rest, discard the Menu card. */
+function resolveMenuChoice(state, symbol, idx) {
+  const offer = state.menuOffer && state.menuOffer[symbol];
+  if (!offer) return { error: 'no Menu selection in progress' };
+  if (!Number.isInteger(idx) || idx < 0 || idx >= offer.length) return { error: 'invalid Menu choice' };
+  const chosen = offer[idx];
+  if (chosen.type === 'menu') return { error: 'cannot choose another Menu' };
+
+  placeCard(state, symbol, chosen, {});
+  state.drawPile.push(...offer.filter((_, i) => i !== idx));
+  delete state.menuOffer[symbol];
+  delete state.menuHold[symbol];
+
+  state.pending[symbol] = { menu: true };
+  if (Object.keys(state.pending).length < state.symbols.length) return { state, end: null };
+  return resolveTurn(state);
 }
 
 // ---------------------------------------------------------------------------
@@ -139,11 +192,10 @@ function hasUnusedChopsticks(state, symbol) {
 // ---------------------------------------------------------------------------
 
 function resolveTurn(state) {
-  const misoThisTurn = [];
-
   // 1. Each player reveals & places their selected card(s).
   for (const s of state.symbols) {
     const move = state.pending[s];
+    if (move.menu) continue; // card already placed during the Menu choice
     const hand = state.hands[s];
 
     const picks = [move.pick];
@@ -159,35 +211,67 @@ function resolveTurn(state) {
       if (idx >= 0) hand.push(state.played[s].splice(idx, 1)[0]);
     }
 
-    for (const card of chosen) {
-      placeCard(state, s, card, move);
-      if (card.type === 'miso') misoThisTurn.push(s);
-    }
+    for (const card of chosen) placeCard(state, s, card, move);
   }
 
-  // 2. Miso Soup: if 2+ played on the SAME turn, all are discarded (score 0).
-  if (misoThisTurn.length >= 2) {
-    for (const s of misoThisTurn) {
+  // 2. Spoon: pull a named card from a neighbour's hand (after normal picks).
+  processSpoons(state);
+
+  // 3. Miso Soup: if 2+ were played on the SAME turn, all are discarded (score 0).
+  const misoJustPlayed = state.symbols.flatMap(
+    s => state.played[s].filter(c => c.type === 'miso' && c._justPlayed));
+  if (misoJustPlayed.length >= 2) {
+    for (const s of state.symbols)
       state.played[s] = state.played[s].filter(c => !(c.type === 'miso' && c._justPlayed));
-    }
   }
   for (const s of state.symbols)
     for (const c of state.played[s]) delete c._justPlayed;
 
-  // 3. Uramaki mid-round scoring (threshold reached).
+  // 4. Uramaki mid-round scoring (threshold reached).
   awardUramakiMidRound(state);
 
-  // 4. Rotate remaining hands to the next neighbor (pass left).
+  // 5. Rotate remaining hands to the next neighbor (pass left).
   rotateHands(state);
 
-  // 5. Clear selections.
+  // 6. Clear selections.
   state.pending = {};
 
-  // 6. Round over when all hands are empty.
+  // 7. Round over when all hands are empty.
   if (state.symbols.every(s => state.hands[s].length === 0)) {
     return endRound(state);
   }
   return { state, end: null };
+}
+
+/**
+ * Resolve Spoon bonus actions. For each player who called "spoon" and named a
+ * card type, take one such card from the first left-neighbour who still holds it,
+ * play it, and hand the Spoon to that neighbour. If nobody has it, discard the
+ * Spoon. Processed in seating order so earlier spoons deplete hands first.
+ */
+function processSpoons(state) {
+  const { symbols } = state;
+  for (let i = 0; i < symbols.length; i++) {
+    const s = symbols[i];
+    const move = state.pending[s];
+    if (!move || move.bonus !== 'spoon') continue;
+
+    const spoonIdx = state.played[s].findIndex(c => c.type === 'spoon');
+    if (spoonIdx < 0) continue; // guarded at validation, defensive here
+
+    let taken = null, giver = null;
+    for (let k = 1; k < symbols.length; k++) {
+      const t = symbols[(i + k) % symbols.length];
+      const ci = state.hands[t].findIndex(c => c.type === move.cardType);
+      if (ci >= 0) { taken = state.hands[t].splice(ci, 1)[0]; giver = t; break; }
+    }
+
+    const spoon = state.played[s].splice(spoonIdx, 1)[0];
+    if (taken) {
+      placeCard(state, s, taken, {});
+      state.played[giver].push(spoon); // give the Spoon to the giver (unused)
+    } // else the Spoon is discarded
+  }
 }
 
 /** Place a card into a player's tableau, applying placement rules. */
@@ -286,6 +370,11 @@ function endRound(state) {
     state.totals[s] += roundPts[s];
   }
 
+  // Snapshot this round's played cards into history before discarding.
+  for (const s of state.symbols) {
+    state.history[s][state.round - 1] = state.played[s].map(c => ({ ...c }));
+  }
+
   // Keep desserts in front of players; discard everything else.
   for (const s of state.symbols) {
     const desserts = state.played[s].filter(c => c.type === state.menu.dessert && !c.flipped);
@@ -305,7 +394,10 @@ function endRound(state) {
 function endGame(state) {
   const players = boardPlayers(state);
   const dessertPts = scoreGame(players, state.playerCount, state.menu.dessert);
-  for (const s of state.symbols) state.totals[s] += dessertPts[s];
+  for (const s of state.symbols) {
+    state.dessertScores[s] = dessertPts[s];
+    state.totals[s] += dessertPts[s];
+  }
 
   state.phase = 'gameOver';
   const ranking = computeRanking(state);

@@ -89,7 +89,7 @@ module.exports = {
    * identities of cards secretly selected this turn.
    */
   publicState(state) {
-    const { hands, drawPile, dessertPool, pending, ...rest } = state;
+    const { hands, drawPile, dessertPool, pending, menuOffer, menuHold, ...rest } = state;
     return {
       ...rest,
       handCounts: Object.fromEntries(
@@ -102,9 +102,13 @@ module.exports = {
 
   /**
    * Private projection delivered only to `symbol`'s player: the public view
-   * plus that player's own hand.
+   * plus that player's own hand and any Menu cards currently offered to them.
    */
   privateState(state, symbol) {
-    return { ...this.publicState(state), myHand: state.hands?.[symbol] ?? [] };
+    return {
+      ...this.publicState(state),
+      myHand: state.hands?.[symbol] ?? [],
+      menuOffer: state.menuOffer?.[symbol],
+    };
   },
 };

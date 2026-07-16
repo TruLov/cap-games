@@ -125,3 +125,36 @@ test('state is JSON-serializable after a turn', () => {
   flow.applyMove(s, { pick: 0 }, 'A');
   assert.doesNotThrow(() => JSON.stringify(s));
 });
+
+test('chopsticks: played one turn, activated a later turn to play two cards', () => {
+  const s = flow.init({ players: ['X', 'O'], preset: 'sushi_go', seed: 1 });
+
+  // Turn 1: X plays chopsticks normally → it stacks in front of X.
+  s.hands.X = [{ type: 'chopsticks', color: 'chopsticks' }, { type: 'maki', color: 'maki', icons: 1 }, { type: 'maki', color: 'maki', icons: 2 }];
+  s.hands.O = [{ type: 'maki', color: 'maki', icons: 1 }, { type: 'maki', color: 'maki', icons: 1 }, { type: 'maki', color: 'maki', icons: 1 }];
+  flow.applyMove(s, { pick: 0 }, 'X');
+  flow.applyMove(s, { pick: 0 }, 'O');
+  assert.equal(s.played.X.length, 1);
+  assert.equal(s.played.X[0].type, 'chopsticks');
+
+  // Turn 2: X activates the chopsticks (pick + pick2) → plays TWO hand cards.
+  const handBefore = s.hands.X.length;
+  flow.applyMove(s, { pick: 0, pick2: 1 }, 'X');
+  flow.applyMove(s, { pick: 0 }, 'O');
+
+  // Two cards were played this turn (plus the original chopsticks already there).
+  const makiPlayed = s.played.X.filter(c => c.type === 'maki').length;
+  assert.equal(makiPlayed, 2);
+  // Chopsticks left the tableau and was returned to the hand, then passed on.
+  assert.equal(s.played.X.some(c => c.type === 'chopsticks'), false);
+  // Hand shrank by two (played two) but gained the chopsticks back before rotating.
+  assert.equal(s.hands.O.some(c => c.type === 'chopsticks'), true);
+  assert.equal(handBefore, 2);
+});
+
+test('chopsticks: cannot use pick2 without a chopsticks in the tableau', () => {
+  const s = flow.init({ players: ['X', 'O'], preset: 'sushi_go', seed: 1 });
+  s.hands.X = [{ type: 'maki', color: 'maki', icons: 1 }, { type: 'maki', color: 'maki', icons: 2 }];
+  const r = flow.applyMove(s, { pick: 0, pick2: 1 }, 'X');
+  assert.match(r.error, /no chopsticks/);
+});
