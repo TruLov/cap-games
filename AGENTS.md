@@ -104,12 +104,17 @@ No change to platform code. No registry file to edit. Install → works.
 
 ### Game Interface Contract
 
+**State rules (required by engine):**
+- `state.turn` must be a symbol string — engine reads it to track whose move it is
+- `end.winner` must be a symbol (`'X'`, `'O'`, …) or `'draw'`
+- Symbols assigned by platform: `'X'`, `'O'`, `'A'`, … — spectators get `'spectator'`
+
 ```js
 module.exports = {
   // Required
   meta: { name, minPlayers, maxPlayers },
   settingsSchema: { key: { type, values?, default } },
-  init(settings)                  // → initial state object
+  init(settings)                  // → { turn: 'X', /* your state */ }
   applyMove(state, move, symbol)  // → { state, end: null } | { state, end: { winner } } | { error }
 
   // Optional
@@ -119,16 +124,32 @@ module.exports = {
 };
 ```
 
-### Adding a Game (3 files)
+### Adding a Game (4 files)
+
+Use `games/tictactoe/` as reference — copy and adapt.
 
 ```
 games/mygame/
-  package.json     { "name": "@cap-games/mygame" }
+  package.json     { "name": "@cap-games/mygame", "version": "1.0.0", "main": "game.js" }
   cds-plugin.js    (cds.env.games ??= {}).mygame = require('./game')
-  game.js          exports the interface above
+  game.js          backend — exports the interface above
+  ui/board.js      frontend — exports default { render(state, el, { onMove, mySymbol }) }
 ```
 
-Activate: `npm add @cap-games/mygame -w .` (or add to root `package.json` dependencies directly).
+**`ui/board.js`** is served automatically at `/games/<name>/board.js` by `server.js` (bootstrap hook mounts `games/*/ui`). The platform shell (`app/platform.js`) dynamically imports it and calls `render()` after every state change.
+
+Board contract:
+```js
+export default {
+  render(state, el, { onMove, mySymbol }) {
+    // draw your game UI into el
+    // call onMove(movePayload) when player makes a move
+    // movePayload must match what applyMove() expects as move argument
+  }
+};
+```
+
+Activate: add `"@cap-games/mygame": "*"` to root `package.json` dependencies, then `npm install`.
 
 ---
 

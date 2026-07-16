@@ -169,15 +169,14 @@ Room auto-deleted when all players gone.
 
 ## Adding a new game (Plugin)
 
-Three files, then one dependency:
+Copy `games/tictactoe/` as a starting point. Four files:
 
 **1. `games/mygame/package.json`**
 ```json
 {
   "name": "@cap-games/mygame",
   "version": "1.0.0",
-  "main": "game.js",
-  "dependencies": { "@cap-games/platform": "*" }
+  "main": "game.js"
 }
 ```
 
@@ -186,58 +185,55 @@ Three files, then one dependency:
 const cds = require('@sap/cds');
 (cds.env.games ??= {}).mygame = require('./game');
 ```
-CAP auto-loads `cds-plugin.js` from any installed package. No platform changes needed.
 
-**3. `games/mygame/game.js`** — only real work
+**3. `games/mygame/game.js`** — backend logic
 ```js
 module.exports = {
   meta: { name: 'My Game', minPlayers: 2, maxPlayers: 4 },
+  settingsSchema: { /* optional */ },
 
-  settingsSchema: {
-    difficulty: { type: 'enum', values: ['easy','hard'], default: 'easy' }
-  },
-
-  // Return initial game state
+  // state.turn is required — platform reads it to track whose move it is
   init(settings = {}) {
-    return { /* your state */ };
+    return { turn: 'X', /* your state */ };
   },
 
-  // Apply a move. Return { state, end: null } or { state, end: { winner } } or { error }
+  // symbol = 'X'|'O'|… as assigned by platform; end.winner = symbol | 'draw'
   applyMove(state, move, symbol) {
-    // validate move...
-    return { state: newState, end: null };
-    // or: return { error: 'invalid move' };
-    // or: return { state: finalState, end: { winner: symbol } };
+    // return { error: 'reason' }  on invalid move
+    // return { state: newState, end: null }  on valid move
+    // return { state: newState, end: { winner: symbol|'draw' } }  on game over
   },
 
-  // Optional: custom scoring. Default: winner=3pts, draw=1pt, loss=0pt
-  score(end, players) {
-    return players.map(p => ({
-      user: p.user,
-      result: end.winner === 'draw' ? 'draw' : p.symbol === end.winner ? 'win' : 'loss',
-      points: end.winner === 'draw' ? 1 : p.symbol === end.winner ? 3 : 0,
-    }));
-  },
+  // optional — omit to use platform default W:3 D:1 L:0
+  score(end, players) { /* → [{ user, result, points }] */ },
 
-  // Optional: add game-specific WebSocket actions/events to PlayService
-  extendService(srv) {
-    srv.on('myAction', req => { /* ... */ });
-  },
+  // optional — register extra WS actions/events on PlayService
+  extendService(srv) { /* srv.on('myAction', req => { ... }) */ },
 };
 ```
 
-**Activate:** `npm add @cap-games/mygame -w app && npm install`
-**Test isolated:** `cds watch games/mygame`
+**4. `games/mygame/ui/board.js`** — frontend (ES module, required for playability)
+```js
+export default {
+  // called by platform after every state change
+  // draw your UI into el; call onMove(payload) on player input
+  // payload must match what applyMove() expects as the move argument
+  render(state, el, { onMove, mySymbol }) { }
+};
+```
+Served automatically at `/games/mygame/board.js` via `server.js` bootstrap hook.
 
-The platform provides: lobby, host, join, kick, settings, chat, reconnect, status machine, leaderboard persistence — automatically. Your game only implements the rules.
+**Activate:** add `"@cap-games/mygame": "*"` to root `package.json` dependencies, then `npm install`.
+
+The platform provides: lobby, host, join, kick, settings, chat, reconnect, status machine, leaderboard — automatically. Your game only implements the rules and the board UI.
 
 ---
 
 ## Debug Logging
 
 ```sh
-CDS_LOG_LEVELS_game=info cds watch app    # game events (default on)
-DEBUG=websocket cds watch app             # WS transport: connect/disconnect
+CDS_LOG_LEVELS_game=info cds watch   # game events (default on)
+DEBUG=websocket cds watch            # WS transport: connect/disconnect
 ```
 
 ---
