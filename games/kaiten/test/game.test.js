@@ -1,9 +1,9 @@
-'use strict';
 
-const cds = require('@sap/cds');
+
+import cds from '@sap/cds';
 const { expect } = cds.test;
-const { describe, it } = require('node:test');
-const game = require('../game');
+import { describe, it } from 'node:test';
+import game from '../game.js';
 
 describe('kaiten game', () => {
 

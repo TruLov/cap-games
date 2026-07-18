@@ -1,10 +1,10 @@
-'use strict';
 
-const cds = require('@sap/cds');
+
+import cds from '@sap/cds';
 const { expect } = cds.test;
-const { describe, it } = require('node:test');
-const flow = require('../flow');
-const game = require('../game');
+import { describe, it } from 'node:test';
+import * as flow from '../flow.js';
+import game from '../game.js';
 
 const card   = (t) => ({ type: t, color: t });
 const filler = () => card('maki');

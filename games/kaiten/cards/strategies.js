@@ -20,9 +20,9 @@
  * Pure logic. No CAP imports, no mutation of inputs.
  */
 
-'use strict';
 
-const { NIGIRI_VALUES, ONIGIRI_SHAPES, FRUIT_TYPES } = require('./catalogue');
+
+import { NIGIRI_VALUES, ONIGIRI_SHAPES, FRUIT_TYPES } from './catalogue.js';
 
 // --- helpers ---------------------------------------------------------------
 
@@ -239,4 +239,4 @@ const STRATEGIES = {
   },
 };
 
-module.exports = { STRATEGIES, URAMAKI_POINTS, active, countType, flippedCount, sumIcons };
+export { STRATEGIES, URAMAKI_POINTS, active, countType, flippedCount, sumIcons };

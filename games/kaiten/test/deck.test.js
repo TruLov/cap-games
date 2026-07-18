@@ -1,12 +1,10 @@
-'use strict';
-
-const cds = require('@sap/cds');
+import cds from '@sap/cds';
 const { expect } = cds.test;
-const { describe, it } = require('node:test');
-const {
+import { describe, it } from 'node:test';
+import {
   MENUS, dealCount, dessertCount, resolveMenu, validateMenu,
   baseDeck, dessertPool, makeRng, shuffle,
-} = require('../deck');
+} from '../deck.js';
 
 describe('kaiten deck', () => {
 

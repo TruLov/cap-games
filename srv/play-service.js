@@ -1,7 +1,8 @@
-const cds  = require('@sap/cds');
+import cds from '@sap/cds';
+import * as eng from './engine.js';
+import * as reg from './registry.js';
+
 const LOG  = cds.log('game');
-const eng  = require('./engine');
-const reg  = require('./registry');
 
 const _hasProjection = g => typeof g.publicState === 'function' && typeof g.privateState === 'function';
 const _sliceFor = (game, state, symbol, pub) =>
@@ -416,4 +417,4 @@ class PlayService extends cds.ApplicationService {
   }
 }
 
-module.exports = PlayService;
+export default PlayService;

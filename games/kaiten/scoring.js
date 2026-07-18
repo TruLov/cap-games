@@ -8,9 +8,9 @@
  * Pure logic. No mutation of inputs.
  */
 
-'use strict';
 
-const { STRATEGIES, flippedCount } = require('./cards/strategies');
+
+import { STRATEGIES, flippedCount } from './cards/strategies.js';
 
 const ALL_TYPES = Object.keys(STRATEGIES);
 
@@ -55,4 +55,4 @@ function scoreGame(players, playerCount, dessertType = null) {
   return out;
 }
 
-module.exports = { scoreRound, scoreGame };
+export { scoreRound, scoreGame };

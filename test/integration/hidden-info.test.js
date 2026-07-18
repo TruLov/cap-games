@@ -1,4 +1,4 @@
-'use strict';
+
 
 /**
  * Integration test — hidden-information projection.
@@ -10,9 +10,9 @@
  */
 
 // cds.test() must be first — before any cds submodule access (docs requirement)
-const cds = require('@sap/cds');
-const { describe, it, before, after } = require('node:test');
-const WebSocket = require('ws');
+import cds from '@sap/cds';
+import { describe, it, before, after } from 'node:test';
+import WebSocket from 'ws';
 
 const cdst = cds.test('.');
 const { expect } = cdst;

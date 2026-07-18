@@ -1,10 +1,10 @@
-'use strict';
 
-const cds = require('@sap/cds');
+
+import cds from '@sap/cds';
 const { expect } = cds.test;
-const { describe, it } = require('node:test');
-const { STRATEGIES } = require('../cards/strategies');
-const { scoreRound, scoreGame } = require('../scoring');
+import { describe, it } from 'node:test';
+import { STRATEGIES } from '../cards/strategies.js';
+import { scoreRound, scoreGame } from '../scoring.js';
 
 const nigiri  = (variant, onWasabi = false) =>
   ({ type: 'nigiri', color: 'nigiri', variant, value: { egg: 1, salmon: 2, squid: 3 }[variant], onWasabi });

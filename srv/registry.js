@@ -1,9 +1,9 @@
-const cds = require('@sap/cds');
+import cds from '@sap/cds';
 const LOG = cds.log('games:registry');
 
 /**
  * Game registry — populated by game plugin packages via cds-plugin.js.
- * Each game registers: (cds.env.games ??= {}).mygame = require('./game')
+ * Each game registers: (cds.env.games ??= {}).mygame = game (from game.js default export)
  *
  * Interface contract:
  *   meta: { name, minPlayers, maxPlayers }
@@ -43,4 +43,4 @@ function loadAll() {
   return games;
 }
 
-module.exports = { get, all, loadAll };
+export { get, all, loadAll };

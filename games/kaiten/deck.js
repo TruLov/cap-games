@@ -4,9 +4,9 @@
  * Pure logic. No CAP imports, no game state.
  */
 
-'use strict';
 
-const { CARD_TYPES, ROLLS, APPETIZERS, SPECIALS, DESSERTS, cardsOfType } = require('./cards/catalogue');
+
+import { CARD_TYPES, ROLLS, APPETIZERS, SPECIALS, DESSERTS, cardsOfType } from './cards/catalogue.js';
 
 // --- Predefined menus (from specification.md) ---
 const MENUS = Object.freeze({
@@ -176,7 +176,7 @@ function shuffle(array, rng = Math.random) {
   return a;
 }
 
-module.exports = {
+export {
   MENUS,
   dealCount,
   dessertCount,
