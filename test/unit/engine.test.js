@@ -1,9 +1,9 @@
-'use strict';
 
-const cds = require('@sap/cds');
+
+import cds from '@sap/cds';
 const { expect } = cds.test;
-const { describe, it } = require('node:test');
-const eng = require('../../srv/engine');
+import { describe, it } from 'node:test';
+import * as eng from '../../srv/engine.js';
 
 describe('engine', () => {
 

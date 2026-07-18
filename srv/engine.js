@@ -13,6 +13,8 @@
  *   - Scoring dispatch
  */
 
+import { get as registryGet } from './registry.js';
+
 const GRACE_MS = 60_000;
 
 // Transient board state (non-persistent, lost on restart — intentional)
@@ -43,8 +45,7 @@ function getBoard(roomId)    { return boardState[roomId]; }
 function deleteBoard(roomId) { delete boardState[roomId]; }
 
 function initBoard(roomId, game, settings) {
-  const registry = require('./registry');
-  const gm = registry.get(game);
+  const gm = registryGet(game);
   const state = gm.init(settings ? JSON.parse(settings) : {});
   boardState[roomId] = { game, state, turn: state.turn ?? 'X', disconnected: new Map() };
   return boardState[roomId];
@@ -86,7 +87,7 @@ function defaultScore(end, players) {
     }));
 }
 
-module.exports = {
+export {
   guardStatus, guardHost,
   getBoard, deleteBoard, initBoard,
   setGraceTimer, clearGraceTimer, hasGraceTimer, allGraceTimers,

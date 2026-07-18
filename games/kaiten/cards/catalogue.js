@@ -17,7 +17,7 @@
  *   desserts     : 15 each × 3 = 45
  */
 
-'use strict';
+
 
 const CATEGORY = Object.freeze({
   NIGIRI:    'nigiri',
@@ -148,7 +148,7 @@ function cardsOfType(type) {
   }
 }
 
-module.exports = {
+export {
   CATEGORY,
   CARD_TYPES,
   ROLLS,

@@ -1,9 +1,9 @@
-'use strict';
 
-const cds = require('@sap/cds');
+
+import cds from '@sap/cds';
 const { expect } = cds.test;
-const { describe, it } = require('node:test');
-const { CARD_TYPES, cardsOfType, ONIGIRI_SHAPES } = require('../cards/catalogue');
+import { describe, it } from 'node:test';
+import { CARD_TYPES, cardsOfType, ONIGIRI_SHAPES } from '../cards/catalogue.js';
 
 describe('kaiten catalogue', () => {
 

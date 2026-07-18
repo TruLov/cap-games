@@ -20,7 +20,7 @@ function checkWinner(board) {
   return line ? board[line[0]] : null;
 }
 
-module.exports = {
+export default {
 
   meta: {
     name:       'TicTacToe',

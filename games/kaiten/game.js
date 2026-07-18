@@ -27,12 +27,12 @@
  * user-scoped `privateState` event.
  */
 
-'use strict';
 
-const flow = require('./flow');
-const { MENUS } = require('./deck');
 
-module.exports = {
+import * as flow from './flow.js';
+import { MENUS } from './deck.js';
+
+export default {
 
   meta: {
     name: 'Kaiten',

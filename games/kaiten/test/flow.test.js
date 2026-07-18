@@ -1,9 +1,9 @@
-'use strict';
 
-const cds = require('@sap/cds');
+
+import cds from '@sap/cds';
 const { expect } = cds.test;
-const { describe, it } = require('node:test');
-const flow = require('../flow');
+import { describe, it } from 'node:test';
+import * as flow from '../flow.js';
 
 const START = (players, extra = {}) =>
   flow.init({ players, preset: 'classic', seed: 12345, ...extra });

@@ -1,5 +1,5 @@
-const cds = require('@sap/cds');
-const registry = require('./registry');
+import cds from '@sap/cds';
+import * as registry from './registry.js';
 
 class LobbyService extends cds.ApplicationService {
   async init() {
@@ -39,4 +39,4 @@ class LobbyService extends cds.ApplicationService {
   }
 }
 
-module.exports = LobbyService;
+export default LobbyService;

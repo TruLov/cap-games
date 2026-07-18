@@ -2,6 +2,7 @@
   "name": "@cap-games/kaiten",
   "version": "1.0.0",
   "description": "Kaiten game plugin for cap-games platform",
+  "type": "module",
   "main": "game.js",
   "scripts": {
     "test": "node --test-reporter=tap --test \"test/**/*.test.js\""

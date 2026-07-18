@@ -14,10 +14,10 @@
  * stringifies it into WebSocket events).
  */
 
-'use strict';
 
-const deck = require('./deck');
-const { scoreRound, scoreGame } = require('./scoring');
+
+import * as deck from './deck.js';
+import { scoreRound, scoreGame } from './scoring.js';
 
 const URAMAKI_THRESHOLD = 10;
 
@@ -431,4 +431,4 @@ function boardPlayers(state) {
   }));
 }
 
-module.exports = { init, applyMove, dealRound, resolveTurn, computeRanking };
+export { init, applyMove, dealRound, resolveTurn, computeRanking };
