@@ -93,6 +93,7 @@ async function joinRoom(roomId) {
   // update header
   $('sh-room-id').textContent = roomId;
   $('sh-room-id').hidden = false;
+  $('sh-btn-copy').hidden = false;
 
   // load game UI module
   const mod = await import(`/games/${game}/index.js`);
@@ -144,6 +145,7 @@ function leaveRoom() {
   shell.game = null;
   emitter.clear();
   $('sh-room-id').hidden = true;
+  $('sh-btn-copy').hidden = true;
   showView('lobby');
   loadLobby();
 }
@@ -183,6 +185,10 @@ function renderLoginView() {
 
 $('sh-btn-logout').onclick = logout;
 $('sh-btn-leave').onclick  = leaveRoom;
+$('sh-btn-copy').onclick   = () => {
+  navigator.clipboard.writeText(shell.room?.id ?? '');
+  toast('Room ID copied');
+};
 $('sh-join-input').onkeydown = e => { if (e.key === 'Enter') $('sh-btn-join').click(); };
 $('sh-btn-join').onclick = () => {
   const id = $('sh-join-input').value.trim();
