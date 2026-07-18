@@ -3,20 +3,22 @@
 /**
  * Integration test — hidden-information projection.
  *
- * Boots the CAP server in-memory, connects two WebSocket clients (alice, bob),
- * plays through the start of a Kaiten game, and asserts that an opponent
- * NEVER receives another player's hand (or the draw pile) over the wire, while
- * each player privately receives their own hand.
+ * Boots the CAP server in-memory via cds.test, connects two WebSocket clients
+ * (alice, bob), plays through the start of a Kaiten game, and asserts that an
+ * opponent NEVER receives another player's hand (or the draw pile) over the
+ * wire, while each player privately receives their own hand.
  *
- * Run: node.exe --test-reporter=tap --test test/hidden-info.test.js
+ * Run: node --test-reporter=tap --test test/hidden-info.test.js
  */
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { spawn } = require('node:child_process');
+const cds = require('@sap/cds');
 const WebSocket = require('ws');
 
-let child, port, alice, bob, roomId;
+const cdst = cds.test('.');
+
+let port, alice, bob, roomId;
 
 const basic = (u) => 'Basic ' + Buffer.from(`${u}:${u}`).toString('base64');
 
@@ -52,27 +54,11 @@ function waitFor(client, eventName, timeout = 4000) {
 }
 
 before(async () => {
-  // Spawn the real server (same bootstrap as `cds-serve`) on a random port.
-  const bin = require.resolve('@sap/cds/bin/serve.js');
-  child = spawn(process.execPath, [bin, '--port', '0', '--in-memory'], {
-    cwd: __dirname + '/..',
-    env: { ...process.env },
-  });
-  port = await new Promise((resolve, reject) => {
-    let buf = '';
-    const onData = (d) => {
-      buf += d.toString();
-      const m = buf.match(/localhost:(\d+)/);
-      if (m) resolve(Number(m[1]));
-    };
-    child.stdout.on('data', onData);
-    child.stderr.on('data', onData);
-    child.on('exit', (code) => reject(new Error('server exited early (' + code + '):\n' + buf)));
-    setTimeout(() => reject(new Error('server did not start in time:\n' + buf)), 30000);
-  });
+  const { server, url } = await cdst; // resolves once cds emits 'listening'
+  port = server.address().port;
 
   // alice creates a kaiten room (she becomes host with symbol X)
-  const res = await fetch(`http://localhost:${port}/odata/v4/lobby/createRoom`, {
+  const res = await fetch(`${url}/odata/v4/lobby/createRoom`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: basic('alice') },
     body: JSON.stringify({ game: 'kaiten' }),
@@ -87,10 +73,10 @@ before(async () => {
   await Promise.all([alice.ready, bob.ready]);
 });
 
-after(async () => {
+after(() => {
   alice?.ws.close();
   bob?.ws.close();
-  child?.kill();
+  // cds.test registers its own after() to shut down the server
 });
 
 test('two players join and get distinct symbols', async () => {
@@ -142,7 +128,7 @@ test('no room-broadcast message ever leaks hands or the draw pile to bob', async
     assert.ok(!raw.includes('"pick"'), `${e.event} leaked a secret pick`);
   }
 
-  // and bob's private hand should shrink to 9 once the turn resolves
+  // bob's private hand should shrink to 9 once the turn resolves
   // (an intermediate 'privateState' is sent while waiting for the other player)
   let handLen = 10;
   for (let i = 0; i < 4 && handLen !== 9; i++) {
