@@ -9,6 +9,7 @@ entity Rooms : cuid, managed {
   host     : String(255);
   status   : GameStatus default 'lobby';
   settings : LargeString;   // JSON — game-defined settings
+  code     : String(4);     // short human-typeable join code
   players  : Composition of many Players on players.room = $self;
 }
 

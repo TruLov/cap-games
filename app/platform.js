@@ -84,14 +84,30 @@ function toast(msg) {
 }
 
 // ── Room lifecycle ────────────────────────────────────────────
-async function joinRoom(roomId) {
-  // resolve game type
-  const data = await odata('GET', `Rooms?$filter=ID eq '${roomId}'`).catch(() => null);
-  const game = data?.value?.[0]?.game ?? 'tictactoe';
-  shell.room = { id: roomId, game };
+async function joinByCode(input) {
+  // Accept either a 4-char code or a full UUID (backwards compat)
+  const isCode = /^[A-Z0-9]{4}$/i.test(input.trim());
+  const filter = isCode
+    ? `code eq '${input.trim().toUpperCase()}'`
+    : `ID eq '${input.trim()}'`;
+  const data = await odata('GET', `Rooms?$filter=${filter}`).catch(() => null);
+  const room = data?.value?.[0];
+  if (!room) { toast('Room not found'); return; }
+  await joinRoom(room.ID, room.code, room.game);
+}
 
-  // update header
-  $('sh-room-id').textContent = roomId;
+async function joinRoom(roomId, code, game) {
+  // resolve room details if not provided (e.g. when called from createRoom)
+  if (!game) {
+    const data = await odata('GET', `Rooms?$filter=ID eq '${roomId}'`).catch(() => null);
+    const room = data?.value?.[0] ?? {};
+    code = room.code ?? roomId;
+    game = room.game ?? 'tictactoe';
+  }
+  shell.room = { id: roomId, code: code ?? roomId, game };
+
+  // update header — show short code
+  $('sh-room-id').textContent = shell.room.code;
   $('sh-room-id').hidden = false;
   $('sh-btn-copy').hidden = false;
 
@@ -132,7 +148,7 @@ async function joinRoom(roomId) {
 
 async function createRoom(game) {
   const { value: roomId } = await odata('POST', 'createRoom', { game });
-  await joinRoom(roomId);
+  await joinRoom(roomId);  // joinRoom will fetch code+game since they're not passed
 }
 
 function leaveRoom() {
@@ -185,13 +201,13 @@ function renderLoginView() {
 $('sh-btn-logout').onclick = logout;
 $('sh-btn-leave').onclick  = leaveRoom;
 $('sh-btn-copy').onclick   = () => {
-  navigator.clipboard.writeText(shell.room?.id ?? '');
-  toast('Room ID copied');
+  navigator.clipboard.writeText(shell.room?.code ?? '');
+  toast('Room code copied');
 };
 $('sh-join-input').onkeydown = e => { if (e.key === 'Enter') $('sh-btn-join').click(); };
 $('sh-btn-join').onclick = () => {
   const id = $('sh-join-input').value.trim();
-  if (id) joinRoom(id);
+  if (id) joinByCode(id);
 };
 
 renderLoginView();
