@@ -155,8 +155,29 @@ module.exports = {
   score(end, players)             // → [{ user, result: 'win'|'loss'|'draw', points }]
                                   //   omit to use platform default: W:3 D:1 L:0
   extendService(srv)              // → register extra actions/events on PlayService
+
+  // Optional — hidden information (secret hands, face-down cards, roles)
+  publicState(state)              // → redacted state broadcast to everyone in the room
+  privateState(state, symbol)     // → per-player slice, delivered ONLY to that user
 };
 ```
+
+### Hidden Information (state projection)
+
+By default the platform broadcasts the full `state` to the whole room — fine for
+perfect-information games (TicTacToe). Games with secrets must **not** leak them
+over the wire. If a game defines **both** `publicState` and `privateState`, the
+platform redacts automatically:
+
+- The room-scoped events (`started`/`moved`/`finished`/`rematched`) carry only
+  `publicState(state)`.
+- Each player additionally receives a `privateState` event — delivered to that
+  user alone via the WebSocket `user` filter — carrying `privateState(state, symbol)`.
+- On join/reconnect the platform sends the (re)joining user a private snapshot so
+  they can render immediately.
+
+Define neither hook → legacy behaviour (full state broadcast), unchanged.
+This is a generic platform capability; game logic stays in `games/<name>/`.
 
 ### Adding a Game (4 files)
 

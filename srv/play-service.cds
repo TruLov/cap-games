@@ -28,6 +28,11 @@ service PlayService {
   event finished           { @ws.context room: String; winner: String; state: String; }
   event rematched          { @ws.context room: String; firstTurn: String; state: String; }
   event lobbyReset         { @ws.context room: String; }
+  // Per-recipient private state slice (hidden information). Delivered only to a
+  // single user via the `user` emit filter. NO @ws.context here on purpose:
+  // combining a room context with a user filter would OR them and broadcast to
+  // the whole room. User-only scoping guarantees the slice reaches just its owner.
+  event privateState       { room: String; data: String; }
   event playerLeft         { @ws.context room: String; player: String; symbol: String; newHost: String; }
   event playerKicked       { @ws.context room: String; player: String; }
   event playerDisconnected { @ws.context room: String; player: String; symbol: String; }
