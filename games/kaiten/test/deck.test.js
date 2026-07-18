@@ -1,82 +1,80 @@
 'use strict';
 
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-
+const cds = require('@sap/cds');
+const { expect } = cds.test;
+const { describe, it } = require('node:test');
 const {
   MENUS, dealCount, dessertCount, resolveMenu, validateMenu,
   baseDeck, dessertPool, makeRng, shuffle,
 } = require('../deck');
 
-test('deal counts by player count', () => {
-  assert.equal(dealCount(2), 10);
-  assert.equal(dealCount(3), 10);
-  assert.equal(dealCount(4), 9);
-  assert.equal(dealCount(5), 9);
-  assert.equal(dealCount(6), 8);
-  assert.equal(dealCount(7), 8);
-  assert.equal(dealCount(8), 7);
-});
+describe('kaiten deck', () => {
 
-test('dessert counts per round by group', () => {
-  // 2–5 players
-  assert.deepEqual([1, 2, 3].map(r => dessertCount(4, r)), [5, 3, 2]);
-  // 6–8 players
-  assert.deepEqual([1, 2, 3].map(r => dessertCount(6, r)), [7, 5, 3]);
-});
+  it('deal counts by player count', () => {
+    expect(dealCount(2)).to.equal(10);
+    expect(dealCount(3)).to.equal(10);
+    expect(dealCount(4)).to.equal(9);
+    expect(dealCount(5)).to.equal(9);
+    expect(dealCount(6)).to.equal(8);
+    expect(dealCount(7)).to.equal(8);
+    expect(dealCount(8)).to.equal(7);
+  });
 
-test('all 8 predefined menus resolve and validate', () => {
-  for (const preset of Object.keys(MENUS)) {
-    const menu = resolveMenu({ preset }, 3);
-    assert.equal(menu.appetizers.length, 3);
-    assert.equal(menu.specials.length, 2);
-  }
-});
+  it('dessert counts per round by group', () => {
+    expect([1,2,3].map(r => dessertCount(4, r))).to.deep.equal([5, 3, 2]);
+    expect([1,2,3].map(r => dessertCount(6, r))).to.deep.equal([7, 5, 3]);
+  });
 
-test('menu restriction: Spoon/Edamame banned at 2 players', () => {
-  assert.throws(() => validateMenu(
-    { roll: 'maki', appetizers: ['edamame', 'tempura', 'tofu'], specials: ['wasabi', 'tea'], dessert: 'pudding' }, 2));
-  assert.throws(() => validateMenu(
-    { roll: 'maki', appetizers: ['tempura', 'sashimi', 'tofu'], specials: ['spoon', 'tea'], dessert: 'pudding' }, 2));
-});
+  it('all 8 predefined menus resolve and validate', () => {
+    for (const preset of Object.keys(MENUS)) {
+      const menu = resolveMenu({ preset }, 3);
+      expect(menu.appetizers).to.have.length(3);
+      expect(menu.specials).to.have.length(2);
+    }
+  });
 
-test('menu restriction: Menu/Special Order banned at 7–8 players', () => {
-  assert.throws(() => validateMenu(
-    { roll: 'maki', appetizers: ['tempura', 'sashimi', 'tofu'], specials: ['menu', 'tea'], dessert: 'pudding' }, 7));
-  assert.throws(() => validateMenu(
-    { roll: 'maki', appetizers: ['tempura', 'sashimi', 'tofu'], specials: ['special_order', 'tea'], dessert: 'pudding' }, 8));
-});
+  describe('menu restrictions', () => {
 
-test('menu composition must be exactly 1/3/2/1', () => {
-  assert.throws(() => validateMenu(
-    { roll: 'maki', appetizers: ['tempura', 'sashimi'], specials: ['wasabi', 'tea'], dessert: 'pudding' }, 3));
-  assert.throws(() => validateMenu(
-    { roll: 'maki', appetizers: ['tempura', 'sashimi', 'tofu'], specials: ['wasabi'], dessert: 'pudding' }, 3));
-  assert.throws(() => validateMenu(
-    { roll: 'bad_roll', appetizers: ['tempura', 'sashimi', 'tofu'], specials: ['wasabi', 'tea'], dessert: 'pudding' }, 3));
-});
+    it('Spoon/Edamame banned at 2 players', () => {
+      expect(() => validateMenu({ roll: 'maki', appetizers: ['edamame','tempura','tofu'], specials: ['wasabi','tea'], dessert: 'pudding' }, 2)).to.throw();
+      expect(() => validateMenu({ roll: 'maki', appetizers: ['tempura','sashimi','tofu'], specials: ['spoon','tea'],  dessert: 'pudding' }, 2)).to.throw();
+    });
 
-test('base deck excludes desserts and has 54 cards', () => {
-  const menu = resolveMenu({ preset: 'classic' }, 3);
-  const deck = baseDeck(menu);
-  // nigiri 12 + maki 12 + (3 appetizers × 8 = 24) + (2 specials × 3 = 6) = 54
-  assert.equal(deck.length, 54);
-  assert.ok(deck.every(c => c.type !== menu.dessert));
-});
+    it('Menu/Special Order banned at 7–8 players', () => {
+      expect(() => validateMenu({ roll: 'maki', appetizers: ['tempura','sashimi','tofu'], specials: ['menu','tea'],          dessert: 'pudding' }, 7)).to.throw();
+      expect(() => validateMenu({ roll: 'maki', appetizers: ['tempura','sashimi','tofu'], specials: ['special_order','tea'], dessert: 'pudding' }, 8)).to.throw();
+    });
 
-test('dessert pool is 15 cards of the menu dessert type', () => {
-  const menu = resolveMenu({ preset: 'classic' }, 3);
-  const pool = dessertPool(menu);
-  assert.equal(pool.length, 15);
-  assert.ok(pool.every(c => c.type === 'pudding'));
-});
+    it('composition must be exactly 1/3/2/1', () => {
+      expect(() => validateMenu({ roll: 'maki',     appetizers: ['tempura','sashimi'],       specials: ['wasabi','tea'], dessert: 'pudding' }, 3)).to.throw();
+      expect(() => validateMenu({ roll: 'maki',     appetizers: ['tempura','sashimi','tofu'], specials: ['wasabi'],      dessert: 'pudding' }, 3)).to.throw();
+      expect(() => validateMenu({ roll: 'bad_roll', appetizers: ['tempura','sashimi','tofu'], specials: ['wasabi','tea'], dessert: 'pudding' }, 3)).to.throw();
+    });
 
-test('seeded shuffle is deterministic and non-mutating', () => {
-  const src = Array.from({ length: 20 }, (_, i) => i);
-  const a = shuffle(src, makeRng(42));
-  const b = shuffle(src, makeRng(42));
-  assert.deepEqual(a, b);
-  assert.deepEqual(src, Array.from({ length: 20 }, (_, i) => i)); // unchanged
-  assert.notDeepEqual(a, src); // actually shuffled
-  assert.deepEqual([...a].sort((x, y) => x - y), src); // same multiset
+  });
+
+  it('base deck excludes desserts and has 54 cards', () => {
+    const menu = resolveMenu({ preset: 'classic' }, 3);
+    const deck = baseDeck(menu);
+    expect(deck).to.have.length(54);
+    expect(deck.every(c => c.type !== menu.dessert)).to.be.true;
+  });
+
+  it('dessert pool is 15 pudding cards', () => {
+    const menu = resolveMenu({ preset: 'classic' }, 3);
+    const pool = dessertPool(menu);
+    expect(pool).to.have.length(15);
+    expect(pool.every(c => c.type === 'pudding')).to.be.true;
+  });
+
+  it('seeded shuffle is deterministic and non-mutating', () => {
+    const src = Array.from({ length: 20 }, (_, i) => i);
+    const a = shuffle(src, makeRng(42));
+    const b = shuffle(src, makeRng(42));
+    expect(a).to.deep.equal(b);
+    expect(src).to.deep.equal(Array.from({ length: 20 }, (_, i) => i));
+    expect(a).to.not.deep.equal(src);
+    expect([...a].sort((x, y) => x - y)).to.deep.equal(src);
+  });
+
 });
