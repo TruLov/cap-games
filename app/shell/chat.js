@@ -23,11 +23,15 @@ export function mountChat(el, sdk) {
 
   function onMessage({ player, text }) {
     const row = document.createElement('div');
-    row.className = 'sh-chat-msg';
-    const name = document.createElement('strong');
-    name.textContent = player + ':';
-    row.appendChild(name);
-    row.appendChild(document.createTextNode(' ' + text));
+    row.className = player === 'system' ? 'sh-chat-msg sh-chat-sys' : 'sh-chat-msg';
+    if (player === 'system') {
+      row.textContent = text;
+    } else {
+      const name = document.createElement('strong');
+      name.textContent = player + ':';
+      row.appendChild(name);
+      row.appendChild(document.createTextNode(' ' + text));
+    }
     msgs.appendChild(row);
     msgs.scrollTop = msgs.scrollHeight;
   }
