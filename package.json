@@ -2,9 +2,11 @@
   "name": "cap-games",
   "version": "1.0.0",
   "description": "Multiplayer browser game platform on SAP BTP",
+  "type": "module",
   "scripts": {
     "start": "cds-serve",
     "dev": "cds watch --include games",
+    "lint": "eslint srv/ games/*/game.js games/*/cds-plugin.js",
     "test": "npm run test:unit && npm run test:int",
     "test:unit": "cds test -x integration",
     "test:int": "CDS_TEST_ENV_CHECK=y cds test integration"
@@ -22,7 +24,8 @@
   "devDependencies": {
     "@cap-js/cds-test": "^1.0.1",
     "@cap-js/sqlite": "*",
-    "@sap/cds-dk": "^10"
+    "@sap/cds-dk": "^10",
+    "eslint": "^10.7.0"
   },
   "cds": {
     "requires": {
@@ -48,10 +51,6 @@
     },
     "websocket": {
       "kind": "ws"
-    },
-    "features": {
-      "compat_srv_getters": false,
-      "compat_texts_entities": false
     }
   }
 }
