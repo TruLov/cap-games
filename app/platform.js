@@ -112,7 +112,6 @@ async function joinRoom(roomId) {
     emitter.off('joined', onFirstJoin);
 
     shell.me = { user: shell.user.id, symbol: payload.symbol, isHost: payload.host };
-    $('sh-user-display').textContent = `${shell.user.id} · ${payload.symbol}`;
 
     // build sdk and hand full control to game
     const sdk = makeSdk({
