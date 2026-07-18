@@ -3,6 +3,10 @@ const LOG  = cds.log('game');
 const eng  = require('./engine');
 const reg  = require('./registry');
 
+const _hasProjection = g => typeof g.publicState === 'function' && typeof g.privateState === 'function';
+const _sliceFor = (game, state, symbol, pub) =>
+  symbol === 'spectator' ? pub : JSON.stringify(game.privateState(state, symbol));
+
 class PlayService extends cds.ApplicationService {
 
   async init() {
@@ -280,10 +284,7 @@ class PlayService extends cds.ApplicationService {
    */
   async _broadcastState(roomId, gameId, b, event, extra = {}) {
     const game = reg.get(gameId);
-    const hasProjection = typeof game.publicState === 'function'
-                       && typeof game.privateState === 'function';
-
-    if (!hasProjection) {
+    if (!_hasProjection(game)) {
       const full = JSON.stringify(b.state);
       await this.emit(event, { room: roomId, ...extra, state: full, data: full });
       return;
@@ -294,9 +295,7 @@ class PlayService extends cds.ApplicationService {
 
     const players = await SELECT.from('cap.games.Players').where({ room_ID: roomId });
     for (const p of players) {
-      const slice = p.symbol === 'spectator'
-        ? pub
-        : JSON.stringify(game.privateState(b.state, p.symbol));
+      const slice = _sliceFor(game, b.state, p.symbol, pub);
       await this.emit('privateState', { room: roomId, data: slice }, { user: { include: [p.user] } });
     }
   }
@@ -310,17 +309,15 @@ class PlayService extends cds.ApplicationService {
     const b = eng.getBoard(roomId);
     if (!b) return;
     const game = reg.get(gameId);
-    if (typeof game.publicState !== 'function' || typeof game.privateState !== 'function') {
+    if (!_hasProjection(game)) {
       // legacy games: resend full state to this user only
       const full = JSON.stringify(b.state);
       await this.emit('moved', { room: roomId, data: full }, { user: { include: [user] } });
       return;
     }
-    const slice = symbol === 'spectator'
-      ? JSON.stringify(game.publicState(b.state))
-      : JSON.stringify(game.privateState(b.state, symbol));
-    await this.emit('privateState', { room: roomId, data: slice }, { user: { include: [user] } });
-    await this.emit('moved', { room: roomId, data: JSON.stringify(game.publicState(b.state)) }, { user: { include: [user] } });
+    const pub = JSON.stringify(game.publicState(b.state));
+    await this.emit('privateState', { room: roomId, data: _sliceFor(game, b.state, symbol, pub) }, { user: { include: [user] } });
+    await this.emit('moved', { room: roomId, data: pub }, { user: { include: [user] } });
   }
 
   async _doLeave(user, roomId, fromTimeout = false) {
