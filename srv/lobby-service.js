@@ -24,9 +24,10 @@ class LobbyService extends cds.ApplicationService {
         return req.error(400, `Unknown game: ${game}`);
 
       const roomId = cds.utils.uuid();
+      const code   = await this._uniqueCode();
 
       await INSERT.into(Rooms).entries({
-        ID: roomId, game, host: user, status: 'lobby', settings: '{}',
+        ID: roomId, game, host: user, status: 'lobby', settings: '{}', code,
       });
       await INSERT.into(Players).entries({
         room_ID: roomId, user, symbol: 'X', isHost: true,
@@ -36,6 +37,18 @@ class LobbyService extends cds.ApplicationService {
     });
 
     await super.init();
+  }
+
+  // Generate a unique 4-char alphanumeric room code (retry on collision).
+  async _uniqueCode() {
+    const { Rooms } = cds.entities('cap.games');
+    const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I/O/0/1 to avoid confusion
+    for (let i = 0; i < 10; i++) {
+      const code = Array.from({ length: 4 }, () => CHARS[Math.floor(Math.random() * CHARS.length)]).join('');
+      const existing = await SELECT.one.from(Rooms).where({ code });
+      if (!existing) return code;
+    }
+    throw new Error('Could not generate a unique room code — try again');
   }
 }
 
