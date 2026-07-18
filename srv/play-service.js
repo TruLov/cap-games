@@ -37,6 +37,7 @@ class PlayService extends cds.ApplicationService {
           await UPDATE(Rooms, roomId).with({ status: 'playing' });
         }
         await this.emit('playerReconnected', { room: roomId, player: user, symbol: player?.symbol ?? '' });
+        await this._sysMsg(roomId, `${user} reconnected.`);
         await this._snapshotTo(roomId, room.game, user, player?.symbol ?? 'spectator');
         LOG.info('RECONNECT', roomId, user);
         return player?.symbol ?? 'spectator';
@@ -191,6 +192,7 @@ class PlayService extends cds.ApplicationService {
       }
       await this._succeedHostIfNeeded(room, roomId, target);
       await this.emit('playerKicked', { room: roomId, player: target });
+      await this._sysMsg(roomId, `${target} was kicked.`);
       if (['playing', 'paused'].includes(room.status))
         await this.emit('lobbyReset', { room: roomId });
       await this._autoDelete(roomId);
@@ -235,6 +237,7 @@ class PlayService extends cds.ApplicationService {
           await this.emit('playerDisconnected', {
             room: room.ID, player: user, symbol: player.symbol,
           });
+          await this._sysMsg(room.ID, `${user} disconnected.`);
           LOG.info('DISCONNECT', room.ID, user, player.symbol, '→ paused (60s grace)');
         } else {
           await this._doLeave(user, room.ID);
@@ -271,6 +274,10 @@ class PlayService extends cds.ApplicationService {
 
   _error(req, room, message) {
     return this.emit('gameError', { room: room ?? '', message });
+  }
+
+  _sysMsg(room, text) {
+    return this.emit('chatMessage', { room, player: 'system', text, ts: new Date().toISOString() });
   }
 
   /**
@@ -347,6 +354,7 @@ class PlayService extends cds.ApplicationService {
       symbol: player.symbol ?? 'spectator',
       newHost: newHost ?? '',
     });
+    await this._sysMsg(roomId, `${user} left.`);
     if (wasPlaying) await this.emit('lobbyReset', { room: roomId });
 
     await this._autoDelete(roomId);

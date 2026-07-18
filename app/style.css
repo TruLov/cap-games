@@ -115,6 +115,7 @@ input:focus { outline: 2px solid var(--accent); }
 }
 .sh-chat-msg    { font-size: .9rem; color: #cbd5e1; }
 .sh-chat-msg strong { color: #93c5fd; }
+.sh-chat-sys    { color: var(--muted); font-style: italic; font-size: .82rem; }
 .sh-chat-input  { display: flex; gap: .5rem; margin-top: .5rem; }
 
 /* TicTacToe board (game-owned, placed here for global access) */
