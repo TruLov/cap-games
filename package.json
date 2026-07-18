@@ -6,8 +6,8 @@
     "start": "cds-serve",
     "dev": "cds watch --include games",
     "test": "npm run test:unit && npm run test:int",
-    "test:unit": "node --test-reporter=tap --test \"games/*/test/**/*.test.js\"",
-    "test:int": "node --test-reporter=tap --test \"test/**/*.test.js\""
+    "test:unit": "cds test -x integration",
+    "test:int": "CDS_TEST_ENV_CHECK=y cds test integration"
   },
   "workspaces": [
     "games/*"
