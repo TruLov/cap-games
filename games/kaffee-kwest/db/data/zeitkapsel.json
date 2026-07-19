@@ -1,0 +1,110 @@
+{
+  "ID": "zeitkapsel",
+  "title": "Die Zeitkapsel des Praktikanten",
+  "setting": "modernes Bürogebäude, irgendwo zwischen Laserdrucker und Kaffeemaschine",
+  "premise": "Bei einer Renovierung des Besprechungsraums 3b wird eine alte Zeitkapsel gefunden — eingemauert 1987, adressiert an 'die Helden, die das Betriebsfest überleben'. Drin: ein Diskettenstapel, ein Schlüssel ohne Schloss und ein Zettel, der behauptet, im Keller stecke 'das Passwort, das alles erklärt'. Das Wi-Fi bricht dabei merkwürdig zusammen.",
+  "goal": "Die Zeitkapsel entschlüsseln — und verstehen, was der Praktikant von 1987 eigentlich mit 'rettet die Daten' gemeint hat.",
+  "tone": "Bürokomödie mit einem Hauch Mysterium, leicht absurd",
+  "taboo": "keine echten Arbeitsinhalte erwähnen",
+  "length": 5,
+  "roles": [
+    { "role": "IT-Urgestein mit Diskettenwissen", "hook": "kennt noch das Geräusch eines 3,5-Zöllers", "tags": ["klug", "technik", "computer", "erklärt"] },
+    { "role": "Juristin mit Aktenkoffer", "hook": "findet in jedem Dokument eine Haftungsfrage", "tags": ["genau", "lesen", "papier", "verhandeln", "reden"] },
+    { "role": "Praktikant:in (seit 6 Wochen)", "hook": "weiß nicht, dass man das nicht so macht", "tags": ["mutig", "impulsiv", "abenteuer", "naiv"] },
+    { "role": "Hausmeister:in mit Kellerplan", "hook": "hat einen Schlüssel für jeden Raum, außer dem einen", "tags": ["stark", "handwerk", "keller", "schlüssel"] },
+    { "role": "Marketingchef:in mit Kaffeebecher", "hook": "erklärt alles mit einer Folie", "tags": ["charme", "reden", "überzeugen", "präsentation"] },
+    { "role": "Betriebsrat mit langer Geschichte", "hook": "war bei der letzten Krise auch dabei", "tags": ["weise", "geschichte", "protokoll", "erfahrung"] }
+  ],
+  "tree": {
+    "start": "fund",
+    "nodes": {
+      "fund": {
+        "mechanic": "vote",
+        "text": "Die Zeitkapsel liegt auf dem Konferenztisch zwischen einem abgestandenen Kaffeebecher und dem Protokoll des letzten All-Hands-Meetings. Sie riecht nach Kork und altem Toner. Der Zettel darin weist in zwei Richtungen: 'ARCHIV, UG2' und 'IT-RAUM, EG'. Das Wi-Fi-Symbol blinkt dreimal und gibt auf.",
+        "options": [
+          { "label": "Ins Archiv, Untergeschoss 2", "next": "archiv" },
+          { "label": "In den IT-Raum, Erdgeschoss", "next": "itroom" }
+        ]
+      },
+      "archiv": {
+        "mechanic": "roll",
+        "text": "Das Archiv riecht nach 1987: Leitz-Ordner, Durchschlagpapier und unbeantworteten Fragen. Irgendwo hier muss das Passwort liegen — aber die Hängeregale reichen bis zur Decke und sind nach einem System sortiert, das kein Mensch mehr versteht.",
+        "roll": {
+          "castHint": "protokoll",
+          "bonusTag": "genau",
+          "malusTag": "ungeduldig",
+          "target": 11,
+          "success": "keller",
+          "successText": "Zwischen 'Quartalsberichten Q3/87' und 'Diverse (Sonstiges)' findet sich ein Umschlag mit der Aufschrift 'NUR FÜR NOTFÄLLE'. Er enthält einen zweiten Zettel — und einen Hinweis auf den Keller.",
+          "fail": "keller",
+          "failText": "Nach zwanzig Minuten ist der einzige Fund: ein Mietvertrag aus dem Jahr 1991 und ein Foto von einer Weihnachtsfeier, auf der alle sehr zufrieden aussehen. Der Keller bleibt die einzige Option."
+        }
+      },
+      "itroom": {
+        "mechanic": "roll",
+        "text": "Der IT-Raum hat die Temperatur eines Serverraums und die Atmosphäre eines Verhörzimmers. An der Wand hängt noch ein Netzwerkplan aus der Vor-Internet-Ära. Das einzige laufende Gerät: ein beiger Kasten, der leise surrend behauptet, ein Computer zu sein.",
+        "roll": {
+          "castHint": "technik",
+          "bonusTag": "computer",
+          "malusTag": "digital",
+          "target": 10,
+          "success": "keller",
+          "successText": "Nach dem dritten Neustart und einer mutigen Unterhaltung mit dem BIOS lädt das Gerät tatsächlich etwas. Auf dem Bildschirm erscheint: 'PASSWORT: KELLER/SCHRANK4'. Natürlich.",
+          "fail": "keller",
+          "failText": "Der Computer startet und zeigt exakt einen Satz: 'PLEASE INSERT DISK 2 OF 47'. Disk 2 ist nicht in der Zeitkapsel. Es bleibt nur der Keller."
+        }
+      },
+      "keller": {
+        "mechanic": "moment",
+        "castHint": "schlüssel",
+        "text": "Schrank 4 im Keller ist verschlossen — und der Schlüssel aus der Zeitkapsel passt nicht. Dahinter ist eindeutig etwas. Es klopft. Nicht laut, aber entschieden. Wie jemand, der schon eine Weile wartet und langsam die Geduld verliert.",
+        "prompt": "Was tust du jetzt? (max. 140 Zeichen)",
+        "options": [
+          { "label": "Überreden", "keywords": ["bitte", "hallo", "reden", "erklär", "wir meinen", "freund", "kein stress", "harmlos", "versprech"], "next": "datei" },
+          { "label": "Einbrechen", "keywords": ["aufbrechen", "schloss", "hammer", "kraft", "hebel", "brechen", "rammen", "werkzeug"], "next": "datei_not" },
+          { "label": "Ignorieren", "keywords": ["weiter", "egal", "ignore", "schrank lassen", "anderes", "vorsicht", "zurück", "warten"], "next": "datei_not" }
+        ]
+      },
+      "datei": {
+        "mechanic": "roll",
+        "text": "Der Schrank öffnet sich — von innen. Dahinter steht ein USB-Stick der ersten Generation, aufgeklebt auf einem Zettel: 'Die Daten gehören allen. Passwort: KAFFEEPAUSE.' Jetzt muss nur noch jemand das Ding lesen können.",
+        "roll": {
+          "castHint": "technik",
+          "bonusTag": "klug",
+          "malusTag": "analog",
+          "target": 11,
+          "success": "finale_triumph",
+          "successText": "Der Stick öffnet sich. 47 Ordner, 12.000 Dateien, und ganz oben: 'LIES_MICH.TXT'. Es ist die Niederschrift des ersten Betriebsfests — und der Name des Praktikanten von 1987. Jemand wollte, dass man sich erinnert.",
+          "fail": "finale_teilerfolg",
+          "failText": "Der Stick lässt sich zwar anstecken, öffnet aber nur eine einzige Datei: ein 3 MB großes Bild, das lange lädt. Es zeigt eine Kaffeetasse. Darunter: 'Danke.' Mehr war da nicht."
+        }
+      },
+      "datei_not": {
+        "mechanic": "roll",
+        "text": "Beim Versuch, den Schrank zu öffnen, fällt er komplett um. Der Inhalt ergießt sich über den Kellerboden: 47 Disketten, ein USB-Stick und erschreckend viele Kaffeebecherdeckel. Irgendwas davon muss wichtig sein.",
+        "roll": {
+          "castHint": "genau",
+          "bonusTag": "klug",
+          "malusTag": "impulsiv",
+          "target": 12,
+          "success": "finale_teilerfolg",
+          "successText": "Zwischen den Deckeln liegt, kaum lesbar: ein Klebezettel mit 'KAFFEEPAUSE — STICK'. Der USB-Stick enthält eine einzige Datei: 'LIES_MICH.TXT'. Wer auch immer das hier versteckt hat, hatte Humor.",
+          "fail": "finale_chaos",
+          "failText": "Die Disketten sind beschriftet, aber unleserlich. Der USB-Stick ist verschwunden. Was bleibt: 47 Deckel, das Wi-Fi funktioniert wieder, und irgendjemand muss das dem Hausmeister erklären."
+        }
+      },
+      "finale_triumph": {
+        "text": "Der Name des Praktikanten: Dieter Kamm. Er hat 1987 den ersten Computer des Unternehmens aufgestellt, das erste Passwort vergeben und zur Sicherheit alles dokumentiert — für den Fall, dass es mal jemand wissen will. Der IT-Raum bekommt ein handgeschriebenes Schild: 'Dieter-Kamm-Gedächtnisraum'. Das Wi-Fi bleibt instabil. Manche Dinge ändern sich nie.",
+        "ending": { "tier": "good", "title": "Die Daten gerettet, die Geschichte erzählt" }
+      },
+      "finale_teilerfolg": {
+        "text": "Der Praktikant von 1987 bleibt anonym — aber die Kaffeepause gilt jetzt offiziell als 'historisch bedeutsam'. Jemand klebt einen Ausdruck an die Kühlschranktür. Das Betriebsrat-Protokoll des Tages lautet: 'Funde aus 1987: Danke.' Das Wi-Fi ist wieder da. Es reicht.",
+        "ending": { "tier": "mixed", "title": "Halb gelöst, ganz Kaffee" }
+      },
+      "finale_chaos": {
+        "text": "47 Disketten, 0 Erkenntnisse, 1 sehr verärgerte Hausmeisterin. Die Zeitkapsel wird offiziell als 'nicht auswertbar' eingestuft und im Archiv unter 'Diverses (Sonstiges B)' abgelegt. Vielleicht findet sie 2061 jemand anderes. Das Wi-Fi funktioniert seitdem besonders gut. Zusammenhang unklar.",
+        "ending": { "tier": "bad", "title": "Mehr Fragen als vorher" }
+      }
+    }
+  }
+}
