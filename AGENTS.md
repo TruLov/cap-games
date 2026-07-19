@@ -35,7 +35,8 @@ CAP Server (Node.js)
 | `srv/lobby-service.cds/.js` | OData service — game catalogue, rooms, leaderboard, createRoom |
 | `srv/play-service.cds/.js` | WebSocket service — all realtime actions + events |
 | `srv/engine.js` | Transient board state, reconnect grace timers, default scoring |
-| `srv/registry.js` | Reads `cds.env.games` populated by game plugins at startup |
+| `srv/registry.js` | Loads games declared in `cds.env.games` (from plugin package.jsons) |
+| `srv/server.js` | Custom bootstrap — serves each game's `ui/` at `/games/<id>` |
 | `app/` | Shell: login, lobby, header/nav. Static files served by CAP. |
 | `app/sdk.js` | SDK factory — `makeSdk()` + `makeEmitter()` |
 | `app/shell/` | Importable UI components: `chat.js`, `players.js`, `host.js` |
@@ -80,29 +81,46 @@ After a server restart, `playing`/`paused` rooms stay in DB but have no board st
 
 ## Extension Concept: Game Plugins
 
-Games self-register via CAP's `cds-plugin.js` mechanism.
-CAP auto-loads `cds-plugin.js` from every installed package in `node_modules/`.
+Games register **declaratively** — the same pattern official CAP plugins
+(@cap-js/sqlite, @cap-js/ai, …) use: all wiring lives in the plugin's
+`package.json` `cds` section; `cds-plugin.js` is an **empty marker file**
+(CAP only merges the `cds` section of packages that have one).
 
 ```
 npm install
       │
       ▼
-CAP runtime scans node_modules/*/cds-plugin.js
+CAP env loading merges every plugin package.json "cds" section:
+  "cds": { "games": { "tictactoe": { "impl": "@cap-games/tictactoe" } } }
       │
-      ▼
-@cap-games/tictactoe/cds-plugin.js runs:
-  (cds.env.games ??= {}).tictactoe = require('./game')
-      │
-      ▼
-registry.js reads cds.env.games
-      │
-      ├─ LobbyService: exposes game in /Games catalogue
-      └─ PlayService:  dispatches move → game.applyMove()
-                       calls game.score() on finished
-                       calls game.extendService() on served
+      ├─ srv/server.js (bootstrap): serves <impl>/app at /games/<id>
+      └─ srv/registry.js (served):  imports <impl> → validates contract
+             │
+             ├─ LobbyService: exposes game in /Games catalogue
+             └─ PlayService:  dispatches move → game.applyMove()
+                              calls game.score() on finished
+                              calls game.extendService() on served
 ```
 
 No change to platform code. No registry file to edit. Install → works.
+(Programmatic registration of a ready module object in `cds.env.games`
+still works for backwards compatibility.)
+
+### Optional: plugin-owned persistence + service
+
+A game may bring its own CDS model — entities and an own (OData) service,
+"an own CAP app inside the plugin" — with one more `cds` line:
+
+```json
+"requires": { "mygame": { "model": "@cap-games/mygame/srv/service.cds" } }
+```
+
+CAP includes every `requires.*.model` in the effective model: entities are
+deployed (SQLite/HANA) alongside the platform schema, the service is served
+with its sibling `service.js` impl. Reference: `games/kaffee-kwest/`
+(scenarios, player chronicles + `KaffeeKwestService` at `/odata/v4/kaffee-kwest`).
+Keep async work (AI calls, cross-room persistence) in such a service —
+never in `applyMove`, which stays pure and synchronous.
 
 ### UI Architecture: Shell + SDK + Game
 
@@ -185,14 +203,14 @@ Use `games/tictactoe/` as reference — copy and adapt.
 
 ```
 games/mygame/
-  package.json     { "name": "@cap-games/mygame", "version": "1.0.0", "main": "game.js" }
-  cds-plugin.js    (cds.env.games ??= {}).mygame = require('./game')
-                   + cds.on('bootstrap', app => app.use('/games/mygame', express.static(...)))
-  game.js          backend — exports the interface above
-  ui/index.js      frontend — exports default { mount(rootEl, sdk) }
+  package.json     { "name": "@cap-games/mygame", "type": "module", "main": "index.js",
+                     "cds": { "games": { "mygame": { "impl": "@cap-games/mygame" } } } }
+  cds-plugin.js    empty marker file — makes CAP merge the "cds" section
+  index.js         backend — exports the interface above
+  app/index.js     frontend — exports default { mount(rootEl, sdk) }
 ```
 
-**`ui/index.js`** is served automatically at `/games/<name>/index.js` by the game's own `cds-plugin.js` bootstrap hook. The platform shell (`app/platform.js`) dynamically imports it and calls `mount()` once when the room starts.
+**`app/index.js`** is served automatically at `/games/<name>/index.js` by the platform (`srv/server.js`, UI folder defaults to `app`). The platform shell (`app/platform.js`) dynamically imports it and calls `mount()` once when the room starts.
 
 Game UI contract:
 ```js
