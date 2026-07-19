@@ -26,8 +26,9 @@ platform/
   └─ play-service.*     WebSocket service
 
 games/tictactoe/        @cap-games/tictactoe plugin
-  ├─ cds-plugin.js      self-registers via cds.env.games (auto-loaded by CAP)
-  └─ game.js            game logic only (init / applyMove / score)
+  ├─ package.json       declares the game in its "cds" section (merged by CAP)
+  ├─ cds-plugin.js      empty marker — makes CAP treat the package as plugin
+  └─ index.js           game logic only (init / applyMove / score)
 ```
 
 Room isolation via `@ws.context` — plugin broadcasts events only to clients in the same room.
@@ -169,25 +170,23 @@ Room auto-deleted when all players gone.
 
 ## Adding a new game (Plugin)
 
-Copy `games/tictactoe/` as a starting point. Four files:
+Copy `games/tictactoe/` as a starting point. Four files — no wiring code:
 
-**1. `games/mygame/package.json`**
+**1. `games/mygame/package.json`** — declares the game (CAP merges the `cds` section)
 ```json
-{ "name": "@cap-games/mygame", "version": "1.0.0", "main": "game.js" }
+{
+  "name": "@cap-games/mygame", "version": "1.0.0", "type": "module", "main": "index.js",
+  "cds": {
+    "games": { "mygame": { "impl": "@cap-games/mygame" } }
+  }
+}
 ```
 
-**2. `games/mygame/cds-plugin.js`** — self-registers backend + UI serving
-```js
-const cds = require('@sap/cds');
-const express = require('express');
-const path = require('path');
+**2. `games/mygame/cds-plugin.js`** — empty marker file (CAP only merges the
+`cds` section of packages that have one). The platform loads `impl` and
+serves `app/` at `/games/mygame` automatically (override via `"ui"` key).
 
-(cds.env.games ??= {}).mygame = require('./game');
-cds.on('bootstrap', app =>
-  app.use('/games/mygame', express.static(path.join(__dirname, 'ui'))));
-```
-
-**3. `games/mygame/game.js`** — backend logic
+**3. `games/mygame/index.js`** — backend logic
 ```js
 module.exports = {
   meta: { name: 'My Game', minPlayers: 2, maxPlayers: 4 },
@@ -207,7 +206,7 @@ module.exports = {
 };
 ```
 
-**4. `games/mygame/ui/index.js`** — frontend (ES module, full UI control)
+**4. `games/mygame/app/index.js`** — frontend (ES module, full UI control)
 ```js
 export default {
   mount(rootEl, sdk) {
@@ -226,6 +225,13 @@ export default {
 **Activate:** add `"@cap-games/mygame": "*"` to root `package.json` dependencies, then `npm install`.
 
 The platform provides: lobby, host, join, kick, settings, chat, reconnect, status machine, leaderboard — automatically. Your game only implements the rules and the board UI.
+
+**Optional — own persistence/service:** a game can bring its own CDS model
+(entities + OData service) with one more line in its `cds` section — see
+`games/kaffee-kwest/` as reference:
+```json
+"requires": { "mygame": { "model": "@cap-games/mygame/srv/service.cds" } }
+```
 
 ---
 

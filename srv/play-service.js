@@ -246,9 +246,9 @@ class PlayService extends cds.ApplicationService {
       }
     });
 
-    // register game-specific extensions + validate all loaded games
-    cds.on('served', () => {
-      reg.loadAll();
+    // load + validate all registered games, then register game extensions
+    cds.on('served', async () => {
+      await reg.loadAll();
       for (const [id, game] of Object.entries(reg.all())) {
         if (typeof game.extendService === 'function') {
           game.extendService(this);
