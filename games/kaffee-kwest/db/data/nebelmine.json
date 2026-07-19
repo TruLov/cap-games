@@ -1,0 +1,126 @@
+{
+  "ID": "nebelmine",
+  "title": "Der Fluch der Nebelmine",
+  "setting": "düsteres Mittelalter, verlassenes Bergwerk",
+  "premise": "Seit drei Tagen quillt dichter Nebel aus der alten Mine über dem Dorf. Die Ziegen husten, das Bier schmeckt nach Stein, und der Bürgermeister hat beschlossen, dass 'Freiwillige' nachsehen.",
+  "goal": "Quelle des Nebels finden und stoppen — oder wenigstens heil wieder herauskommen.",
+  "tone": "leicht gruselig, aber mit Humor",
+  "taboo": "keine Charaktertode",
+  "length": 6,
+  "roles": [
+    { "role": "Unterhändler:in des Dorfes", "hook": "redet sich aus allem heraus", "tags": ["diplomat", "reden", "charme", "überzeugen"] },
+    { "role": "Schmied:in mit Vorschlaghammer", "hook": "packt Probleme mit roher Kraft an", "tags": ["stark", "kraft", "hammer", "mutig"] },
+    { "role": "Kräuterkundige:r", "hook": "riecht Gefahr, bevor sie da ist", "tags": ["heiler", "kräuter", "klug", "natur"] },
+    { "role": "Jäger:in aus den Nebelwäldern", "hook": "klettert besser als jede Ziege", "tags": ["geschickt", "klettern", "leise", "jagd"] },
+    { "role": "Dorfälteste:r mit Laterne", "hook": "hat für alles ein Sprichwort", "tags": ["weise", "klug", "geschichte"] },
+    { "role": "Glücksritter:in auf Durchreise", "hook": "war angeblich schon überall", "tags": ["frech", "glück", "abenteuer"] }
+  ],
+  "tree": {
+    "start": "eingang",
+    "nodes": {
+      "eingang": {
+        "mechanic": "vote",
+        "text": "Der Nebel hängt wie nasse Wolle zwischen den Fichten, als ihr den Minenberg erreicht. Vor euch: das verrammelte Haupttor, aus dessen Ritzen es weiß hervorquillt — und daneben, halb vom Gestrüpp verdeckt, der enge Lüftungsschacht am Hang. Aus der Tiefe dringt ein Geräusch, das entfernt an Schnarchen erinnert. Oder an Mahlen.",
+        "options": [
+          { "label": "Durch das Haupttor", "next": "tor" },
+          { "label": "Über den Lüftungsschacht", "next": "schacht" }
+        ]
+      },
+      "schacht": {
+        "mechanic": "roll",
+        "text": "Der Schacht ist eng, staubig — und führt nach zwanzig Metern über einen Abgrund, den unten nur Nebel füllt. Ein rostiges Seilgeländer ist alles, was zwischen euch und dem weißen Nichts hängt.",
+        "roll": {
+          "castHint": "klettern",
+          "bonusTag": "klettern",
+          "malusTag": "höhenangst",
+          "target": 11,
+          "success": "wesen",
+          "successText": "Lautlos wie Katzen hangelt ihr euch hinüber. Unter euch gluckst der Nebel beleidigt — er hätte euch gern fallen sehen. Ihr erreicht ungesehen die oberen Stollen.",
+          "fail": "wesen",
+          "failText": "Ein Griff bricht, Steine poltern in die Tiefe, und irgendwer flucht deutlich zu laut. Aus den Stollen hallt ein Grollen zurück — was auch immer dort unten wohnt, es weiß jetzt, dass es Besuch hat."
+        }
+      },
+      "tor": {
+        "mechanic": "roll",
+        "text": "Das Haupttor ist von innen verkeilt, als hätte jemand — oder etwas — sehr dringend gewollt, dass niemand hereinkommt. Oder heraus. Hier hilft nur rohe Kraft.",
+        "roll": {
+          "castHint": "stark",
+          "bonusTag": "kraft",
+          "malusTag": "schwach",
+          "target": 12,
+          "success": "wesen",
+          "successText": "Mit einem satten Krachen gibt der Balken nach. Das Tor schwingt auf, der Nebel weicht respektvoll zur Seite. So macht man das.",
+          "fail": "wesen",
+          "failText": "Das Tor gibt nach — komplett. Es kracht aus den Angeln und donnert wie ein Gongschlag zu Boden. In der Tiefe wird etwas wach, und es klingt nicht erfreut."
+        }
+      },
+      "wesen": {
+        "mechanic": "moment",
+        "castHint": "diplomat",
+        "text": "Im flackernden Licht eurer Laterne verdichtet sich der Nebel zu einer Gestalt: zu groß, zu viele Arme, und Augen wie erkaltende Glut. Das Wesen versperrt den Weg zur unteren Kammer. Es greift nicht an. Es wartet. Auf etwas — oder auf jemanden.",
+        "prompt": "Was tust oder sagst du dem Nebelwesen? (max. 140 Zeichen)",
+        "options": [
+          { "label": "Verhandeln", "keywords": ["geschenk", "biete", "tausch", "bitte", "frieden", "reden", "versprech", "helfen", "freund"], "next": "quelle" },
+          { "label": "Einschüchtern", "keywords": ["kampf", "droh", "hammer", "schlag", "angriff", "weg da", "verschwinde", "fürchte"], "next": "ausweichen" },
+          { "label": "Ablenken", "keywords": ["lenk", "trick", "täusch", "werfe", "licht", "laterne", "lied", "tanz", "witz"], "next": "quelle" }
+        ]
+      },
+      "ausweichen": {
+        "mechanic": "roll",
+        "text": "Das Wesen bäumt sich auf — Drohungen mag es offenbar gar nicht. Ein Arm aus Nebel fegt heran, kalt wie Brunnenwasser im Januar!",
+        "roll": {
+          "castHint": "glück",
+          "bonusTag": "glück",
+          "malusTag": "langsam",
+          "target": 10,
+          "success": "quelle",
+          "successText": "Ihr taucht im letzten Moment unter dem Nebelarm hindurch und rollt in den unteren Stollen. Hinter euch grummelt das Wesen — beeindruckt oder beleidigt, schwer zu sagen.",
+          "fail": "quelle",
+          "failText": "Der Nebelarm erwischt euch voll. Durchgefroren, klappernd und um eine Lektion in Demut reicher rutscht ihr den Stollen hinab zur Kammer — das Wesen lässt euch ziehen. Vorerst."
+        }
+      },
+      "quelle": {
+        "mechanic": "roll",
+        "text": "Die untere Kammer: In der Felswand pulsiert ein Riss, aus dem der Nebel in trägen Schwaden quillt. Zwischen den alten Loren wachsen Glutmoos und Sumpfdotter — wer sich mit Kräutern auskennt, könnte daraus eine Essenz mischen, die den Riss versiegelt.",
+        "roll": {
+          "castHint": "heiler",
+          "bonusTag": "klug",
+          "malusTag": "ungeschickt",
+          "target": 12,
+          "success": "finale_gut",
+          "successText": "Die Essenz zischt in den Riss wie Wasser auf heißem Stein. Der Nebel wird dünner, die Kammer heller — es wirkt!",
+          "fail": "finale_not",
+          "failText": "Die Essenz verpufft in einem Wölkchen, das verdächtig nach verbranntem Kohl riecht. Der Riss weitet sich — und die Mine beginnt zu beben."
+        }
+      },
+      "finale_gut": {
+        "mechanic": "vote",
+        "text": "Der Riss schließt sich langsam, aber die Decke knirscht bedenklich. Ihr könntet bleiben, bis das Werk vollendet ist — oder jetzt gehen, solange der Weg frei ist.",
+        "options": [
+          { "label": "Bleiben und das Werk vollenden", "next": "ende_helden" },
+          { "label": "Nichts wie raus hier", "next": "ende_chaos" }
+        ]
+      },
+      "finale_not": {
+        "mechanic": "vote",
+        "text": "Der Nebel wird dichter, Staub rieselt von der Decke, irgendwo stürzt ein Stollen ein. Eine letzte Wahl bleibt: den Riss mit allem, was ihr habt, zuschlagen — oder rennen.",
+        "options": [
+          { "label": "Den Riss einschlagen!", "next": "ende_chaos" },
+          { "label": "Rennt um euer Leben!", "next": "ende_nebel" }
+        ]
+      },
+      "ende_helden": {
+        "text": "Ihr haltet aus, bis der Riss sich mit einem letzten Seufzer schließt. Als ihr blinzelnd ins Tageslicht tretet, ist der Himmel über dem Dorf zum ersten Mal seit Tagen wieder blau. Am Abend feiert euch das Dorf mit dem größten Kaffeekessel der Grafschaft — und der Bürgermeister hält eine Rede, die nur doppelt so lang ist wie nötig.",
+        "ending": { "tier": "good", "title": "Heldenhaft gelöst" }
+      },
+      "ende_chaos": {
+        "text": "Mit Getöse, Staubwolken und mindestens einem verlorenen Stiefel stolpert ihr aus der Mine, während hinter euch der Stollen zusammenkracht — und den Riss gleich mit begräbt. Der Nebel versiegt. Elegant war das nicht. Aber es zählt.",
+        "ending": { "tier": "mixed", "title": "Chaotisch entkommen" }
+      },
+      "ende_nebel": {
+        "text": "Ihr entkommt — der Nebel auch. Er hängt jetzt dauerhaft über dem Dorf, und alle haben sich darauf geeinigt, ihn 'Atmosphäre' zu nennen. Die Ziegen husten weiter. Der Bürgermeister sucht bereits neue 'Freiwillige'.",
+        "ending": { "tier": "bad", "title": "Der Nebel gewinnt" }
+      }
+    }
+  }
+}
