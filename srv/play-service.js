@@ -77,6 +77,7 @@ class PlayService extends cds.ApplicationService {
         room: roomId, player: user, symbol,
         host: isHost, status: room.status,
       });
+      await this._sysMsg(roomId, `${user} joined.`);
       if (room.status === 'playing') await this._snapshotTo(roomId, room.game, user, symbol);
       LOG.info('JOIN', roomId, user, '→', symbol, isHost ? '(host)' : '');
       return symbol;
