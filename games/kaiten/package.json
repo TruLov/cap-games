@@ -3,11 +3,13 @@
   "version": "1.0.0",
   "description": "Kaiten game plugin for cap-games platform",
   "type": "module",
-  "main": "game.js",
+  "main": "index.js",
   "scripts": {
     "test": "node --test-reporter=tap --test \"test/**/*.test.js\""
   },
-  "dependencies": {
-    "express": "^4"
+  "cds": {
+    "games": {
+      "kaiten": { "impl": "@cap-games/kaiten" }
+    }
   }
 }
