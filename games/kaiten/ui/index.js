@@ -29,11 +29,14 @@ const STYLE = `
   .sg-aside{width:280px}
   .sg-status{font-weight:600;margin-bottom:.5rem}
   .sg-hand{display:flex;flex-wrap:wrap;gap:.4rem;margin:.5rem 0}
-  .sg-card{border:1px solid #999;border-radius:8px;padding:.5rem .6rem;min-width:70px;
-           background:#fff;color:#222;cursor:default;font-size:.85rem;text-align:center}
+  .sg-card{border:1px solid #999;border-radius:8px;padding:.4rem .5rem;min-width:76px;max-width:96px;
+           background:#fff;color:#222;cursor:default;font-size:.8rem;text-align:center;line-height:1.3}
   .sg-card.play{cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.15)}
   .sg-card.play:hover{box-shadow:0 2px 8px rgba(0,0,0,.3);filter:brightness(1.04)}
   .sg-card small{display:block;color:#555}
+  .sg-card-emoji{font-size:1.6rem;display:block;margin-bottom:.15rem;line-height:1}
+  .sg-card-name{font-weight:600;font-size:.78rem}
+  .sg-card-pts{display:block;color:#666;font-size:.65rem;margin-top:.15rem;line-height:1.2}
   .sg-tableau{display:grid;grid-template-columns:1fr;gap:.5rem;margin-top:.5rem}
   .sg-row{border:1px solid #ddd;border-radius:8px;padding:.4rem .6rem}
   .sg-row h4{margin:.1rem 0;display:flex;justify-content:space-between}
@@ -64,15 +67,80 @@ const STYLE = `
   .sg-results tr.winner td{font-weight:700;color:#1a7}
 `;
 
-// short human label for a card
+// Emoji per card type
+const CARD_EMOJI = {
+  nigiri:              '🍣',
+  maki:                '🍱',
+  temaki:              '🌯',
+  uramaki:             '🍥',
+  tempura:             '🍤',
+  sashimi:             '🐟',
+  dumpling:            '🥟',
+  eel:                 '🐍',
+  tofu:                '🧊',
+  onigiri:             '🍙',
+  edamame:             '🫛',
+  miso:                '🍲',
+  chopsticks:          '🥢',
+  spoon:               '🥄',
+  wasabi:              '🌿',
+  soy_sauce:           '🍶',
+  tea:                 '🍵',
+  menu:                '📜',
+  special_order:       '📋',
+  takeout_box:         '🥡',
+  pudding:             '🍮',
+  green_tea_ice_cream: '🍨',
+  fruit:               '🍉',
+};
+
+// Short scoring rule per card type — shown on full cards
+function cardPoints(type) {
+  switch (type) {
+    case 'nigiri':              return 'Egg 1 · Salmon 2 · Squid 3 (×3 on Wasabi)';
+    case 'maki':                return 'Most icons: 6pts (2nd: 3)';
+    case 'temaki':              return 'Most: +4 · Fewest: −4';
+    case 'uramaki':             return 'Top 3 in game: 8 / 5 / 2';
+    case 'tempura':             return 'Set of 2 = 5';
+    case 'sashimi':             return 'Set of 3 = 10';
+    case 'dumpling':            return '1/3/6/10/15 (1–5 cards)';
+    case 'eel':                 return '1 card = −3 · 2+ = 7';
+    case 'tofu':                return '1 = 2 · 2 = 6 · 3+ = 0';
+    case 'onigiri':             return 'Unique shape sets: 1/4/9/16';
+    case 'edamame':             return '1pt per opponent with Edamame';
+    case 'miso':                return '3pts each (if not doubled)';
+    case 'wasabi':              return 'Next Nigiri ×3';
+    case 'chopsticks':          return 'Later: swap for 2 picks';
+    case 'spoon':               return 'Later: take a card from neighbour';
+    case 'soy_sauce':           return '4pts if you have most colours';
+    case 'tea':                 return '1pt × largest colour group';
+    case 'menu':                return 'Pick 1 of 4 from draw pile';
+    case 'special_order':       return 'Copy any card you played';
+    case 'takeout_box':         return 'Flip cards for 2pts each';
+    case 'pudding':             return 'Game end: Most +6 · Fewest −6';
+    case 'green_tea_ice_cream': return 'Game end: Set of 4 = 12';
+    case 'fruit':               return 'Game end: icons per type −2/0/1/3/6/10';
+    default:                    return '';
+  }
+}
+
+// full card HTML: emoji + name/variant + points rule
 function cardLabel(c) {
+  const emoji = CARD_EMOJI[c.type] ?? '🍽️';
+  const pts   = cardPoints(c.type);
   switch (c.type) {
-    case 'nigiri':  return `Nigiri<small>${c.variant}${c.onWasabi ? ' ×3' : ''}</small>`;
-    case 'maki':    return `Maki<small>${c.icons} icon${c.icons > 1 ? 's' : ''}</small>`;
-    case 'uramaki': return `Uramaki<small>${c.icons} icons</small>`;
-    case 'onigiri': return `Onigiri<small>${c.shape}</small>`;
-    case 'fruit':   return `Fruit<small>${c.fruits.join('/')}</small>`;
-    default:        return prettify(c.type);
+    case 'nigiri':
+      return `<span class="sg-card-emoji">${emoji}${c.onWasabi ? '🌿' : ''}</span><span class="sg-card-name">Nigiri<small>${c.variant}${c.onWasabi ? ' ×3' : ''}</small></span><span class="sg-card-pts">${pts}</span>`;
+    case 'maki':
+      return `<span class="sg-card-emoji">${emoji}</span><span class="sg-card-name">Maki<small>${c.icons} icon${c.icons > 1 ? 's' : ''}</small></span><span class="sg-card-pts">${pts}</span>`;
+    case 'uramaki':
+      return `<span class="sg-card-emoji">${emoji}</span><span class="sg-card-name">Uramaki<small>${c.icons} icons</small></span><span class="sg-card-pts">${pts}</span>`;
+    case 'onigiri':
+      return `<span class="sg-card-emoji">${emoji}</span><span class="sg-card-name">Onigiri<small>${c.shape}</small></span><span class="sg-card-pts">${pts}</span>`;
+    case 'fruit':
+      return `<span class="sg-card-emoji">${emoji}</span><span class="sg-card-name">Fruit<small>${c.fruits.join('/')}</small></span><span class="sg-card-pts">${pts}</span>`;
+    default:
+      return `<span class="sg-card-emoji">${emoji}</span><span class="sg-card-name">${prettify(c.type)}</span><span class="sg-card-pts">${pts}</span>`;
   }
 }
 function cardText(c) {
