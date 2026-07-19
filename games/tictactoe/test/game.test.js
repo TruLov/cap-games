@@ -3,7 +3,7 @@
 import cds from '@sap/cds';
 const { expect } = cds.test;
 import { describe, it } from 'node:test';
-import game from '../game.js';
+import game from '../index.js';
 
 // play a sequence of cells using state.turn; return last result
 const play = (cells, first = 'X') => {

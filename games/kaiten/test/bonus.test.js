@@ -4,7 +4,7 @@ import cds from '@sap/cds';
 const { expect } = cds.test;
 import { describe, it } from 'node:test';
 import * as flow from '../flow.js';
-import game from '../game.js';
+import game from '../index.js';
 
 const card   = (t) => ({ type: t, color: t });
 const filler = () => card('maki');
