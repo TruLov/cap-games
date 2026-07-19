@@ -15,6 +15,7 @@
     "games/*"
   ],
   "dependencies": {
+    "@cap-games/kaffee-kwest": "*",
     "@cap-games/kaiten": "*",
     "@cap-games/tictactoe": "*",
     "@cap-js-community/websocket": "^1",
