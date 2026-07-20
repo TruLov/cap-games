@@ -19,6 +19,7 @@
     "@cap-games/kaiten": "*",
     "@cap-games/tictactoe": "*",
     "@cap-js-community/websocket": "^1",
+    "@sap-ai-sdk/foundation-models": "^2",
     "@sap/cds": "^10",
     "express": "^4"
   },
@@ -30,6 +31,11 @@
   },
   "cds": {
     "requires": {
+      "ai": {
+        "deploymentId": "",
+        "resourceGroup": "default",
+        "model": "gpt-4o-mini"
+      },
       "auth": {
         "[development]": {
           "kind": "mocked"

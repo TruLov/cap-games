@@ -17,15 +17,35 @@ import cds from '@sap/cds';
 import { readdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { treeBuilder, chronicler } from '../lib/ai-static.js';
+import { treeBuilder, chronicler as staticChronicler } from '../lib/ai-static.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const LOG = cds.log('kaffee-kwest');
 const MAX_ACTIVE = 7;   // chronicle cap — oldest entries retire beyond this
 
+/**
+ * Loads the AI chronicler for the configured adapter.
+ * Returns the static adapter if ai !== 'aicore' or loading fails.
+ */
+async function loadChronicler() {
+  const ai = cds.env.requires?.['kaffee-kwest']?.ai;
+  if (ai !== 'aicore') return staticChronicler;
+  try {
+    const { chronicler } = await import('../lib/ai-aicore.js');
+    LOG.info('kaffee-kwest: using AI Core chronicler');
+    return chronicler;
+  } catch (e) {
+    LOG.warn('kaffee-kwest: failed to load AI Core adapter, falling back to static', e.message);
+    return staticChronicler;
+  }
+}
+
 export default class KaffeeKwestService extends cds.ApplicationService {
   async init() {
     const { Scenarios, Profiles, ChronicleEntries } = cds.entities('kk');
+
+    // Resolve chronicler once on startup (lazy — aicore adapter loads SDK only when needed)
+    const chronicler = await loadChronicler();
 
     cds.once('served', () =>
       this._seedScenarios(Scenarios).catch(e => LOG.error('scenario seeding failed:', e)));
@@ -77,7 +97,13 @@ export default class KaffeeKwestService extends cds.ApplicationService {
     this.on('suggestChronicle', async req => {
       let finalState;
       try { finalState = JSON.parse(req.data.finalState); } catch { return req.error(400, 'finalState must be JSON'); }
-      return chronicler(finalState, req.user.id);
+
+      try {
+        return await chronicler(finalState, req.user.id);
+      } catch (e) {
+        LOG.warn('AI chronicler failed, falling back to static', e.message);
+        return staticChronicler(finalState, req.user.id);
+      }
     });
 
     this.on('saveChronicle', async req => {

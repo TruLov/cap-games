@@ -197,10 +197,74 @@ Semantik), eigenes `score()` vergibt Punkte nach Endqualität (gut 3 / gemischt 
 
 ## 5. Ausbaustufen
 
-1. **v1 (dieses Increment):** statische Adapter, autorisierter Demo-Tree
-   ("Der Fluch der Nebelmine"), volle Spielschleife, Chronik mit Veto + Deckel.
-2. **v1.5:** AI-Core-Adapter für `treeBuilder`/`chronicler` (strukturierte
-   JSON-Ausgabe, großes Modell), OData-Action `classify` (kleines Modell) als
-   Vorstufe des Moment-Moves.
-3. **v2 (mit Plattform-Beiträgen):** Plattform-`AIService`, server-seitige
-   Timer, private Settings, Streaming der Prosa (kleines Modell pro Knoten).
+1. **v1 (umgesetzt):** statische Adapter, autorisierter Demo-Tree
+   ("Der Fluch der Nebelmine" + "Die Zeitkapsel des Praktikanten"), volle
+   Spielschleife, Chronik mit Veto + Deckel.
+2. **v1.5 (teilweise umgesetzt):** AI-Core-Adapter für `chronicler` — ✅ umgesetzt
+   (gpt-4o-mini via foundation-models-Deployment, SAP AI SDK).
+   Noch offen: AI-Core-Adapter für `treeBuilder` (JSON-Schema-Output, großes Modell),
+   OData-Action `classify` (kleines Modell) als Vorstufe des Moment-Moves.
+3. **v2 (mit Plattform-Beiträgen):** server-seitige Timer, private Settings,
+   Streaming der Prosa (kleines Modell pro Knoten), `classify`-Action.
+
+---
+
+## 6. AI-Core-Setup (Cross-Account)
+
+Das Spiel ruft AI Core über einen **foundation-models**-Deployment-Endpunkt an
+(SAP AI Core, anderer Global Account als die CAP-App auf BTP Trial).
+Die Verbindung läuft über den Plattform-AI-Client `srv/ai.js`.
+
+### Voraussetzungen
+
+- SAP AI Core Instanz mit **Generative AI Hub** (plan `extended` oder vergleichbar)
+- Deployment: `foundation-models`-Scenario, Modell `gpt-4o-mini`, Status `RUNNING`
+- Service Key der AI-Core-Instanz (JSON aus BTP Cockpit → Instanz → Service Keys)
+
+### Lokale Konfiguration
+
+1. `.env` anlegen (basierend auf `.env.example`, **nie committen**):
+   ```
+   AICORE_SERVICE_KEY='{"clientid":"...","clientsecret":"...","url":"...","serviceurls":{"AI_API_URL":"https://api.ai.prod.us-east-1.aws.ml.hana.ondemand.com"}}'
+   ```
+
+2. Deployment-ID in `package.json` eintragen (einmalig, kein Secret):
+   ```json
+   "cds": { "requires": { "ai": { "deploymentId": "d0a60fa69c65d580" } } }
+   ```
+
+3. AI-Adapter für Kaffee-Kwest aktivieren (`games/kaffee-kwest/package.json`):
+   ```json
+   "cds": { "requires": { "kaffee-kwest": { "ai": "aicore" } } }
+   ```
+
+4. Starten:
+   ```bash
+   node --env-file=.env npx cds watch --include games
+   ```
+
+5. Smoke-Test (verifiziert den Endpunkt ohne Spielsession):
+   ```bash
+   node --env-file=.env scripts/smoke-chronicler.mjs
+   ```
+
+### Bekannte Konfiguration (Stand: Juli 2026)
+
+| Parameter | Wert |
+|---|---|
+| AI-Core-Region | `us-east-1` (AWS) |
+| Basis-URL | `https://api.ai.prod.us-east-1.aws.ml.hana.ondemand.com` |
+| Deployment-ID (gpt-4o-mini) | `d0a60fa69c65d580` |
+| Scenario | `foundation-models` |
+| API-Version (Azure OpenAI) | `2024-10-21` (vom SAP AI SDK verwaltet) |
+| Resource Group | `default` |
+
+### Produktiv (Cloud Foundry)
+
+```bash
+cf set-env cap-games-srv AICORE_SERVICE_KEY '{"clientid":...}'
+cf restage cap-games-srv
+```
+
+`cds.requires.ai.deploymentId` steht bereits in `package.json` und wird mit deployt —
+kein weiteres Env-Setting nötig (außer dem Secret).
