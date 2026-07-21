@@ -10,12 +10,19 @@
  *   node --env-file=.env scripts/proto-tree.mjs
  *   node --env-file=.env scripts/proto-tree.mjs --runs=5
  *   node --env-file=.env scripts/proto-tree.mjs --scenario=zeitkapsel
+ *   node --env-file=.env scripts/proto-tree.mjs --repairs=0   (Repair-Loop aus, Baseline messen)
+ *   node --env-file=.env scripts/proto-tree.mjs --repairs=3   (mehr Repair-Versuche)
+ *
+ * Generate → Validate → Repair: bei ungültigem Tree wird die kaputte Antwort
+ * + eine gezielte Fehlerkorrektur an dasselbe Gespräch angehängt (Kontext
+ * fortgeführt) — das Modell sieht seinen eigenen Fehler und korrigiert ihn.
+ * Max. Repair-Versuche via --repairs= (Default 2).
  *
  * Output pro Run:
  *   1. Generierter Tree (Prosa lesbar)
- *   2. Validierung (5 Graph-Invarianten)
+ *   2. Validierung (5 Graph-Invarianten) + genutzte Repair-Runden
  *   3. Simulierter Zufallsdurchlauf bis Ending
- * Am Ende: Erfolgsquote + Latenz über alle Runs.
+ * Am Ende: sofort/nach-Repair/gescheitert-Quote + Ø Repair-Runden + Latenz.
  */
 
 import { readFile } from 'node:fs/promises';
@@ -43,6 +50,7 @@ const args = Object.fromEntries(
 );
 const RUNS = Number(args.runs ?? 3);
 const SCENARIO_ID = args.scenario ?? 'nebelmine';
+const MAX_REPAIRS = Number(args.repairs ?? 2);
 
 // ── Szenario-Input laden (nur die scenario.md-Felder, OHNE tree) ────────────
 
@@ -162,6 +170,62 @@ const treeResponseSchema = {
   },
 };
 
+// ── Few-Shot-Beispiel ─────────────────────────────────────────────────────────
+// Handgebautes, garantiert valides Mini-Beispiel (4 Knoten) — demonstriert die
+// Kernregel, an der gpt-4o-mini am häufigsten scheitert: jede next/successNext/
+// failNext-ID muss als Knoten existieren. Bewusst klein (Tokens sparen), deckt
+// vote+roll+2 endings ab (moment folgt demselben next-Muster wie vote).
+
+const FEW_SHOT_EXAMPLE = {
+  start: 'lagerfeuer',
+  nodes: [
+    {
+      id: 'lagerfeuer',
+      mechanic: 'vote',
+      text: 'Die Gruppe sitzt am Lagerfeuer. Ein Geräusch aus dem Wald lässt alle aufschrecken.',
+      options: [
+        { label: 'Nachsehen gehen', next: 'wald', keywords: null },
+        { label: 'Ruhig bleiben und abwarten', next: 'warten', keywords: null },
+      ],
+      roll: null, moment: null, ending: null,
+    },
+    {
+      id: 'wald',
+      mechanic: 'roll',
+      text: 'Im Wald ist es stockdunkel. Ein Ast knackt unter deinem Fuß.',
+      options: null,
+      roll: {
+        castHint: 'mutig', bonusTag: 'stark', malusTag: 'ängstlich', target: 12,
+        successNext: 'entdeckung', failNext: 'flucht',
+        successText: 'Du findest die Quelle des Geräuschs — nur ein Reh.',
+        failText: 'Du erschrickst und rennst zurück.',
+      },
+      moment: null, ending: null,
+    },
+    {
+      id: 'warten',
+      mechanic: 'vote',
+      text: 'Die Gruppe bleibt sitzen. Das Geräusch verstummt langsam.',
+      options: [{ label: 'Weiter warten', next: 'entdeckung', keywords: null }],
+      roll: null, moment: null, ending: null,
+    },
+    {
+      id: 'entdeckung',
+      mechanic: 'ending',
+      text: 'Alles war harmlos. Ihr genießt den Rest des Abends am Feuer.',
+      options: null, roll: null, moment: null,
+      ending: { tier: 'good', title: 'Ruhiger Abend' },
+    },
+    {
+      id: 'flucht',
+      mechanic: 'ending',
+      text: 'Ihr flieht panisch zurück ins Lager — ohne Erklärung, aber sicher.',
+      options: null, roll: null, moment: null,
+      ending: { tier: 'mixed', title: 'Panische Flucht' },
+    },
+  ],
+};
+
 // ── Prompt ────────────────────────────────────────────────────────────────────
 
 function buildMessages(scenario) {
@@ -184,8 +248,14 @@ FELDER JE MECHANIK (übrige Felder auf null setzen):
 - mechanic="moment": "moment" (castHint, prompt) + "options" (2-3 Einträge mit label, next, keywords[]), roll=null, ending=null
 - mechanic="ending": "ending" (tier, title), text=Schlusstext, options=null, roll=null, moment=null
 
-Ton: ${scenario.tone}. Tabu: ${scenario.taboo}. Ziel-Knotenzahl: ${scenario.length}.
-Antworte NUR mit dem JSON-Objekt (kein Markdown, kein Kommentar).`;
+BEISPIEL für Format + referenzielle Konsistenz (baue einen ANDEREN, größeren Baum für das echte Szenario unten — dies ist nur ein Muster, nicht zu kopieren):
+${JSON.stringify(FEW_SHOT_EXAMPLE, null, 2)}
+
+Beachte: JEDE next/successNext/failNext-ID im Beispiel oben (wald, warten, entdeckung, flucht) existiert auch als eigener Knoten in "nodes". Genau dieses Muster musst du für deinen eigenen, größeren Baum einhalten.
+
+Prüfe vor der Antwort: existiert jede in next/successNext/failNext genannte ID als Knoten in nodes?
+
+Ton: ${scenario.tone}. Tabu: ${scenario.taboo}. Ziel-Knotenzahl: ${scenario.length}.`;
 
   const user = `Szenario: ${scenario.title}
 Setting: ${scenario.setting}
@@ -267,6 +337,78 @@ function validateTree(tree) {
   return { valid: errors.filter(e => !e.includes('nicht fatal')).length === 0, errors, maxDepth };
 }
 
+// ── Ein Modell-Call (Generierung ODER Repair, gleiche Mechanik) ─────────────
+
+/** Ruft aiChat mit dem gegebenen messages-Array auf, parst + validiert die Antwort. */
+async function callAndParse(messages, useSchema) {
+  const started = Date.now();
+  let raw;
+  try {
+    raw = await aiChat(messages, {
+      max_tokens: 3000,
+      temperature: 0.8,
+      ...(useSchema ? { response_format: treeResponseSchema } : {}),
+    });
+  } catch (e) {
+    return { ok: false, phase: 'call', error: e.message, latencyMs: Date.now() - started };
+  }
+  const latencyMs = Date.now() - started;
+
+  let tree;
+  try {
+    // robustes Parsing auch ohne Schema (falls Modell Markdown-Fences anhängt)
+    const jsonText = raw.replace(/^```json\s*|\s*```$/g, '').trim();
+    tree = JSON.parse(jsonText);
+  } catch (e) {
+    return { ok: false, phase: 'parse', error: e.message, raw, latencyMs };
+  }
+
+  const validation = validateTree(tree);
+  return { ok: true, tree, raw, validation, latencyMs };
+}
+
+/** Baut die Repair-Anweisung aus den konkreten Validator-Fehlern (ohne "nicht fatal"-Warnungen). */
+function buildRepairPrompt(errors) {
+  const fatalErrors = errors.filter(e => !e.includes('nicht fatal'));
+  return `Dein Baum hat folgende Fehler:
+${fatalErrors.map(e => `- ${e}`).join('\n')}
+
+Behebe NUR diese Fehler:
+- Für jede fehlende ID: entweder einen passenden Knoten mit dieser ID anlegen, ODER die Referenz auf eine existierende ID umleiten.
+- Für Sackgassen: einen ausgehenden Pfad ergänzen (zu einem existierenden Knoten oder einem neuen Ending).
+
+Gib den KOMPLETTEN korrigierten Baum zurück (nicht nur die geänderten Teile).`;
+}
+
+/**
+ * Generate → Validate → Repair (Kontext fortgeführt): bei ungültigem Tree
+ * wird die kaputte Antwort + eine gezielte Fehlerkorrektur an dasselbe
+ * messages-Array angehängt (Option A — Modell sieht seinen eigenen Fehler).
+ */
+async function generateWithRepair(scenario, useSchema, maxRepairs) {
+  const messages = buildMessages(scenario);
+  let result = await callAndParse(messages, useSchema);
+  let repairs = 0;
+  let totalLatencyMs = result.latencyMs ?? 0;
+
+  while (result.ok && !result.validation.valid && repairs < maxRepairs) {
+    messages.push({ role: 'assistant', content: result.raw });
+    messages.push({ role: 'user', content: buildRepairPrompt(result.validation.errors) });
+
+    const repaired = await callAndParse(messages, useSchema);
+    totalLatencyMs += repaired.latencyMs ?? 0;
+    repairs += 1;
+
+    if (!repaired.ok) {
+      // Repair-Call selbst gescheitert (Netzwerk/Parse) — vorherigen Zustand behalten, Loop beenden
+      break;
+    }
+    result = repaired;
+  }
+
+  return { ...result, repairs, latencyMs: totalLatencyMs };
+}
+
 // ── Simulierter Zufallsdurchlauf ─────────────────────────────────────────────
 
 function simulatePlaythrough(tree, maxSteps = 20) {
@@ -297,39 +439,6 @@ function simulatePlaythrough(tree, maxSteps = 20) {
   return { ok: false, reason: `Endlosschleife — ${maxSteps} Schritte ohne Ending`, path };
 }
 
-// ── Ein Run ────────────────────────────────────────────────────────────────────
-
-async function runOnce(scenario, useSchema) {
-  const messages = buildMessages(scenario);
-  const started = Date.now();
-
-  let raw;
-  try {
-    raw = await aiChat(messages, {
-      max_tokens: 3000,
-      temperature: 0.8,
-      ...(useSchema ? { response_format: treeResponseSchema } : {}),
-    });
-  } catch (e) {
-    return { ok: false, phase: 'call', error: e.message, latencyMs: Date.now() - started };
-  }
-  const latencyMs = Date.now() - started;
-
-  let tree;
-  try {
-    // robustes Parsing auch ohne Schema (falls Modell Markdown-Fences anhängt)
-    const jsonText = raw.replace(/^```json\s*|\s*```$/g, '').trim();
-    tree = JSON.parse(jsonText);
-  } catch (e) {
-    return { ok: false, phase: 'parse', error: e.message, raw, latencyMs };
-  }
-
-  const validation = validateTree(tree);
-  const sim = validation.valid ? simulatePlaythrough(tree) : null;
-
-  return { ok: true, tree, validation, sim, latencyMs };
-}
-
 // ── Report ────────────────────────────────────────────────────────────────────
 
 function printTree(tree) {
@@ -345,13 +454,13 @@ function printTree(tree) {
 }
 
 async function main() {
-  console.log(`\n═══ Prototyp: AI-Tree-Generierung — Szenario "${SCENARIO_ID}", ${RUNS} Run(s) ═══`);
+  console.log(`\n═══ Prototyp: AI-Tree-Generierung — Szenario "${SCENARIO_ID}", ${RUNS} Run(s), max ${MAX_REPAIRS} Repair(s) ═══`);
   const scenario = await loadScenarioDescription(SCENARIO_ID);
   console.log(`\nReferenz (handgeschrieben): ${Object.keys(scenario._reference.nodes).length} Knoten, Start "${scenario._reference.start}"`);
 
   // Erst prüfen ob response_format:json_schema gegen dieses Deployment funktioniert
   let useSchema = true;
-  const schemaProbe = await runOnce(scenario, true);
+  const schemaProbe = await callAndParse(buildMessages(scenario), true);
   if (!schemaProbe.ok && schemaProbe.phase === 'call') {
     console.log(`\n⚠️  response_format:json_schema fehlgeschlagen (${schemaProbe.error}) — Fallback auf Prompt-only-Modus.`);
     useSchema = false;
@@ -360,7 +469,7 @@ async function main() {
   const results = [];
   for (let i = 0; i < RUNS; i++) {
     console.log(`\n─── Run ${i + 1}/${RUNS} (Modus: ${useSchema ? 'json_schema' : 'prompt-only'}) ───`);
-    const result = i === 0 && schemaProbe.ok ? schemaProbe : await runOnce(scenario, useSchema);
+    const result = await generateWithRepair(scenario, useSchema, MAX_REPAIRS);
     results.push(result);
 
     if (!result.ok) {
@@ -370,26 +479,35 @@ async function main() {
     }
 
     printTree(result.tree);
-    console.log(`\n  Validierung: ${result.validation.valid ? '✅ valide' : '❌ ungültig'} (längster Pfad: ${result.validation.maxDepth})`);
+    console.log(`\n  Validierung: ${result.validation.valid ? '✅ valide' : '❌ ungültig'} (längster Pfad: ${result.validation.maxDepth}, ${result.repairs} Repair(s) genutzt)`);
     for (const err of result.validation.errors) console.log(`    - ${err}`);
 
-    if (result.sim) {
-      console.log(`\n  Simulierter Durchlauf: ${result.sim.ok ? `✅ ${result.sim.path.length} Szenen → Ending "${result.sim.ending?.title}" (${result.sim.ending?.tier})` : `❌ ${result.sim.reason}`}`);
+    const sim = result.validation.valid ? simulatePlaythrough(result.tree) : null;
+    if (sim) {
+      console.log(`\n  Simulierter Durchlauf: ${sim.ok ? `✅ ${sim.path.length} Szenen → Ending "${sim.ending?.title}" (${sim.ending?.tier})` : `❌ ${sim.reason}`}`);
     }
-    console.log(`\n  Latenz: ${result.latencyMs}ms`);
+    result.sim = sim;
+    console.log(`\n  Latenz (inkl. Repairs): ${result.latencyMs}ms`);
   }
 
   // Zusammenfassung
   const ok = results.filter(r => r.ok);
-  const validCount = ok.filter(r => r.validation?.valid).length;
+  const validImmediately = ok.filter(r => r.validation?.valid && r.repairs === 0).length;
+  const validAfterRepair = ok.filter(r => r.validation?.valid && r.repairs > 0).length;
+  const failedFinal = ok.filter(r => !r.validation?.valid).length;
   const simOkCount = ok.filter(r => r.sim?.ok).length;
+  const avgRepairs = ok.length ? (ok.reduce((s, r) => s + (r.repairs ?? 0), 0) / ok.length).toFixed(1) : '—';
   const avgLatency = Math.round(results.reduce((s, r) => s + (r.latencyMs ?? 0), 0) / results.length);
 
-  console.log(`\n═══ Zusammenfassung (${RUNS} Runs, Modus: ${useSchema ? 'json_schema' : 'prompt-only'}) ═══`);
-  console.log(`  Parse erfolgreich:     ${ok.length}/${RUNS}`);
-  console.log(`  Graph valide:          ${validCount}/${RUNS}`);
-  console.log(`  Simulation durchläuft: ${simOkCount}/${RUNS}`);
-  console.log(`  Ø Latenz:              ${avgLatency}ms`);
+  console.log(`\n═══ Zusammenfassung (${RUNS} Runs, Modus: ${useSchema ? 'json_schema' : 'prompt-only'}, max ${MAX_REPAIRS} Repair(s)) ═══`);
+  console.log(`  Parse erfolgreich:      ${ok.length}/${RUNS}`);
+  console.log(`  Sofort valide:          ${validImmediately}/${RUNS}`);
+  console.log(`  Nach Repair valide:     ${validAfterRepair}/${RUNS}`);
+  console.log(`  Insgesamt valide:       ${validImmediately + validAfterRepair}/${RUNS}`);
+  console.log(`  Endgültig gescheitert:  ${failedFinal}/${RUNS}`);
+  console.log(`  Simulation durchläuft:  ${simOkCount}/${RUNS}`);
+  console.log(`  Ø Repair-Runden:        ${avgRepairs}`);
+  console.log(`  Ø Latenz (inkl. Repairs): ${avgLatency}ms`);
 }
 
 await main();
