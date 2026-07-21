@@ -12,6 +12,7 @@
  *   node --env-file=.env scripts/proto-tree.mjs --scenario=zeitkapsel
  *   node --env-file=.env scripts/proto-tree.mjs --repairs=0   (Repair-Loop aus, Baseline messen)
  *   node --env-file=.env scripts/proto-tree.mjs --repairs=3   (mehr Repair-Versuche)
+ *   node --env-file=.env scripts/proto-tree.mjs --temp=0.4    (Struktur-Disziplin, Default 0.8)
  *
  * Generate → Validate → Repair: bei ungültigem Tree wird die kaputte Antwort
  * + eine gezielte Fehlerkorrektur an dasselbe Gespräch angehängt (Kontext
@@ -51,6 +52,7 @@ const args = Object.fromEntries(
 const RUNS = Number(args.runs ?? 3);
 const SCENARIO_ID = args.scenario ?? 'nebelmine';
 const MAX_REPAIRS = Number(args.repairs ?? 2);
+const TEMPERATURE = Number(args.temp ?? 0.8);
 
 // ── Szenario-Input laden (nur die scenario.md-Felder, OHNE tree) ────────────
 
@@ -162,9 +164,14 @@ const treeResponseSchema = {
       type: 'object',
       properties: {
         start: { type: 'string', description: 'ID des Startknotens' },
+        nodeIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'VOLLSTÄNDIGE Liste aller Knoten-IDs, die du gleich anlegen wirst — committe dich hier zuerst zur ID-Menge, bevor du next/successNext/failNext-Referenzen schreibst.',
+        },
         nodes: { type: 'array', items: nodeSchema },
       },
-      required: ['start', 'nodes'],
+      required: ['start', 'nodeIds', 'nodes'],
       additionalProperties: false,
     },
   },
@@ -178,6 +185,7 @@ const treeResponseSchema = {
 
 const FEW_SHOT_EXAMPLE = {
   start: 'lagerfeuer',
+  nodeIds: ['lagerfeuer', 'wald', 'warten', 'entdeckung', 'flucht'],
   nodes: [
     {
       id: 'lagerfeuer',
@@ -242,6 +250,14 @@ HARTE REGELN (Graph-Integrität — Verstoß macht das Spiel unspielbar):
 6. Die Gesamtlänge (längster Pfad vom Start zu einem Ending) darf ${scenario.length + 2} Knoten nicht überschreiten (Zeitlimit).
 7. Mechaniken abwechseln: nicht mehr als 2 gleiche Mechaniken hintereinander.
 
+WICHTIG — Reihenfolge zur Vermeidung toter Referenzen:
+Das Feld "nodeIds" kommt VOR "nodes" in deiner Antwort. Committe dich dort zuerst
+zur VOLLSTÄNDIGEN Liste aller Knoten-IDs, die du gleich anlegen wirst — bevor du
+irgendeine next/successNext/failNext-Referenz schreibst. Jede ID, die du in
+next/successNext/failNext verwendest, MUSS bereits in "nodeIds" stehen, UND jede
+ID in "nodeIds" MUSS später auch als echter Knoten in "nodes" auftauchen. Erfinde
+keine ID in einer Referenz, die nicht vorher in "nodeIds" deklariert wurde.
+
 FELDER JE MECHANIK (übrige Felder auf null setzen):
 - mechanic="vote": "options" (2-3 Einträge mit label+next), roll=null, moment=null, ending=null
 - mechanic="roll": "roll" (castHint, bonusTag, malusTag, target 8-16, successNext, failNext, successText, failText), options=null, moment=null, ending=null
@@ -253,7 +269,7 @@ ${JSON.stringify(FEW_SHOT_EXAMPLE, null, 2)}
 
 Beachte: JEDE next/successNext/failNext-ID im Beispiel oben (wald, warten, entdeckung, flucht) existiert auch als eigener Knoten in "nodes". Genau dieses Muster musst du für deinen eigenen, größeren Baum einhalten.
 
-Prüfe vor der Antwort: existiert jede in next/successNext/failNext genannte ID als Knoten in nodes?
+Prüfe vor der Antwort: stimmt "nodeIds" exakt mit den IDs aller Knoten in "nodes" überein, und existiert jede in next/successNext/failNext genannte ID in "nodeIds"?
 
 Ton: ${scenario.tone}. Tabu: ${scenario.taboo}. Ziel-Knotenzahl: ${scenario.length}.`;
 
@@ -279,6 +295,14 @@ Baue den kompletten Entscheidungsbaum.`;
 function validateTree(tree) {
   const errors = [];
   const byId = new Map((tree.nodes ?? []).map(n => [n.id, n]));
+
+  // 0. nodeIds-Konsistenz (A1: Selbst-Deklaration muss mit den echten Knoten übereinstimmen)
+  if (Array.isArray(tree.nodeIds)) {
+    const declared = new Set(tree.nodeIds);
+    const actual = new Set(byId.keys());
+    for (const id of declared) if (!actual.has(id)) errors.push(`"nodeIds" deklariert "${id}", aber kein Knoten mit dieser id existiert`);
+    for (const id of actual) if (!declared.has(id)) errors.push(`Knoten "${id}" existiert, ist aber nicht in "nodeIds" deklariert`);
+  }
 
   // 1. start existiert
   if (!tree.start || !byId.has(tree.start))
@@ -340,13 +364,13 @@ function validateTree(tree) {
 // ── Ein Modell-Call (Generierung ODER Repair, gleiche Mechanik) ─────────────
 
 /** Ruft aiChat mit dem gegebenen messages-Array auf, parst + validiert die Antwort. */
-async function callAndParse(messages, useSchema) {
+async function callAndParse(messages, useSchema, temperature = TEMPERATURE) {
   const started = Date.now();
   let raw;
   try {
     raw = await aiChat(messages, {
       max_tokens: 3000,
-      temperature: 0.8,
+      temperature,
       ...(useSchema ? { response_format: treeResponseSchema } : {}),
     });
   } catch (e) {
@@ -454,7 +478,7 @@ function printTree(tree) {
 }
 
 async function main() {
-  console.log(`\n═══ Prototyp: AI-Tree-Generierung — Szenario "${SCENARIO_ID}", ${RUNS} Run(s), max ${MAX_REPAIRS} Repair(s) ═══`);
+  console.log(`\n═══ Prototyp: AI-Tree-Generierung — Szenario "${SCENARIO_ID}", ${RUNS} Run(s), max ${MAX_REPAIRS} Repair(s), temp=${TEMPERATURE} ═══`);
   const scenario = await loadScenarioDescription(SCENARIO_ID);
   console.log(`\nReferenz (handgeschrieben): ${Object.keys(scenario._reference.nodes).length} Knoten, Start "${scenario._reference.start}"`);
 
