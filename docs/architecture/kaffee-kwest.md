@@ -221,32 +221,45 @@ Die Verbindung läuft über den Plattform-AI-Client `srv/ai.js`.
 - Deployment: `foundation-models`-Scenario, Modell `gpt-4o-mini`, Status `RUNNING`
 - Service Key der AI-Core-Instanz (JSON aus BTP Cockpit → Instanz → Service Keys)
 
+### Konfigurationsprinzip: Convention over Configuration
+
+Wie `db`/`auth` in der Plattform folgt die AI-Config dem Profil-Muster:
+
+- **Plugin-Default** (`games/kaffee-kwest/package.json`): `"ai": "static"` — lokal
+  lauffähig ohne Service-Key/SDK, `cds watch` funktioniert ungebremst.
+- **`[production]`-Profil** im selben Plugin schaltet automatisch auf `"aicore"` —
+  kein Override in der konsumierenden App nötig, außer man will bewusst abweichen.
+- **Root-`package.json`** hält nur den *Zugang* (`cds.requires.ai`: Modellname,
+  Resource Group) — keine Deployment-ID (umgebungsspezifisch, kein statischer Default).
+- **Deployment-ID + Secret** ausschließlich via `.env` (`AICORE_DEPLOYMENT_ID`,
+  `AICORE_SERVICE_KEY`) — nie in einer committeten `package.json`.
+
 ### Lokale Konfiguration
 
 1. `.env` anlegen (basierend auf `.env.example`, **nie committen**):
    ```
    AICORE_SERVICE_KEY='{"clientid":"...","clientsecret":"...","url":"...","serviceurls":{"AI_API_URL":"https://api.ai.prod.us-east-1.aws.ml.hana.ondemand.com"}}'
+   AICORE_DEPLOYMENT_ID=d0a60fa69c65d580
    ```
 
-2. Deployment-ID in `package.json` eintragen (einmalig, kein Secret):
-   ```json
-   "cds": { "requires": { "ai": { "deploymentId": "d0a60fa69c65d580" } } }
+2. AI lokal testen — direkter Dot-Notation-Override in `.env`, **kein Profil-
+   Wechsel** (der würde auch `db`/`auth` auf HANA/IAS umschalten):
+   ```
+   cds.requires.kaffee-kwest.ai = aicore
    ```
 
-3. AI-Adapter für Kaffee-Kwest aktivieren (`games/kaffee-kwest/package.json`):
-   ```json
-   "cds": { "requires": { "kaffee-kwest": { "ai": "aicore" } } }
-   ```
-
-4. Starten:
+3. Starten:
    ```bash
    node --env-file=.env npx cds watch --include games
    ```
 
-5. Smoke-Test (verifiziert den Endpunkt ohne Spielsession):
+4. Smoke-Test (verifiziert den Endpunkt ohne Spielsession):
    ```bash
    node --env-file=.env scripts/smoke-chronicler.mjs
    ```
+
+Ohne Schritt 2 läuft alles wie gewohnt statisch (Plugin-Default) — Chronik-
+Heuristik statt echtem Modell-Call, keine Abhängigkeit von Secrets.
 
 ### Bekannte Konfiguration (Stand: Juli 2026)
 
@@ -263,8 +276,10 @@ Die Verbindung läuft über den Plattform-AI-Client `srv/ai.js`.
 
 ```bash
 cf set-env cap-games-srv AICORE_SERVICE_KEY '{"clientid":...}'
+cf set-env cap-games-srv AICORE_DEPLOYMENT_ID d0a60fa69c65d580
 cf restage cap-games-srv
 ```
 
-`cds.requires.ai.deploymentId` steht bereits in `package.json` und wird mit deployt —
-kein weiteres Env-Setting nötig (außer dem Secret).
+`--production` (implizit bei CF-Deployment) aktiviert automatisch das
+`[production]`-Profil des Plugins (`ai: "aicore"`) — kein weiteres Setting nötig
+außer den beiden Env-Vars oben.

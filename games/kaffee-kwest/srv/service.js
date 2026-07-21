@@ -25,7 +25,9 @@ const MAX_ACTIVE = 7;   // chronicle cap — oldest entries retire beyond this
 
 /**
  * Loads the AI chronicler for the configured adapter.
- * Returns the static adapter if ai !== 'aicore' or loading fails.
+ * Default 'static' (see package.json) — plugin ships local-runnable by
+ * convention; '[production]' profile flips to 'aicore'. Falls back to
+ * static on any other value or load failure, so a round never breaks.
  */
 async function loadChronicler() {
   const ai = cds.env.requires?.['kaffee-kwest']?.ai;

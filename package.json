@@ -32,9 +32,8 @@
   "cds": {
     "requires": {
       "ai": {
-        "deploymentId": "",
-        "resourceGroup": "default",
-        "model": "gpt-4o-mini"
+        "model": "gpt-4o-mini",
+        "resourceGroup": "default"
       },
       "auth": {
         "[development]": {
