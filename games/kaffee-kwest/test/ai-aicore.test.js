@@ -7,7 +7,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { _runChronicler } from '../lib/ai-aicore.js';
+import { _runChronicler, _runTreeBuilder } from '../lib/ai-aicore.js';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -100,4 +100,82 @@ test('ignores whitespace-only lines in response', async () => {
   const result = await _runChronicler(mockChat(response), makeState(log), 'alice');
   assert.equal(result.length, 1);
   assert.equal(result[0], 'Ein echter Eintrag.');
+});
+
+// ── _runTreeBuilder ───────────────────────────────────────────────────────────
+
+const scenario = {
+  ID: 'test-scenario',
+  title: 'Testszenario', setting: 'Testort', premise: 'Test', goal: 'Test',
+  tone: 'neutral', taboo: 'keins', length: 5,
+  roles: [
+    { role: 'Held:in', hook: 'mutig', tags: ['mutig', 'stark'] },
+    { role: 'Weise:r', hook: 'klug', tags: ['klug', 'weise'] },
+  ],
+};
+
+/** Ein garantiert valider 4-Knoten-Tree im Prototyp-Schema (Array-nodes). */
+function validGenTreeJson() {
+  return JSON.stringify({
+    start: 'a',
+    nodeIds: ['a', 'b', 'c', 'd'],
+    nodes: [
+      {
+        id: 'a', mechanic: 'vote', text: 'Szene A.',
+        options: [{ label: 'links', next: 'b', keywords: null }, { label: 'rechts', next: 'c', keywords: null }],
+        roll: null, moment: null, ending: null,
+      },
+      {
+        id: 'b', mechanic: 'roll', text: 'Szene B.', options: null,
+        roll: {
+          castHint: 'mutig', bonusTag: 'stark', malusTag: 'schwach', target: 10,
+          successNext: 'd', failNext: 'c', successText: 'Erfolg!', failText: 'Fehlschlag!',
+        },
+        moment: null, ending: null,
+      },
+      {
+        id: 'c', mechanic: 'ending', text: 'Schlecht gelaufen.', options: null, roll: null, moment: null,
+        ending: { tier: 'bad', title: 'Ende C' },
+      },
+      {
+        id: 'd', mechanic: 'ending', text: 'Gut gelaufen.', options: null, roll: null, moment: null,
+        ending: { tier: 'good', title: 'Ende D' },
+      },
+    ],
+  });
+}
+
+test('_runTreeBuilder: builds valid settings from a well-formed AI tree', async () => {
+  const treeParty = [
+    { symbol: 'X', user: 'alice', isHost: true },
+    { symbol: 'O', user: 'bob' },
+  ];
+  const chat = mockChat(validGenTreeJson());
+  const settings = await _runTreeBuilder(chat, { scenario, party: treeParty });
+
+  assert.equal(settings.scenario, 'test-scenario');
+  assert.equal(settings.tree.start, 'a');
+  assert.ok(!Array.isArray(settings.tree.nodes)); // übersetzt: Objekt, nicht Array
+  assert.ok(settings.casting.X);
+  assert.ok(settings.casting.O);
+  assert.equal(settings.tree.nodes.b.roll.success, 'd'); // successNext -> success übersetzt
+});
+
+test('_runTreeBuilder: propagates errors from a persistently invalid AI tree', async () => {
+  const treeParty = [
+    { symbol: 'X', user: 'alice', isHost: true },
+    { symbol: 'O', user: 'bob' },
+  ];
+  const broken = JSON.parse(validGenTreeJson());
+  broken.nodes[0].options[0].next = 'nirgendwo';
+  const chat = mockChat(JSON.stringify(broken));
+  await assert.rejects(() => _runTreeBuilder(chat, { scenario, party: treeParty }));
+});
+
+test('_runTreeBuilder: propagates aiChat errors so caller can fall back', async () => {
+  const treeParty = [
+    { symbol: 'X', user: 'alice', isHost: true },
+    { symbol: 'O', user: 'bob' },
+  ];
+  await assert.rejects(() => _runTreeBuilder(failingChat, { scenario, party: treeParty }));
 });

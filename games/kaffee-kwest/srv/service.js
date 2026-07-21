@@ -8,16 +8,16 @@
  *  - prepare(): casting + frozen decision tree -> settings JSON for `configure`
  *  - chronicle extraction + player-confirmed persistence (veto by omission)
  *
- * AI port seam: prepare() and suggestChronicle() call the static adapters
- * from ../lib/ai-static.js. An AI Core adapter with the same signatures can be
- * selected here later via cds.requires['kaffee-kwest'].ai — the static
- * adapters remain the fallback, so a round never breaks.
+ * AI port seam: prepare() and suggestChronicle() call the configured adapter
+ * (static or AI Core, via cds.requires['kaffee-kwest'].ai — see
+ * loadTreeBuilder()/loadChronicler()); both fall back to the static
+ * adapters on any error, so a round never fails to start or end.
  */
 import cds from '@sap/cds';
 import { readdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { treeBuilder, chronicler as staticChronicler } from '../lib/ai-static.js';
+import { treeBuilder as staticTreeBuilder, chronicler as staticChronicler } from '../lib/ai-static.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const LOG = cds.log('kaffee-kwest');
@@ -42,12 +42,32 @@ async function loadChronicler() {
   }
 }
 
+/**
+ * Loads the AI treeBuilder for the configured adapter. Same default/fallback
+ * behaviour as loadChronicler() — the returned function is always ASYNC
+ * (the static adapter is sync, wrapped here so prepare() can await either
+ * uniformly without knowing which one is active).
+ */
+async function loadTreeBuilder() {
+  const ai = cds.env.requires?.['kaffee-kwest']?.ai;
+  if (ai !== 'aicore') return async args => staticTreeBuilder(args);
+  try {
+    const { treeBuilder } = await import('../lib/ai-aicore.js');
+    LOG.info('kaffee-kwest: using AI Core treeBuilder');
+    return treeBuilder;
+  } catch (e) {
+    LOG.warn('kaffee-kwest: failed to load AI Core adapter, falling back to static', e.message);
+    return async args => staticTreeBuilder(args);
+  }
+}
+
 export default class KaffeeKwestService extends cds.ApplicationService {
   async init() {
     const { Scenarios, Profiles, ChronicleEntries } = cds.entities('kk');
 
-    // Resolve chronicler once on startup (lazy — aicore adapter loads SDK only when needed)
+    // Resolve adapters once on startup (lazy — aicore loads the SDK only when needed)
     const chronicler = await loadChronicler();
+    const aiTreeBuilder = await loadTreeBuilder();
 
     cds.once('served', () =>
       this._seedScenarios(Scenarios).catch(e => LOG.error('scenario seeding failed:', e)));
@@ -90,7 +110,15 @@ export default class KaffeeKwestService extends cds.ApplicationService {
         (chronicles[e.user] ??= []).push(e.text);
 
       const scenario = { ...row, roles: JSON.parse(row.roles), tree: JSON.parse(row.tree) };
-      const settings = treeBuilder({ scenario, party, profiles, chronicles });
+
+      let settings;
+      try {
+        settings = await aiTreeBuilder({ scenario, party, profiles, chronicles });
+      } catch (e) {
+        LOG.warn('AI treeBuilder failed, falling back to static', e.message);
+        settings = staticTreeBuilder({ scenario, party, profiles, chronicles });
+      }
+
       LOG.info('PREPARE', id, 'party=' + party.map(p => `${p.symbol}:${p.user}`).join(','));
       return JSON.stringify(settings);
     });

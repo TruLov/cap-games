@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 /**
- * Prototyp: AI-Tree-Generierung (Kaffee-Kwest v2 Vorstufe)
+ * Prototyp: AI-Tree-Generierung (Kaffee-Kwest v1.5)
+ *
+ * WICHTIG: Dieses Skript hat seinen Zweck erfüllt und wurde nach
+ * games/kaffee-kwest/lib/tree-gen.js überführt (produktionsreif, verdrahtet
+ * in lib/ai-aicore.js treeBuilder). Bleibt als eigenständiges Experimentier-
+ * Werkzeug erhalten (z.B. für Modell-Vergleiche via --deployment= o.ä.),
+ * ist aber NICHT mehr die Quelle der Wahrheit für den Produktionscode —
+ * Änderungen an Schema/Prompt/Validator dort nachziehen, wenn hier verändert.
  *
  * Testet isoliert (KEIN Spieleingriff), ob gpt-4o-mini aus einer
  * scenario.md-Kurzbeschreibung einen validen, spielbaren Entscheidungsbaum

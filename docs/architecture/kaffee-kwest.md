@@ -200,12 +200,64 @@ Semantik), eigenes `score()` vergibt Punkte nach Endqualität (gut 3 / gemischt 
 1. **v1 (umgesetzt):** statische Adapter, autorisierter Demo-Tree
    ("Der Fluch der Nebelmine" + "Die Zeitkapsel des Praktikanten"), volle
    Spielschleife, Chronik mit Veto + Deckel.
-2. **v1.5 (teilweise umgesetzt):** AI-Core-Adapter für `chronicler` — ✅ umgesetzt
-   (gpt-4o-mini via foundation-models-Deployment, SAP AI SDK).
-   Noch offen: AI-Core-Adapter für `treeBuilder` (JSON-Schema-Output, großes Modell),
-   OData-Action `classify` (kleines Modell) als Vorstufe des Moment-Moves.
+2. **v1.5 (umgesetzt):** AI-Core-Adapter für `chronicler` **und** `treeBuilder`
+   — beide nutzen gpt-4o-mini via foundation-models-Deployment (SAP AI SDK).
+   Noch offen: OData-Action `classify` (kleines Modell) als Vorstufe des
+   Moment-Moves.
 3. **v2 (mit Plattform-Beiträgen):** server-seitige Timer, private Settings,
    Streaming der Prosa (kleines Modell pro Knoten), `classify`-Action.
+
+### 5.1 AI-treeBuilder: Architektur & Erkenntnisse
+
+Der AI-generierte Tree ist die schwierigste v1.5-Komponente — ein LLM muss
+einen **selbstreferenzierenden Graphen** produzieren (Knoten verweisen per ID
+aufeinander), bei dem jede Referenz auf einen tatsächlich existierenden Knoten
+zeigen muss. JSON-Schema (`response_format: json_schema`) erzwingt nur das
+**Format** (Typen, Pflichtfelder) — nicht die **Semantik** (referenzielle
+Integrität). Das musste separat gelöst werden:
+
+**Generate → Validate → Repair, mit `nodeIds`-Vorabdeklaration:**
+
+```
+lib/tree-gen.js
+  buildTreeMessages(scenario)      → Prompt (Regeln + Few-Shot-Beispiel)
+  → aiChat(messages, {response_format: json_schema})
+  validateTree(tree)               → 6 Invarianten (nodeIds-Konsistenz,
+                                       Erreichbarkeit, Sackgassen, Pfadlänge)
+  → bei Fehler: Repair-Call (Kontext fortgeführt, max. 2 Versuche)
+  → wirft nach erschöpften Repairs — Aufrufer fällt auf statischen Tree zurück
+  toEngineFormat(tree)             → Prototyp-Schema → lib/tree.js-Schema
+```
+
+**Kernerkenntnis (empirisch, nicht aus Doku ableitbar):** Der häufigste Fehler
+war, dass das Modell eine ID in `option.next`/`roll.successNext`/`failNext`
+schreibt, aber vergisst, später einen Knoten mit dieser ID anzulegen —
+Buchhaltung bricht über 6+ Knoten zusammen. Ein Feld **`nodeIds`**, das im
+Schema **vor** `nodes` steht, zwingt das Modell, sich zuerst zur vollständigen
+ID-Menge zu committen (JSON-Properties werden in Schema-Reihenfolge generiert).
+Das allein hob die Sofort-Trefferquote von ~33% auf ~90-100% (Test über
+15+ Runs, zwei Szenarien) — deutlich wirksamer als ein volles Few-Shot-Beispiel
+allein. Ein Modell-Wechsel (gpt-5-mini/claude) oder eine SAP-AI-Core-
+Orchestration-Engine wurden bewusst **nicht** eingesetzt — Orchestration bietet
+keine Struktur-Validierung, das Problem liegt in der Anwendungsschicht.
+
+Der verbleibende Rest (~0-10% Fehlschlag) wird vom Repair-Loop aufgefangen;
+schlägt auch das fehl, greift der reguläre Fallback auf den statischen
+Demo-Tree — die Runde startet in jedem Fall.
+
+**Übersetzungsschicht (`toEngineFormat`):** Das Generierungs-Schema (Array
+`nodes` mit `id`-Feld, `roll.successNext`/`failNext`) unterscheidet sich
+bewusst vom Engine-Schema (`lib/tree.js` erwartet `nodes` als Objekt `{id:
+node}`, `roll.success`/`fail`, `moment`-Felder auf Knoten-Ebene). Array+id ist
+schema-freundlicher für strukturierten Output; die Übersetzung passiert einmal
+nach der Generierung. Ein Engine-Selbsttest (`init()` + ein simulierter Zug in
+`_runTreeBuilder`) verifiziert vor der Rückgabe, dass der übersetzte Tree
+wirklich mit der echten Engine kompatibel ist.
+
+**Geteilte Spiellogik:** Casting (`castParty`) und Actor-/Bonus-Auflösung
+(`resolveTree`) sind reine Spiellogik ohne KI-Bezug — beide Adapter
+(`ai-static.js`, `ai-aicore.js`) nutzen dieselben Funktionen aus
+`ai-static.js` (DRY, kein Duplikat).
 
 ---
 

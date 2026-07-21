@@ -15,21 +15,22 @@
 const norm = s => (s ?? '').toLowerCase();
 
 /** Everything we know about a player, as searchable lowercase text. */
-function playerText(user, profiles, chronicles) {
+export function playerText(user, profiles, chronicles) {
   return norm(`${profiles[user] ?? ''} ${(chronicles[user] ?? []).join(' ')}`);
 }
 
 /**
- * Casting + tree resolution:
- *  - each player gets a role from the scenario pool — chronicle/archetype
- *    keywords win, join order breaks ties (round-robin fallback)
- *  - roll/moment nodes get their actor resolved from `castHint` tags
- *  - roll bonuses (±2) are derived from chronicle keywords — fixed at
- *    prepare time, exactly as the concept demands of the big model
+ * Casts each player onto a role from the scenario's role pool — pure game
+ * logic (no AI), shared between the static and AI-Core treeBuilder adapters:
+ *  - chronicle/archetype keywords win, join order breaks ties (round-robin)
+ *
+ * @param {Array} roles [{ role, hook, tags }] — scenario.roles
+ * @param {Array} party [{ symbol, user, isHost }]
+ * @param {object} texts { [symbol]: lowercase searchable player text }
+ * @returns {object} casting { [symbol]: { role, hook, tags } }
  */
-export function treeBuilder({ scenario, party, profiles = {}, chronicles = {}, seed }) {
-  const pool = scenario.roles.map(r => ({ ...r, taken: false }));
-  const texts = Object.fromEntries(party.map(p => [p.symbol, playerText(p.user, profiles, chronicles)]));
+export function castParty(roles, party, texts) {
+  const pool = roles.map(r => ({ ...r, taken: false }));
   const casting = {};
 
   // pass 1: keyword-matched roles
@@ -54,12 +55,29 @@ export function treeBuilder({ scenario, party, profiles = {}, chronicles = {}, s
   for (const s of Object.keys(casting))
     casting[s] = { role: casting[s].role, hook: casting[s].hook, tags: casting[s].tags };
 
-  // resolve actors + bonuses into a copy of the authored tree
-  const resolved = structuredClone(scenario.tree);
+  return casting;
+}
+
+/**
+ * Resolves actors + roll bonuses into a copy of a scenario tree — pure game
+ * logic (no AI), shared between the static and AI-Core treeBuilder adapters:
+ *  - roll/moment nodes get their actor resolved from `castHint` tags
+ *  - roll bonuses (±2) are derived from chronicle keywords — fixed at
+ *    prepare time, exactly as the concept demands of the big model
+ *
+ * @param {object} scenarioTree { start, nodes } — engine-format tree (from
+ *   an authored scenario.tree or from ai-aicore.js's toEngineFormat())
+ * @param {Array}  party   [{ symbol, user, isHost }]
+ * @param {object} casting { [symbol]: { role, hook, tags } }
+ * @param {object} texts   { [symbol]: lowercase searchable player text }
+ * @returns {object} resolved tree (deep clone, safe to mutate)
+ */
+export function resolveTree(scenarioTree, party, casting, texts) {
+  const resolved = structuredClone(scenarioTree);
   let rotation = 0;
   const actorFor = hint => {
     const match = party.find(p =>
-      casting[p.symbol].tags.some(t => norm(t) === norm(hint)) ||
+      casting[p.symbol].tags?.some(t => norm(t) === norm(hint)) ||
       texts[p.symbol].includes(norm(hint)));
     return (match ?? party[rotation++ % party.length]).symbol;
   };
@@ -77,6 +95,22 @@ export function treeBuilder({ scenario, party, profiles = {}, chronicles = {}, s
       n.symbol = actorFor(n.castHint ?? '');
     }
   }
+
+  return resolved;
+}
+
+/**
+ * Casting + tree resolution:
+ *  - each player gets a role from the scenario pool — chronicle/archetype
+ *    keywords win, join order breaks ties (round-robin fallback)
+ *  - roll/moment nodes get their actor resolved from `castHint` tags
+ *  - roll bonuses (±2) are derived from chronicle keywords — fixed at
+ *    prepare time, exactly as the concept demands of the big model
+ */
+export function treeBuilder({ scenario, party, profiles = {}, chronicles = {}, seed }) {
+  const texts = Object.fromEntries(party.map(p => [p.symbol, playerText(p.user, profiles, chronicles)]));
+  const casting = castParty(scenario.roles, party, texts);
+  const resolved = resolveTree(scenario.tree, party, casting, texts);
 
   return {
     scenario: scenario.ID,

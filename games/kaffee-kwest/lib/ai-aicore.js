@@ -2,16 +2,75 @@
  * Kaffee-Kwest — AI-Core-Adapter (v1.5).
  *
  * Implementiert die beiden AI-Ports mit echten Modell-Calls:
- *   treeBuilder — re-exportiert statisch (bleibt vorerst ohne AI, s. v2-Roadmap)
+ *   treeBuilder — generiert Casting + Entscheidungsbaum via gpt-4o-mini
+ *                 (Generate → Validate → Repair, siehe lib/tree-gen.js)
  *   chronicler  — nutzt gpt-4o-mini via Plattform-AI-Client (srv/ai.js)
  *
- * Fallback-Garantie: wirft bei Fehler → KaffeeKwestService fällt auf ai-static zurück.
- * Runde bricht nie ab (Architektur-Vorgabe).
- *
- * Selbe Signatur wie ai-static.js — austauschbar ohne Änderung am Aufrufer.
+ * Fallback-Garantie: wirft bei JEDEM Fehler (Call/Parse/Validierung/
+ * Übersetzung/Engine-Test) → KaffeeKwestService fällt auf ai-static zurück.
+ * Runde startet immer, egal ob AI verfügbar ist. Selbe Signatur wie
+ * ai-static.js — austauschbar ohne Änderung am Aufrufer.
  */
 
-export { treeBuilder } from './ai-static.js';
+import { castParty, playerText, resolveTree } from './ai-static.js';
+import { generateTreeWithRepair, toEngineFormat } from './tree-gen.js';
+import * as tree from './tree.js';
+
+/**
+ * Kern-Logik: generiert Tree via AI, übersetzt ins Engine-Format, castet die
+ * Party, löst Akteure/Boni auf und prüft das Ergebnis gegen die echte Engine
+ * (init() + ein simulierter Zug), bevor es zurückgegeben wird.
+ *
+ * Nimmt aiChat als Parameter → testbar ohne Modul-Mocking (wie _runChronicler).
+ *
+ * @internal — öffentliche API ist treeBuilder()
+ */
+export async function _runTreeBuilder(aiChat, { scenario, party, profiles = {}, chronicles = {}, seed }) {
+  const { tree: generated } = await generateTreeWithRepair(aiChat, scenario, 2, 0.8);
+  const engineTree = toEngineFormat(generated);
+
+  const texts = Object.fromEntries(party.map(p => [p.symbol, playerText(p.user, profiles, chronicles)]));
+  const casting = castParty(scenario.roles, party, texts);
+
+  // resolveTree ist reine Spiellogik (Actor/Bonus-Auflösung), geteilt mit ai-static.js
+  const resolved = resolveTree(engineTree, party, casting, texts);
+
+  const settings = {
+    scenario: scenario.ID,
+    title: scenario.title,
+    party,
+    casting,
+    tree: resolved,
+    sceneTotal: scenario.length ?? 5,
+    ...(seed != null && { seed }),
+  };
+
+  // Engine-Selbsttest: bevor wir den AI-Tree zurückgeben, muss er durch die
+  // ECHTE Engine (init + ein Zug) laufen — letzte Absicherung gegen jede
+  // Inkonsistenz, die validateTree() nicht erfasst (z.B. Feld-Übersetzungsfehler).
+  const testState = tree.init({ ...settings, seed: seed ?? 1 });
+  const firstNode = testState.tree.nodes[testState.nodeId];
+  if (firstNode.mechanic === 'vote' && (!firstNode.options || firstNode.options.length === 0))
+    throw new Error('engine self-test failed: start node has no options');
+  if (firstNode.mechanic === 'roll' && !firstNode.roll?.symbol)
+    throw new Error('engine self-test failed: start node roll has no resolved actor');
+  if (firstNode.mechanic === 'moment' && !firstNode.symbol)
+    throw new Error('engine self-test failed: start node moment has no resolved actor');
+
+  return settings;
+}
+
+/**
+ * Generiert Casting + Entscheidungsbaum via AI Core (gpt-4o-mini).
+ * Lädt aiChat lazy vom Plattform-Client (srv/ai.js).
+ *
+ * @throws {Error} bei Modell-/Validierungs-/Engine-Fehler — Aufrufer fällt
+ *   auf den statischen Adapter (autorisierter Tree) zurück.
+ */
+export async function treeBuilder(args) {
+  const { aiChat } = await import('../../../srv/ai.js');
+  return _runTreeBuilder(aiChat, args);
+}
 
 /**
  * Kern-Logik: Prompt bauen + Antwort parsen.
