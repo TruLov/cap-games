@@ -102,8 +102,8 @@ describe('KaffeeKwestService', () => {
 
   describe('prepare', () => {
     const party = JSON.stringify([
-      { symbol: 'X', user: 'prep_alice', isHost: true },
-      { symbol: 'O', user: 'prep_bob' },
+      { user: 'prep_alice', isHost: true },
+      { user: 'prep_bob' },
     ]);
 
     it('returns valid settings JSON for a known scenario', async () => {
@@ -116,8 +116,8 @@ describe('KaffeeKwestService', () => {
       expect(settings.tree).to.be.ok;
       expect(settings.tree.start).to.equal('eingang');
       expect(typeof settings.sceneTotal).to.equal('number');
-      expect(settings.casting.X).to.be.ok;
-      expect(settings.casting.O).to.be.ok;
+      expect(settings.casting.prep_alice).to.be.ok;
+      expect(settings.casting.prep_bob).to.be.ok;
     });
 
     it('second bundled scenario also prepares successfully', async () => {
@@ -139,7 +139,7 @@ describe('KaffeeKwestService', () => {
     });
 
     it('rejects party with fewer than 2 players with 400', async () => {
-      const small = JSON.stringify([{ symbol: 'X', user: 'only_one', isHost: true }]);
+      const small = JSON.stringify([{ user: 'only_one', isHost: true }]);
       const res = await act('prepare', { scenario: 'nebelmine', party: small }, 'prep_alice');
       expect(res.status).to.equal(400);
     });
@@ -200,16 +200,16 @@ describe('KaffeeKwestService', () => {
     it('returns an array (static adapter smoke test)', async () => {
       const finalState = JSON.stringify({
         party: [
-          { symbol: 'X', user: 'sug_alice', isHost: true },
-          { symbol: 'O', user: 'sug_bob' },
+          { user: 'sug_alice', isHost: true },
+          { user: 'sug_bob' },
         ],
         casting: {
-          X: { role: 'Schmied:in mit Vorschlaghammer' },
-          O: { role: 'Kräuterkundige:r' },
+          sug_alice: { role: 'Schmied:in mit Vorschlaghammer' },
+          sug_bob:   { role: 'Kräuterkundige:r' },
         },
         log: [
-          { kind: 'roll', by: 'X', die: 20, bonus: 0, total: 20, target: 12, success: true },
-          { kind: 'moment', by: 'X', text: 'Ich biete dir meinen Hammer!' },
+          { kind: 'roll', by: 'sug_alice', die: 20, bonus: 0, total: 20, target: 12, success: true },
+          { kind: 'moment', by: 'sug_alice', text: 'Ich biete dir meinen Hammer!' },
         ],
       });
       const res = await act('suggestChronicle', { finalState }, 'sug_alice');

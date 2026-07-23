@@ -11,17 +11,18 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const scenarioFile = JSON.parse(readFileSync(join(__dirname, '../db/data/nebelmine.json'), 'utf8'));
 const scenario = { ...scenarioFile };   // roles/tree already parsed objects in the file
 
+// Players are keyed by their user id; here the ids are X/O/A for brevity.
 const party = [
-  { symbol: 'X', user: 'alice', isHost: true },
-  { symbol: 'O', user: 'bob' },
-  { symbol: 'A', user: 'carol' },
+  { user: 'X', isHost: true },
+  { user: 'O' },
+  { user: 'A' },
 ];
 const profiles = {
-  alice: 'packt Probleme mit roher Kraft an',
-  bob:   'neugierig, redet sich gern raus',
+  X: 'packt Probleme mit roher Kraft an',
+  O: 'neugierig, redet sich gern raus',
 };
 const chronicles = {
-  carol: ['Hat ein antikes Rätsel im Alleingang gelöst (ist klug geworden)'],
+  A: ['Hat ein antikes Rätsel im Alleingang gelöst (ist klug geworden)'],
 };
 
 const freshSettings = (seed = 42) =>
@@ -41,11 +42,11 @@ test('treeBuilder resolves roll/moment actors and bonuses into the tree', () => 
   const s = freshSettings();
   for (const n of Object.values(s.tree.nodes)) {
     if (n.mechanic === 'roll') {
-      assert.ok(s.party.some(p => p.symbol === n.roll.symbol), `${n.roll.castHint} resolved`);
+      assert.ok(s.party.some(p => p.user === n.roll.symbol), `${n.roll.castHint} resolved`);
       assert.equal(typeof n.roll.bonus, 'number');
     }
     if (n.mechanic === 'moment')
-      assert.ok(s.party.some(p => p.symbol === n.symbol));
+      assert.ok(s.party.some(p => p.user === n.symbol));
   }
   // 'tor' wants someone strong — alice's archetype contains 'kraft' → +2 bonus
   assert.equal(s.tree.nodes.tor.roll.symbol, 'X');

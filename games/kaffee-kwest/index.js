@@ -2,8 +2,8 @@
  * Kaffee-Kwest — Platform game module.
  *
  * Implements the cap-games game interface:
- *   meta, settingsSchema, init(settings), applyMove(state, move, symbol),
- *   score(end, players), publicState(state), privateState(state, symbol)
+ *   meta, settingsSchema, init(settings), applyMove(state, move, user),
+ *   score(end, players), publicState(state), privateState(state, user)
  *
  * Pure logic — no CAP imports (per platform conventions). The engine lives
  * in ./lib/tree.js.
@@ -49,8 +49,8 @@ export default {
     return tree.init(settings);
   },
 
-  applyMove(state, move, symbol) {
-    return tree.applyMove(state, move, symbol);
+  applyMove(state, move, user) {
+    return tree.applyMove(state, move, user);
   },
 
   /**
@@ -60,7 +60,7 @@ export default {
   score(end, players) {
     const points = { good: 3, mixed: 2, bad: 1 }[end.ending?.tier] ?? 1;
     return players
-      .filter(p => p.symbol !== 'spectator')
+      .filter(p => !p.spectator)
       .map(p => ({ user: p.user, result: 'draw', points }));
   },
 
@@ -77,8 +77,8 @@ export default {
   },
 
   /** Per-player slice: adds the own role's narrative hook. */
-  privateState(state, symbol) {
-    const c = state.casting[symbol];
+  privateState(state, user) {
+    const c = state.casting[user];
     return {
       ...this.publicState(state),
       me: c ? { role: c.role, hook: c.hook } : null,

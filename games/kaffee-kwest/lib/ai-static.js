@@ -24,10 +24,12 @@ export function playerText(user, profiles, chronicles) {
  * logic (no AI), shared between the static and AI-Core treeBuilder adapters:
  *  - chronicle/archetype keywords win, join order breaks ties (round-robin)
  *
+ * Players are keyed by their `user` id (the platform assigns no symbols).
+ *
  * @param {Array} roles [{ role, hook, tags }] — scenario.roles
- * @param {Array} party [{ symbol, user, isHost }]
- * @param {object} texts { [symbol]: lowercase searchable player text }
- * @returns {object} casting { [symbol]: { role, hook, tags } }
+ * @param {Array} party [{ user, isHost }]
+ * @param {object} texts { [user]: lowercase searchable player text }
+ * @returns {object} casting { [user]: { role, hook, tags } }
  */
 export function castParty(roles, party, texts) {
   const pool = roles.map(r => ({ ...r, taken: false }));
@@ -38,19 +40,19 @@ export function castParty(roles, party, texts) {
     let best = -1, bestScore = 0;
     pool.forEach((r, i) => {
       if (r.taken) return;
-      const score = r.tags.filter(t => texts[p.symbol].includes(norm(t))).length;
+      const score = r.tags.filter(t => texts[p.user].includes(norm(t))).length;
       if (score > bestScore) { best = i; bestScore = score; }
     });
-    if (best >= 0) { pool[best].taken = true; casting[p.symbol] = pool[best]; }
+    if (best >= 0) { pool[best].taken = true; casting[p.user] = pool[best]; }
   }
   // pass 2: everyone else gets the next free role (cycling for parties > pool)
   let next = 0;
   for (const p of party) {
-    if (casting[p.symbol]) continue;
+    if (casting[p.user]) continue;
     while (pool[next % pool.length].taken && next < pool.length) next++;
     const r = pool[next % pool.length];
     r.taken = true; next++;
-    casting[p.symbol] = r;
+    casting[p.user] = r;
   }
   for (const s of Object.keys(casting))
     casting[s] = { role: casting[s].role, hook: casting[s].hook, tags: casting[s].tags };
@@ -67,19 +69,20 @@ export function castParty(roles, party, texts) {
  *
  * @param {object} scenarioTree { start, nodes } — engine-format tree (from
  *   an authored scenario.tree or from ai-aicore.js's toEngineFormat())
- * @param {Array}  party   [{ symbol, user, isHost }]
- * @param {object} casting { [symbol]: { role, hook, tags } }
- * @param {object} texts   { [symbol]: lowercase searchable player text }
- * @returns {object} resolved tree (deep clone, safe to mutate)
+ * @param {Array}  party   [{ user, isHost }]
+ * @param {object} casting { [user]: { role, hook, tags } }
+ * @param {object} texts   { [user]: lowercase searchable player text }
+ * @returns {object} resolved tree (deep clone, safe to mutate). Actor tokens
+ *   written onto the tree (n.symbol / n.roll.symbol) are user ids.
  */
 export function resolveTree(scenarioTree, party, casting, texts) {
   const resolved = structuredClone(scenarioTree);
   let rotation = 0;
   const actorFor = hint => {
     const match = party.find(p =>
-      casting[p.symbol].tags?.some(t => norm(t) === norm(hint)) ||
-      texts[p.symbol].includes(norm(hint)));
-    return (match ?? party[rotation++ % party.length]).symbol;
+      casting[p.user].tags?.some(t => norm(t) === norm(hint)) ||
+      texts[p.user].includes(norm(hint)));
+    return (match ?? party[rotation++ % party.length]).user;
   };
 
   for (const n of Object.values(resolved.nodes)) {
@@ -108,7 +111,7 @@ export function resolveTree(scenarioTree, party, casting, texts) {
  *    prepare time, exactly as the concept demands of the big model
  */
 export function treeBuilder({ scenario, party, profiles = {}, chronicles = {}, seed }) {
-  const texts = Object.fromEntries(party.map(p => [p.symbol, playerText(p.user, profiles, chronicles)]));
+  const texts = Object.fromEntries(party.map(p => [p.user, playerText(p.user, profiles, chronicles)]));
   const casting = castParty(scenario.roles, party, texts);
   const resolved = resolveTree(scenario.tree, party, casting, texts);
 
@@ -130,8 +133,8 @@ export function treeBuilder({ scenario, party, profiles = {}, chronicles = {}, s
 export function chronicler(finalState, user) {
   const me = finalState.party?.find(p => p.user === user);
   if (!me) return [];
-  const role = finalState.casting?.[me.symbol]?.role ?? 'Abenteurer:in';
-  const mine = (finalState.log ?? []).filter(e => e.by === me.symbol);
+  const role = finalState.casting?.[user]?.role ?? 'Abenteurer:in';
+  const mine = (finalState.log ?? []).filter(e => e.by === user);
 
   const out = [];
   for (const e of mine) {

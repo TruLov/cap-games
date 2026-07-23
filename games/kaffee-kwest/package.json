@@ -8,9 +8,6 @@
     "test": "node --test-reporter=tap --test \"test/**/*.test.js\""
   },
   "cds": {
-    "games": {
-      "kaffee-kwest": { "impl": "@cap-games/kaffee-kwest" }
-    },
     "requires": {
       "kaffee-kwest": {
         "model": "@cap-games/kaffee-kwest/srv/service.cds",

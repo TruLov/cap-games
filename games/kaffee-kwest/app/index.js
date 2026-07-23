@@ -13,6 +13,7 @@
  */
 import { mountChat }    from '/shell/chat.js';
 import { mountPlayers } from '/shell/players.js';
+import { initials }     from '/shell/util.js';
 
 const CSS = `
 .kk-layout { display:flex; gap:1rem; align-items:flex-start; }
@@ -75,7 +76,7 @@ export default {
     let lastNodeId = null;
 
     // party as the host needs it for prepare(); everyone tracks it anyway
-    const party = [{ symbol: sdk.me.symbol, user: sdk.me.user, isHost: sdk.me.isHost }];
+    const party = [{ user: sdk.me.user, isHost: sdk.me.isHost }];
 
     rootEl.innerHTML = `
       <style>${CSS}</style>
@@ -176,14 +177,14 @@ export default {
       if (!pub) return;
       const total = pub.sceneTotal ?? 5;
       const scene = Math.min(pub.sceneNo, total);
-      const amActive = pub.symbols?.includes(sdk.me.symbol);
+      const amActive = pub.symbols?.includes(sdk.me.user);
 
       main.innerHTML = `
         <div class="kk-card">
           <div class="kk-title">„${esc(pub.title)}“ — Szene ${scene} von ${total}</div>
           <div class="kk-progress"><div style="width:${Math.round(scene / total * 100)}%"></div></div>
           <div class="kk-cast">${(pub.symbols ?? []).map(s => `
-            <span class="kk-chip${s === sdk.me.symbol ? ' me' : ''}">${esc(s)} · ${esc(pub.casting?.[s]?.role ?? '?')}</span>`).join('')}
+            <span class="kk-chip${s === sdk.me.user ? ' me' : ''}">${esc(initials(s))} · ${esc(pub.casting?.[s]?.role ?? '?')}</span>`).join('')}
           </div>
           ${priv?.me ? `<div class="kk-hook">Dein Haken: ${esc(priv.me.hook)}</div>` : ''}
           <div class="kk-log" id="kk-log">${renderLog(pub.log ?? [])}</div>
@@ -225,7 +226,7 @@ export default {
             ${votedCount}/${pub.symbols.length} haben abgestimmt
             ${Object.keys(pub.votes ?? {}).map(s => esc(s)).join(' ')}
           </div>
-          ${sdk.me.symbol === pub.host ? `<div class="kk-row"><button id="kk-force" class="kk-small">Jetzt auflösen (Host)</button></div>` : ''}`;
+          ${sdk.me.user === pub.host ? `<div class="kk-row"><button id="kk-force" class="kk-small">Jetzt auflösen (Host)</button></div>` : ''}`;
         el.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => {
           myVote = +b.dataset.opt;
           sdk.send('move', { room: sdk.room.id, data: JSON.stringify({ type: 'vote', option: myVote }) });
@@ -235,19 +236,19 @@ export default {
           sdk.send('move', { room: sdk.room.id, data: JSON.stringify({ type: 'forceVote' }) }));
 
       } else if (n.mechanic === 'roll') {
-        const mine = n.roll.symbol === sdk.me.symbol;
+        const mine = n.roll.symbol === sdk.me.user;
         const bonus = n.roll.bonus ? (n.roll.bonus > 0 ? ` + ${n.roll.bonus} Bonus` : ` − ${-n.roll.bonus} Malus`) : '';
         el.innerHTML = `
           <div class="kk-title">Würfelprobe</div>
           ${mine
             ? `<div>Du bist dran! W20${bonus}, Ziel ${n.roll.target}.</div>
                <div class="kk-row"><button id="kk-roll">🎲 Würfeln</button></div>`
-            : `<div class="kk-wait">⏳ ${esc(n.roll.symbol)} · ${esc(pub.casting?.[n.roll.symbol]?.role ?? '')} würfelt (Ziel ${n.roll.target})…</div>`}`;
+            : `<div class="kk-wait">⏳ ${esc(initials(n.roll.symbol))} · ${esc(pub.casting?.[n.roll.symbol]?.role ?? '')} würfelt (Ziel ${n.roll.target})…</div>`}`;
         el.querySelector('#kk-roll')?.addEventListener('click', () =>
           sdk.send('move', { room: sdk.room.id, data: JSON.stringify({ type: 'roll' }) }));
 
       } else if (n.mechanic === 'moment') {
-        const mine = n.actor === sdk.me.symbol;
+        const mine = n.actor === sdk.me.user;
         el.innerHTML = `
           <div class="kk-title">Einzelmoment</div>
           ${mine
@@ -282,7 +283,7 @@ export default {
       }
 
       const box = el.querySelector('#kk-suggest');
-      if (!pub.symbols?.includes(sdk.me.symbol)) { el.querySelector('.kk-small').textContent = ''; return; }
+      if (!pub.symbols?.includes(sdk.me.user)) { el.querySelector('.kk-small').textContent = ''; return; }
       try {
         const { value: suggestions } = await odata('POST', 'suggestChronicle', { finalState: JSON.stringify(pub) });
         el.querySelector('.kk-small').textContent = suggestions.length
@@ -316,8 +317,8 @@ export default {
     const onPrivate   = ({ data })  => { priv = typeof data === 'string' ? JSON.parse(data) : data; if (pub) renderStory(); };
     const onLobby     = () => renderLobby();
     const onError     = ({ message }) => sdk.toast(message);
-    const onJoined    = ({ player, symbol, host }) => {
-      if (!party.find(p => p.user === player)) party.push({ symbol, user: player, isHost: !!host });
+    const onJoined    = ({ player, spectator, host }) => {
+      if (!spectator && !party.find(p => p.user === player)) party.push({ user: player, isHost: !!host });
       if (!pub) renderLobby();   // refresh player count hint
     };
     const onGone      = ({ player }) => {

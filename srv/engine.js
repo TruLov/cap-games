@@ -44,10 +44,10 @@ function guardHost(room, userId) {
 function getBoard(roomId)    { return boardState[roomId]; }
 function deleteBoard(roomId) { delete boardState[roomId]; }
 
-function initBoard(roomId, game, settings) {
+function initBoard(roomId, game, settings, players = []) {
   const gm = registryGet(game);
-  const state = gm.init(settings ? JSON.parse(settings) : {});
-  boardState[roomId] = { game, state, turn: state.turn ?? 'X', disconnected: new Map() };
+  const state = gm.init(settings ? JSON.parse(settings) : {}, players);
+  boardState[roomId] = { game, state, turn: state.turn ?? null, disconnected: new Map() };
   return boardState[roomId];
 }
 
@@ -75,15 +75,16 @@ function allGraceTimers(roomId) {
 }
 
 // --- Default scoring (W:3 D:1 L:0) — used if game.score() not provided ---
+// end.winner is a `user` id (or 'draw'); scoring keys on user.
 function defaultScore(end, players) {
   return players
-    .filter(p => p.symbol !== 'spectator')
+    .filter(p => !p.spectator)
     .map(p => ({
       user:   p.user,
-      result: end.winner === 'draw'    ? 'draw'
-            : p.symbol  === end.winner ? 'win' : 'loss',
-      points: end.winner === 'draw'    ? 1
-            : p.symbol  === end.winner ? 3 : 0,
+      result: end.winner === 'draw'  ? 'draw'
+            : p.user === end.winner ? 'win' : 'loss',
+      points: end.winner === 'draw'  ? 1
+            : p.user === end.winner ? 3 : 0,
     }));
 }
 

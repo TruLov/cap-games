@@ -2,9 +2,13 @@
  * TicTacToe game module
  *
  * Game interface (cap-games platform):
- *   meta, settingsSchema, init(settings), applyMove(state, move, symbol)
+ *   meta, settingsSchema, init(settings, players), applyMove(state, move, user)
  *   score?(end, players)   — omitted: platform defaultScore is used (W:3 D:1 L:0)
  *   extendService?(srv)    — omitted: no game-specific actions needed
+ *
+ * The platform identifies players by `user` and assigns no symbols. X/O are a
+ * tic-tac-toe concern: init() maps the two players (host first) to marks and
+ * keeps that map in `state.marks`; turns/winner are reported back as `user` ids.
  */
 
 const WIN_LINES = [
@@ -17,7 +21,7 @@ function checkWinner(board) {
   const line = WIN_LINES.find(
     l => board[l[0]] && board[l[0]] === board[l[1]] && board[l[1]] === board[l[2]]
   );
-  return line ? board[line[0]] : null;
+  return line ? board[line[0]] : null;   // returns the winning MARK ('X'/'O')
 }
 
 export default {
@@ -29,20 +33,28 @@ export default {
   },
 
   settingsSchema: {
+    // which MARK moves first (X = the host by convention)
     firstPlayer: { type: 'enum', values: ['X', 'O', 'random'], default: 'X' },
   },
 
-  init(settings = {}) {
-    let turn = settings.firstPlayer ?? 'X';
-    if (turn === 'random') turn = Math.random() < 0.5 ? 'X' : 'O';
-    return { board: Array(9).fill(null), turn };
+  init(settings = {}, players = []) {
+    // player 0 (host) is X, player 1 is O — the platform passes them ordered
+    const marks = {};
+    if (players[0]) marks[players[0].user] = 'X';
+    if (players[1]) marks[players[1].user] = 'O';
+    const userForMark = m => Object.keys(marks).find(u => marks[u] === m);
+
+    let firstMark = settings.firstPlayer ?? 'X';
+    if (firstMark === 'random') firstMark = Math.random() < 0.5 ? 'X' : 'O';
+
+    return { board: Array(9).fill(null), turn: userForMark(firstMark), marks };
   },
 
-  applyMove(state, move, symbol) {
-    const { board, turn } = state;
+  applyMove(state, move, user) {
+    const { board, turn, marks } = state;
     const { cell } = move;
 
-    if (symbol !== turn)
+    if (user !== turn)
       return { error: 'not your turn' };
     if (!Number.isInteger(cell) || cell < 0 || cell > 8)
       return { error: 'invalid cell' };
@@ -50,14 +62,15 @@ export default {
       return { error: 'cell taken' };
 
     const newBoard = [...board];
-    newBoard[cell] = symbol;
-    const winner = checkWinner(newBoard);
+    newBoard[cell] = marks[user];
+    const winnerMark = checkWinner(newBoard);
     const full = newBoard.every(Boolean);
-    const newTurn = turn === 'X' ? 'O' : 'X';
+    const newTurn = Object.keys(marks).find(u => u !== turn);   // the other player
+    const winnerUser = winnerMark && Object.keys(marks).find(u => marks[u] === winnerMark);
 
     return {
-      state: { board: newBoard, turn: newTurn },
-      end: (winner || full) ? { winner: winner ?? 'draw' } : null,
+      state: { board: newBoard, turn: newTurn, marks },
+      end: (winnerMark || full) ? { winner: winnerUser ?? 'draw' } : null,
     };
   },
 };

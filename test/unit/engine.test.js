@@ -32,18 +32,18 @@ describe('engine', () => {
   describe('defaultScore', () => {
 
     it('winner gets win/3, loser gets loss/0', () => {
-      const scores = eng.defaultScore({ winner: 'X' }, [{ user: 'a', symbol: 'X' }, { user: 'b', symbol: 'O' }]);
+      const scores = eng.defaultScore({ winner: 'a' }, [{ user: 'a', spectator: false }, { user: 'b', spectator: false }]);
       expect(scores.find(s => s.user === 'a')).to.deep.equal({ user: 'a', result: 'win',  points: 3 });
       expect(scores.find(s => s.user === 'b')).to.deep.equal({ user: 'b', result: 'loss', points: 0 });
     });
 
     it('draw gives draw/1 to all', () => {
-      const scores = eng.defaultScore({ winner: 'draw' }, [{ user: 'a', symbol: 'X' }, { user: 'b', symbol: 'O' }]);
+      const scores = eng.defaultScore({ winner: 'draw' }, [{ user: 'a', spectator: false }, { user: 'b', spectator: false }]);
       expect(scores.every(s => s.result === 'draw' && s.points === 1)).to.be.true;
     });
 
     it('spectators are excluded', () => {
-      const scores = eng.defaultScore({ winner: 'X' }, [{ user: 'a', symbol: 'X' }, { user: 's', symbol: 'spectator' }]);
+      const scores = eng.defaultScore({ winner: 'a' }, [{ user: 'a', spectator: false }, { user: 's', spectator: true }]);
       expect(scores).to.have.length(1);
       expect(scores[0].user).to.equal('a');
     });

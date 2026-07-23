@@ -11,9 +11,10 @@ import { _runChronicler, _runTreeBuilder } from '../lib/ai-aicore.js';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
+// Players are keyed by their user id; here the ids are X/O for brevity.
 const party = [
-  { symbol: 'X', user: 'alice', isHost: true },
-  { symbol: 'O', user: 'bob' },
+  { user: 'X', isHost: true },
+  { user: 'O' },
 ];
 
 const casting = {
@@ -34,8 +35,8 @@ test('returns empty array for unknown user', async () => {
 
 test('returns empty array when user has no log entries', async () => {
   const log = [{ kind: 'roll', by: 'O', die: 15, bonus: 0, total: 15, target: 12, success: true }];
-  // alice = 'X' hat keine Einträge → keine AI-Call nötig
-  const result = await _runChronicler(failingChat, makeState(log), 'alice');
+  // 'X' hat keine Einträge → keine AI-Call nötig
+  const result = await _runChronicler(failingChat, makeState(log), 'X');
   assert.deepEqual(result, []);
 });
 
@@ -43,7 +44,7 @@ test('parses single-line response into one entry', async () => {
   const log = [{ kind: 'roll', by: 'X', die: 20, bonus: 0, total: 20, target: 12, success: true }];
   const result = await _runChronicler(
     mockChat('Hat in einer brenzligen Lage Ruhe bewahrt.'),
-    makeState(log), 'alice'
+    makeState(log), 'X'
   );
   assert.equal(result.length, 1);
   assert.equal(result[0], 'Hat in einer brenzligen Lage Ruhe bewahrt.');
@@ -52,7 +53,7 @@ test('parses single-line response into one entry', async () => {
 test('parses multi-line response and caps at 2 entries', async () => {
   const log = [{ kind: 'moment', by: 'X', text: 'Ich biete meinen Hammer an!' }];
   const response = 'Erster Eintrag.\nZweiter Eintrag.\nDritter wird ignoriert.';
-  const result = await _runChronicler(mockChat(response), makeState(log), 'alice');
+  const result = await _runChronicler(mockChat(response), makeState(log), 'X');
   assert.equal(result.length, 2);
   assert.equal(result[0], 'Erster Eintrag.');
   assert.equal(result[1], 'Zweiter Eintrag.');
@@ -61,21 +62,21 @@ test('parses multi-line response and caps at 2 entries', async () => {
 test('filters lines longer than 500 chars', async () => {
   const log = [{ kind: 'roll', by: 'X', die: 1, bonus: 0, total: 1, target: 10, success: false }];
   const response = `${'x'.repeat(501)}\nKurzer gültiger Eintrag.`;
-  const result = await _runChronicler(mockChat(response), makeState(log), 'alice');
+  const result = await _runChronicler(mockChat(response), makeState(log), 'X');
   assert.equal(result.length, 1);
   assert.equal(result[0], 'Kurzer gültiger Eintrag.');
 });
 
 test('returns empty array on empty model response', async () => {
   const log = [{ kind: 'vote', by: 'X', option: 0 }];
-  const result = await _runChronicler(mockChat(''), makeState(log), 'alice');
+  const result = await _runChronicler(mockChat(''), makeState(log), 'X');
   assert.deepEqual(result, []);
 });
 
 test('propagates aiChat error so caller can fall back', async () => {
   const log = [{ kind: 'roll', by: 'X', die: 20, bonus: 0, total: 20, target: 12, success: true }];
   await assert.rejects(
-    () => _runChronicler(failingChat, makeState(log), 'alice'),
+    () => _runChronicler(failingChat, makeState(log), 'X'),
     /AI Core unavailable/
   );
 });
@@ -88,7 +89,7 @@ test('handles all log entry types without throwing', async () => {
   ];
   const result = await _runChronicler(
     mockChat('Hat geliefert als es darauf ankam.'),
-    makeState(log), 'alice'
+    makeState(log), 'X'
   );
   assert.ok(Array.isArray(result));
   assert.ok(result.length <= 2);
@@ -97,7 +98,7 @@ test('handles all log entry types without throwing', async () => {
 test('ignores whitespace-only lines in response', async () => {
   const log = [{ kind: 'moment', by: 'X', text: 'Etwas mutiges.' }];
   const response = '\n  \nEin echter Eintrag.\n\n  \n';
-  const result = await _runChronicler(mockChat(response), makeState(log), 'alice');
+  const result = await _runChronicler(mockChat(response), makeState(log), 'X');
   assert.equal(result.length, 1);
   assert.equal(result[0], 'Ein echter Eintrag.');
 });
@@ -147,8 +148,8 @@ function validGenTreeJson() {
 
 test('_runTreeBuilder: builds valid settings from a well-formed AI tree', async () => {
   const treeParty = [
-    { symbol: 'X', user: 'alice', isHost: true },
-    { symbol: 'O', user: 'bob' },
+    { user: 'X', isHost: true },
+    { user: 'O' },
   ];
   const chat = mockChat(validGenTreeJson());
   const settings = await _runTreeBuilder(chat, { scenario, party: treeParty });
@@ -163,8 +164,8 @@ test('_runTreeBuilder: builds valid settings from a well-formed AI tree', async 
 
 test('_runTreeBuilder: propagates errors from a persistently invalid AI tree', async () => {
   const treeParty = [
-    { symbol: 'X', user: 'alice', isHost: true },
-    { symbol: 'O', user: 'bob' },
+    { user: 'X', isHost: true },
+    { user: 'O' },
   ];
   const broken = JSON.parse(validGenTreeJson());
   broken.nodes[0].options[0].next = 'nirgendwo';
@@ -174,8 +175,8 @@ test('_runTreeBuilder: propagates errors from a persistently invalid AI tree', a
 
 test('_runTreeBuilder: propagates aiChat errors so caller can fall back', async () => {
   const treeParty = [
-    { symbol: 'X', user: 'alice', isHost: true },
-    { symbol: 'O', user: 'bob' },
+    { user: 'X', isHost: true },
+    { user: 'O' },
   ];
   await assert.rejects(() => _runTreeBuilder(failingChat, { scenario, party: treeParty }));
 });

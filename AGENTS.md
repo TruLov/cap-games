@@ -90,11 +90,11 @@ Games register **declaratively** — the same pattern official CAP plugins
 npm install
       │
       ▼
-CAP env loading merges every plugin package.json "cds" section:
-  "cds": { "games": { "tictactoe": { "impl": "@cap-games/tictactoe" } } }
+Games are discovered by convention: every @cap-games/* dependency is a game
+(id = name after the scope). No "cds.games" config needed.
       │
-      ├─ srv/server.js (bootstrap): serves <impl>/app at /games/<id>
-      └─ srv/registry.js (served):  imports <impl> → validates contract
+      ├─ srv/server.js (bootstrap): serves @cap-games/<id>/app at /games/<id>
+      └─ srv/registry.js (served):  discoverGames() → imports each → validates contract
              │
              ├─ LobbyService: exposes game in /Games catalogue
              └─ PlayService:  dispatches move → game.applyMove()
@@ -143,7 +143,7 @@ Room lifecycle (join/leave)            ├─ sdk.send('move', payload)
 ```js
 sdk = {
   room,                    // { id, game }
-  me,                      // { user, symbol, isHost }
+  me,                      // { user, spectator, isHost }
   send(action, data),      // any WS action → PlayService (not just 'move')
   on(event, fn),           // subscribe to any server event
   off(event, fn),          // unsubscribe (call in unmount cleanup)
@@ -157,17 +157,22 @@ Shell components (`/shell/*.js`) are **optional** — game imports and places th
 ### Game Interface Contract
 
 **State rules (required by engine):**
-- `state.turn` must be a symbol string — engine reads it to track whose move it is
-- `end.winner` must be a symbol (`'X'`, `'O'`, …) or `'draw'`
-- Symbols assigned by platform: `'X'`, `'O'`, `'A'`, … — spectators get `'spectator'`
+- Players are identified by their `user` id — the platform assigns **no** symbols.
+  A game that wants marks (e.g. tic-tac-toe's X/O) derives them itself from the
+  ordered `players` roster in `init`.
+- `state.turn` must be a `user` id — engine reads it to track whose move it is
+- `end.winner` must be a `user` id or `'draw'`
+- Player vs spectator is a platform concern (`Players.spectator` flag); the game
+  only ever receives players in its roster and via `applyMove`.
 
 ```js
 module.exports = {
   // Required
   meta: { name, minPlayers, maxPlayers },
   settingsSchema: { key: { type, values?, default } },
-  init(settings)                  // → { turn: 'X', /* your state */ }
-  applyMove(state, move, symbol)  // → { state, end: null } | { state, end: { winner } } | { error }
+  init(settings, players)         // players: ordered [{ user, isHost }]
+                                  // → { turn: players[0].user, /* your state */ }
+  applyMove(state, move, user)    // → { state, end: null } | { state, end: { winner } } | { error }
 
   // Optional
   score(end, players)             // → [{ user, result: 'win'|'loss'|'draw', points }]
@@ -176,7 +181,7 @@ module.exports = {
 
   // Optional — hidden information (secret hands, face-down cards, roles)
   publicState(state)              // → redacted state broadcast to everyone in the room
-  privateState(state, symbol)     // → per-player slice, delivered ONLY to that user
+  privateState(state, user)       // → per-player slice, delivered ONLY to that user
 };
 ```
 
@@ -190,7 +195,7 @@ platform redacts automatically:
 - The room-scoped events (`started`/`moved`/`finished`/`rematched`) carry only
   `publicState(state)`.
 - Each player additionally receives a `privateState` event — delivered to that
-  user alone via the WebSocket `user` filter — carrying `privateState(state, symbol)`.
+  user alone via the WebSocket `user` filter — carrying `privateState(state, user)`.
 - On join/reconnect the platform sends the (re)joining user a private snapshot so
   they can render immediately.
 
@@ -203,9 +208,9 @@ Use `games/tictactoe/` as reference — copy and adapt.
 
 ```
 games/mygame/
-  package.json     { "name": "@cap-games/mygame", "type": "module", "main": "index.js",
-                     "cds": { "games": { "mygame": { "impl": "@cap-games/mygame" } } } }
-  cds-plugin.js    empty marker file — makes CAP merge the "cds" section
+  package.json     { "name": "@cap-games/mygame", "type": "module", "main": "index.js" }
+                   // no "cds.games" needed — discovered as a game by its @cap-games/* name
+  cds-plugin.js    empty marker file — makes CAP load the package
   index.js         backend — exports the interface above
   app/index.js     frontend — exports default { mount(rootEl, sdk) }
 ```
@@ -234,7 +239,7 @@ Activate: add `"@cap-games/mygame": "*"` to root `package.json` dependencies, th
 | Entity | Purpose |
 |---|---|
 | `Rooms` | Active rooms — game type, host, status, settings (JSON) |
-| `Players` | Players per room — user id, symbol (X/O/…), isHost |
+| `Players` | Players per room — user id, spectator flag, isHost |
 | `Matches` | Completed match history — winner, player snapshot, final state |
 | `Leaderboard` | Aggregated stats per user+game — wins, losses, draws, points |
 
@@ -254,6 +259,6 @@ Activate: add `"@cap-games/mygame": "*"` to root `package.json` dependencies, th
 ## TODO
 
 - Short room join codes (4-char) instead of UUIDs — friendlier sharing
-- Team-play support (multiple players per symbol)
+- Team-play support (multiple players per side)
 - `cds.test` test suite to replace ad-hoc Node scripts
 - UI: initial player list sync when joining an existing room

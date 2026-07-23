@@ -23,11 +23,12 @@ describe('kaiten game', () => {
   });
 
   it('score: single winner → win/loss with points', () => {
-    const end = { winner: 'X', ranking: [
-      { symbol: 'X', score: 40, desserts: 3 },
-      { symbol: 'O', score: 25, desserts: 2 },
+    // ranking tokens are the user ids (the platform assigns no symbols)
+    const end = { winner: 'alice', ranking: [
+      { symbol: 'alice', score: 40, desserts: 3 },
+      { symbol: 'bob',   score: 25, desserts: 2 },
     ]};
-    const scores = game.score(end, [{ user: 'alice', symbol: 'X' }, { user: 'bob', symbol: 'O' }]);
+    const scores = game.score(end, [{ user: 'alice', spectator: false }, { user: 'bob', spectator: false }]);
     expect(scores).to.deep.equal([
       { user: 'alice', result: 'win',  points: 40 },
       { user: 'bob',   result: 'loss', points: 25 },
@@ -36,16 +37,16 @@ describe('kaiten game', () => {
 
   it('score: shared top → draw', () => {
     const end = { winner: 'draw', ranking: [
-      { symbol: 'X', score: 30, desserts: 2 },
-      { symbol: 'O', score: 30, desserts: 2 },
+      { symbol: 'a', score: 30, desserts: 2 },
+      { symbol: 'b', score: 30, desserts: 2 },
     ]};
-    const scores = game.score(end, [{ user: 'a', symbol: 'X' }, { user: 'b', symbol: 'O' }]);
+    const scores = game.score(end, [{ user: 'a', spectator: false }, { user: 'b', spectator: false }]);
     expect(scores.every(s => s.result === 'draw')).to.be.true;
   });
 
   it('score: ignores spectators', () => {
-    const end = { winner: 'X', ranking: [{ symbol: 'X', score: 10, desserts: 1 }] };
-    const scores = game.score(end, [{ user: 'a', symbol: 'X' }, { user: 'c', symbol: 'spectator' }]);
+    const end = { winner: 'a', ranking: [{ symbol: 'a', score: 10, desserts: 1 }] };
+    const scores = game.score(end, [{ user: 'a', spectator: false }, { user: 'c', spectator: true }]);
     expect(scores).to.have.length(1);
     expect(scores[0].user).to.equal('a');
   });

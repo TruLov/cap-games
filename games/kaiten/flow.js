@@ -27,7 +27,7 @@ const URAMAKI_THRESHOLD = 10;
 
 /**
  * @param settings {
- *   players: string[]        // ordered player symbols (from platform join)
+ *   players: string[]        // ordered player ids (user tokens from the platform)
  *   preset?: string          // predefined menu id
  *   roll?, appetizers?, specials?, dessert?  // custom menu
  *   seed?: number            // deterministic RNG seed (tests)

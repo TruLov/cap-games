@@ -32,8 +32,11 @@ const node = state => state.tree.nodes[state.nodeId];
 
 /**
  * @param settings prepared by KaffeeKwestService.prepare():
- *   { scenario, title, party: [{symbol,user,isHost}], casting: {sym: {role,hook}},
+ *   { scenario, title, party: [{user,isHost}], casting: {user: {role,hook}},
  *     tree: { start, nodes }, sceneTotal, seed? (tests only) }
+ *
+ * Players are keyed by their `user` id (the platform assigns no symbols); the
+ * internal token variables below (`symbols`, `symbol`) hold those ids.
  */
 function init(settings = {}) {
   const { party, tree } = settings;
@@ -42,7 +45,7 @@ function init(settings = {}) {
   if (!tree?.start || !tree.nodes?.[tree.start])
     throw new Error('settings contain no decision tree — run prepare first');
 
-  const symbols = party.map(p => p.symbol);
+  const symbols = party.map(p => p.user);
   const state = {
     turn: 'all',                       // sentinel — simultaneous game
     phase: 'playing',
@@ -51,7 +54,7 @@ function init(settings = {}) {
     scenario: settings.scenario,
     title: settings.title,
     symbols,
-    host: party.find(p => p.isHost)?.symbol ?? symbols[0],
+    host: party.find(p => p.isHost)?.user ?? symbols[0],
     party,
     casting: settings.casting ?? {},
     tree,

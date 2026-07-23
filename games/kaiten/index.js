@@ -2,19 +2,20 @@
  * Kaiten — Platform game module.
  *
  * Implements the cap-games game interface:
- *   meta, settingsSchema, init(settings), applyMove(state, move, symbol),
+ *   meta, settingsSchema, init(settings, players), applyMove(state, move, user),
  *   score(end, players)
  *
  * Pure logic — no CAP imports (per platform conventions). The heavy lifting
- * lives in ./flow (turn engine) and ./scoring (card strategies).
+ * lives in ./flow (turn engine) and ./scoring (card strategies). Players are
+ * identified by their `user` id (the platform assigns no symbols); internally
+ * the flow/scoring code treats those ids as opaque per-player tokens.
  *
- * ── Roster in settings ─────────────────────────────────────────────────────
- * The platform calls init(settings) without a player roster. Kaiten needs the
- * roster to deal hands, so the host UI must include it in the room settings:
+ * ── Roster ─────────────────────────────────────────────────────────────────
+ * The platform hands init() the ordered player roster, which kaiten needs to
+ * deal hands. The menu comes from room settings:
  *
  *   settings = {
- *     players: ['X','O',...],           // player symbols (from join events)
- *     preset:  'classic',              // OR a custom menu:
+ *     preset: 'classic',               // OR a custom menu:
  *     roll, appetizers:[3], specials:[2], dessert
  *   }
  *
@@ -37,8 +38,9 @@ export default {
   meta: {
     name: 'Kaiten',
     minPlayers: 2,
-    // Platform currently provides 6 player symbols (X,O,A,B,C,D); 7–8 player
-    // games require platform symbol expansion. Menu rules still validate 7–8p.
+    // Menu rules are defined for up to 8 players; kept at 6 until 7–8p is
+    // play-tested. No longer capped by the platform (which used to hand out a
+    // fixed set of symbols) — players are keyed by `user`.
     maxPlayers: 6,
   },
 
@@ -50,18 +52,22 @@ export default {
     },
   },
 
-  init(settings = {}) {
-    return flow.init(settings);
+  // players: ordered roster [{ user, isHost }] from the platform; flow keys on
+  // the user ids as opaque tokens. (Falls back to settings.players for tests.)
+  init(settings = {}, players = []) {
+    const ids = players.length ? players.map(p => p.user) : (settings.players ?? []);
+    return flow.init({ ...settings, players: ids });
   },
 
-  applyMove(state, move, symbol) {
-    return flow.applyMove(state, move, symbol);
+  applyMove(state, move, user) {
+    return flow.applyMove(state, move, user);
   },
 
   /**
    * Map the final ranking to leaderboard results.
-   * @param end     { winner, ranking:[{symbol,score,desserts}] }
-   * @param players DB players [{ user, symbol }]
+   * @param end     { winner, ranking:[{ symbol, score, desserts }] } — `symbol`
+   *                is the per-player token, i.e. the user id
+   * @param players DB players [{ user, spectator }]
    */
   score(end, players) {
     const ranking = end.ranking ?? [];
@@ -72,13 +78,13 @@ export default {
       ranking.filter(r => r.score === top.score && r.desserts === top.desserts)
              .map(r => r.symbol));
     const sharedTop = winners.size > 1;
-    const bySymbol = Object.fromEntries(ranking.map(r => [r.symbol, r]));
+    const byUser = Object.fromEntries(ranking.map(r => [r.symbol, r]));
 
     return players
-      .filter(p => p.symbol !== 'spectator' && bySymbol[p.symbol])
+      .filter(p => !p.spectator && byUser[p.user])
       .map(p => {
-        const r = bySymbol[p.symbol];
-        const result = winners.has(p.symbol) ? (sharedTop ? 'draw' : 'win') : 'loss';
+        const r = byUser[p.user];
+        const result = winners.has(p.user) ? (sharedTop ? 'draw' : 'win') : 'loss';
         return { user: p.user, result, points: r.score };
       });
   },
@@ -101,14 +107,14 @@ export default {
   },
 
   /**
-   * Private projection delivered only to `symbol`'s player: the public view
+   * Private projection delivered only to `user`'s player: the public view
    * plus that player's own hand and any Menu cards currently offered to them.
    */
-  privateState(state, symbol) {
+  privateState(state, user) {
     return {
       ...this.publicState(state),
-      myHand: state.hands?.[symbol] ?? [],
-      menuOffer: state.menuOffer?.[symbol],
+      myHand: state.hands?.[user] ?? [],
+      menuOffer: state.menuOffer?.[user],
     };
   },
 };

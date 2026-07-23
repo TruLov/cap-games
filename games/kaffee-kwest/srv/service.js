@@ -119,7 +119,7 @@ export default class KaffeeKwestService extends cds.ApplicationService {
         settings = staticTreeBuilder({ scenario, party, profiles, chronicles });
       }
 
-      LOG.info('PREPARE', id, 'party=' + party.map(p => `${p.symbol}:${p.user}`).join(','));
+      LOG.info('PREPARE', id, 'party=' + party.map(p => p.user).join(','));
       return JSON.stringify(settings);
     });
 

@@ -6,7 +6,7 @@
  *
  * sdk = {
  *   room   { id, game }
- *   me     { user, symbol, isHost }
+ *   me     { user, spectator, isHost }
  *   send(action, data)      — send any WS action to PlayService
  *   on(event, fn)           — subscribe to any server event
  *   off(event, fn)          — unsubscribe

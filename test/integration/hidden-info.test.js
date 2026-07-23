@@ -56,7 +56,7 @@ before(async () => {
   const { server, url } = await cdst; // resolves once cds emits 'listening'
   port = server.address().port;
 
-  // alice creates a kaiten room (she becomes host with symbol X)
+  // alice creates a kaiten room (she becomes host)
   const res = await fetch(`${url}/odata/v4/lobby/createRoom`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: basic('alice') },
@@ -80,18 +80,21 @@ after(() => {
 
 describe('hidden-info projection', () => {
 
-  it('two players join and get distinct symbols', async () => {
+  it('two players join as players (identified by user, not symbols)', async () => {
     send(alice, 'join', { room: roomId });
     const aJoined = await waitFor(alice, 'joined');
-    expect(aJoined.data.symbol).to.equal('X');
+    expect(aJoined.data.player).to.equal('alice');
+    expect(aJoined.data.spectator).to.equal(false);
 
     send(bob, 'join', { room: roomId });
     const bJoined = await waitFor(bob, 'joined');
-    expect(bJoined.data.symbol).to.equal('O');
+    expect(bJoined.data.player).to.equal('bob');
+    expect(bJoined.data.spectator).to.equal(false);
   });
 
   it('start: opponents receive public state only; own hand arrives privately', async () => {
-    send(alice, 'configure', { room: roomId, settings: JSON.stringify({ preset: 'classic', players: ['X', 'O'] }) });
+    // roster (users alice/bob) comes from the platform — no players list needed
+    send(alice, 'configure', { room: roomId, settings: JSON.stringify({ preset: 'classic' }) });
     send(alice, 'start', { room: roomId });
 
     const bStarted = await waitFor(bob, 'started');
@@ -101,8 +104,8 @@ describe('hidden-info projection', () => {
     expect(pub.hands).to.equal(undefined);
     expect(pub.drawPile).to.equal(undefined);
     expect(pub.dessertPool).to.equal(undefined);
-    expect(pub.handCounts.X).to.equal(10);
-    expect(pub.handCounts.O).to.equal(10);
+    expect(pub.handCounts.alice).to.equal(10);
+    expect(pub.handCounts.bob).to.equal(10);
 
     // bob privately receives only his own hand
     const bPriv = await waitFor(bob, 'privateState');

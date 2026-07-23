@@ -30,7 +30,7 @@ class LobbyService extends cds.ApplicationService {
         ID: roomId, game, host: user, status: 'lobby', settings: '{}', code,
       });
       await INSERT.into(Players).entries({
-        room_ID: roomId, user, symbol: 'X', isHost: true,
+        room_ID: roomId, user, spectator: false, isHost: true,
       });
 
       return roomId;

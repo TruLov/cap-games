@@ -6,15 +6,17 @@
  *   mountPlayers(containerEl, sdk, initialPlayers);
  */
 
+import { initials } from '/shell/util.js';
+
 export function mountPlayers(el, sdk, initialPlayers = []) {
   const players = [...initialPlayers];
 
   function render() {
     el.innerHTML = `<ul class="sh-players">
       ${players.map(p => `
-        <li class="sh-player${p.user === sdk.me.user ? ' me' : ''}">
-          <span class="sh-sym">${p.symbol}</span>
-          <span class="sh-name">${p.user}${p.user === sdk.me.user ? ' (you)' : ''}</span>
+        <li class="sh-player${p.user === sdk.me.user ? ' me' : ''}${p.spectator ? ' sh-spectator' : ''}">
+          <span class="sh-sym">${initials(p.user)}</span>
+          <span class="sh-name">${p.user}${p.user === sdk.me.user ? ' (you)' : ''}${p.spectator ? ' — spectator' : ''}</span>
           ${sdk.me.isHost && p.user !== sdk.me.user
             ? `<button class="sh-kick small danger" data-user="${p.user}">kick</button>`
             : ''}
@@ -25,9 +27,9 @@ export function mountPlayers(el, sdk, initialPlayers = []) {
       b.onclick = () => sdk.send('kick', { room: sdk.room.id, user: b.dataset.user }));
   }
 
-  function onJoined({ player, symbol }) {
+  function onJoined({ player, spectator }) {
     if (!players.find(p => p.user === player))
-      players.push({ user: player, symbol });
+      players.push({ user: player, spectator });
     render();
   }
 

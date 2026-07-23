@@ -20,11 +20,14 @@ function winLine(board) {
   );
 }
 
+// Turn/winner arrive as `user` ids; tic-tac-toe shows its own X/O marks.
+const markOf = (state, userId) => state?.marks?.[userId] ?? userId;
+
 function renderBoard(state, boardEl, sdk) {
   const { board, turn } = state;
   const line   = winLine(board);
   const done   = !!line || board.every(Boolean);
-  const myTurn = !done && turn === sdk.me.symbol;
+  const myTurn = !done && turn === sdk.me.user;
 
   boardEl.innerHTML = `
     <div class="ttt-board">
@@ -79,26 +82,28 @@ export default {
     function setStatus(msg) { statusEl.textContent = msg; }
 
     function onStarted({ firstTurn, state }) {
-      setStatus(`Playing — ${firstTurn} goes first`);
-      renderBoard(JSON.parse(state), boardEl, sdk);
+      const s = JSON.parse(state);
+      setStatus(`Playing — ${markOf(s, firstTurn)} goes first`);
+      renderBoard(s, boardEl, sdk);
     }
 
     function onMoved({ data }) {
       const s = JSON.parse(data);
-      setStatus(`Turn: ${s.turn}`);
+      setStatus(`Turn: ${markOf(s, s.turn)}`);
       renderBoard(s, boardEl, sdk);
     }
 
     function onFinished({ winner, state }) {
       const s = JSON.parse(state);
-      const msg = winner === 'draw' ? 'Draw!' : `${winner} wins!`;
+      const msg = winner === 'draw' ? 'Draw!' : `${markOf(s, winner)} wins!`;
       setStatus(`Game over — ${msg}`);
       renderBoard(s, boardEl, sdk);
     }
 
     function onRematched({ firstTurn, state }) {
-      setStatus(`Rematch — ${firstTurn} goes first`);
-      renderBoard(JSON.parse(state), boardEl, sdk);
+      const s = JSON.parse(state);
+      setStatus(`Rematch — ${markOf(s, firstTurn)} goes first`);
+      renderBoard(s, boardEl, sdk);
     }
 
     function onLobbyReset() {
@@ -122,7 +127,8 @@ export default {
     sdk.on('playerDisconnected', onDisconnected);
     sdk.on('playerReconnected',  onReconnected);
 
-    setStatus(`You are ${sdk.me.symbol}${sdk.me.isHost ? ' (host)' : ''} — waiting…`);
+    // host is X, the other player is O (marks are seat-based)
+    setStatus(`You are ${sdk.me.isHost ? 'X (host)' : 'O'} — waiting…`);
 
     // ── Unmount cleanup ───────────────────────────────────
     return () => {

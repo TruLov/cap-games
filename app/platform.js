@@ -11,7 +11,7 @@ import { makeSdk, makeEmitter } from './sdk.js';
 const shell = {
   user:    null,   // { id, authHeader }
   room:    null,   // { id, game }
-  me:      null,   // { user, symbol, isHost }
+  me:      null,   // { user, spectator, isHost }
   game:    null,   // loaded game module { mount }
   unmount: null,   // cleanup fn returned by game.mount()
 };
@@ -127,7 +127,7 @@ async function joinRoom(roomId, code, game) {
     if (payload.player !== shell.user.id) return;
     emitter.off('joined', onFirstJoin);
 
-    shell.me = { user: shell.user.id, symbol: payload.symbol, isHost: payload.host };
+    shell.me = { user: shell.user.id, spectator: payload.spectator, isHost: payload.host };
 
     // build sdk and hand full control to game
     const sdk = makeSdk({

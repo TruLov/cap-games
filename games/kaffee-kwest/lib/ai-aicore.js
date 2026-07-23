@@ -29,7 +29,7 @@ export async function _runTreeBuilder(aiChat, { scenario, party, profiles = {}, 
   const { tree: generated } = await generateTreeWithRepair(aiChat, scenario, 2, 0.8);
   const engineTree = toEngineFormat(generated);
 
-  const texts = Object.fromEntries(party.map(p => [p.symbol, playerText(p.user, profiles, chronicles)]));
+  const texts = Object.fromEntries(party.map(p => [p.user, playerText(p.user, profiles, chronicles)]));
   const casting = castParty(scenario.roles, party, texts);
 
   // resolveTree ist reine Spiellogik (Actor/Bonus-Auflösung), geteilt mit ai-static.js
@@ -82,8 +82,8 @@ export async function _runChronicler(aiChat, finalState, user) {
   const me = finalState.party?.find(p => p.user === user);
   if (!me) return [];
 
-  const role = finalState.casting?.[me.symbol]?.role ?? 'Abenteurer:in';
-  const mine = (finalState.log ?? []).filter(e => e.by === me.symbol);
+  const role = finalState.casting?.[user]?.role ?? 'Abenteurer:in';
+  const mine = (finalState.log ?? []).filter(e => e.by === user);
 
   if (mine.length === 0) return [];
 

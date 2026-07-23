@@ -9,7 +9,7 @@ using { cap.games.GameStatus } from '../db/schema';
 service PlayService {
 
   // --- Client → Server (actions) ---
-  action join(room: String) returns String;                    // returns symbol
+  action join(room: String) returns String;                    // returns 'player' | 'spectator'
   action configure(room: String, settings: String);           // host only, JSON settings
   action start(room: String);                                  // host only, lobby → playing
   action move(room: String, data: String);                    // game-specific JSON move
@@ -21,7 +21,7 @@ service PlayService {
   action wsDisconnect();                                       // reserved: auto on disconnect
 
   // --- Server → Client (events, all room-scoped) ---
-  event joined             { @ws.context room: String; player: String; symbol: String; host: Boolean; status: GameStatus; }
+  event joined             { @ws.context room: String; player: String; spectator: Boolean; host: Boolean; status: GameStatus; }
   event configured         { @ws.context room: String; settings: String; }
   event started            { @ws.context room: String; firstTurn: String; state: String; }
   event moved              { @ws.context room: String; data: String; }
@@ -33,10 +33,10 @@ service PlayService {
   // combining a room context with a user filter would OR them and broadcast to
   // the whole room. User-only scoping guarantees the slice reaches just its owner.
   event privateState       { room: String; data: String; }
-  event playerLeft         { @ws.context room: String; player: String; symbol: String; newHost: String; }
+  event playerLeft         { @ws.context room: String; player: String; newHost: String; }
   event playerKicked       { @ws.context room: String; player: String; }
-  event playerDisconnected { @ws.context room: String; player: String; symbol: String; }
-  event playerReconnected  { @ws.context room: String; player: String; symbol: String; }
+  event playerDisconnected { @ws.context room: String; player: String; }
+  event playerReconnected  { @ws.context room: String; player: String; }
   event chatMessage        { @ws.context room: String; player: String; text: String; ts: String; }
   event gameError          { @ws.context room: String; message: String; }
 }

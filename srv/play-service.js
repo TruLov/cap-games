@@ -5,8 +5,9 @@ import * as reg from './registry.js';
 const LOG  = cds.log('game');
 
 const _hasProjection = g => typeof g.publicState === 'function' && typeof g.privateState === 'function';
-const _sliceFor = (game, state, symbol, pub) =>
-  symbol === 'spectator' ? pub : JSON.stringify(game.privateState(state, symbol));
+// Player identity is the `user`; spectators only ever see the public view.
+const _sliceFor = (game, state, user, isSpectator, pub) =>
+  isSpectator ? pub : JSON.stringify(game.privateState(state, user));
 
 class PlayService extends cds.ApplicationService {
 
@@ -36,51 +37,45 @@ class PlayService extends cds.ApplicationService {
         if (room.status === 'paused') {
           await UPDATE(Rooms, roomId).with({ status: 'playing' });
         }
-        await this.emit('playerReconnected', { room: roomId, player: user, symbol: player?.symbol ?? '' });
+        await this.emit('playerReconnected', { room: roomId, player: user });
         await this._sysMsg(roomId, `${user} reconnected.`);
-        await this._snapshotTo(roomId, room.game, user, player?.symbol ?? 'spectator');
+        await this._snapshotTo(roomId, room.game, user, player?.spectator ?? true);
         LOG.info('RECONNECT', roomId, user);
-        return player?.symbol ?? 'spectator';
+        return this._role(player);
       }
 
       // -- already in room (idempotent) — re-emit joined so client can build view
       const existing = await SELECT.one.from(Players).where({ room_ID: roomId, user });
       if (existing) {
         await this.emit('joined', {
-          room: roomId, player: user, symbol: existing.symbol,
+          room: roomId, player: user, spectator: existing.spectator,
           host: existing.isHost, status: room.status,
         });
-        await this._snapshotTo(roomId, room.game, user, existing.symbol);
-        return existing.symbol;
+        await this._snapshotTo(roomId, room.game, user, existing.spectator);
+        return this._role(existing);
       }
 
-      // -- assign slot
+      // -- assign slot: a player while seats remain, otherwise a spectator
       const players = await SELECT.from(Players).where({ room_ID: roomId });
-      const takenSymbols = players.map(p => p.symbol).filter(s => s !== 'spectator');
-      const maxPlayers = game.meta.maxPlayers;
-
-      let symbol = 'spectator';
-      const symbols = ['X', 'O', 'A', 'B', 'C', 'D'];  // extensible for team-play later
-      for (const s of symbols.slice(0, maxPlayers)) {
-        if (!takenSymbols.includes(s)) { symbol = s; break; }
-      }
+      const seatsTaken = players.filter(p => !p.spectator).length;
+      const spectator = seatsTaken >= game.meta.maxPlayers;
 
       const isHost = players.length === 0;  // first to join is host
-      await INSERT.into(Players).entries({ room_ID: roomId, user, symbol, isHost });
+      await INSERT.into(Players).entries({ room_ID: roomId, user, spectator, isHost });
 
       // init board if not yet
       if (!eng.getBoard(roomId) && room.status === 'playing') {
-        eng.initBoard(roomId, room.game, room.settings);
+        eng.initBoard(roomId, room.game, room.settings, await this._roster(roomId));
       }
 
       await this.emit('joined', {
-        room: roomId, player: user, symbol,
+        room: roomId, player: user, spectator,
         host: isHost, status: room.status,
       });
       await this._sysMsg(roomId, `${user} joined.`);
-      if (room.status === 'playing') await this._snapshotTo(roomId, room.game, user, symbol);
-      LOG.info('JOIN', roomId, user, '→', symbol, isHost ? '(host)' : '');
-      return symbol;
+      if (room.status === 'playing') await this._snapshotTo(roomId, room.game, user, spectator);
+      LOG.info('JOIN', roomId, user, '→', spectator ? 'spectator' : 'player', isHost ? '(host)' : '');
+      return this._role({ spectator });
     });
 
     // -------------------------------------------------------------- configure
@@ -101,12 +96,12 @@ class PlayService extends cds.ApplicationService {
 
       const players = await SELECT.from(Players).where({ room_ID: roomId });
       const game = reg.get(room.game);
-      const realPlayers = players.filter(p => p.symbol !== 'spectator');
+      const realPlayers = players.filter(p => !p.spectator);
 
       if (realPlayers.length < game.meta.minPlayers)
         return this._error(req, roomId, `need ${game.meta.minPlayers} players to start`);
 
-      const b = eng.initBoard(roomId, room.game, room.settings);
+      const b = eng.initBoard(roomId, room.game, room.settings, await this._roster(roomId));
       await UPDATE(Rooms, roomId).with({ status: 'playing' });
 
       await this._broadcastState(roomId, room.game, b, 'started', { firstTurn: b.turn });
@@ -125,14 +120,14 @@ class PlayService extends cds.ApplicationService {
       if (statusErr) return this._error(req, roomId, statusErr);
 
       const player = await SELECT.one.from(Players).where({ room_ID: roomId, user });
-      if (!player || player.symbol === 'spectator')
+      if (!player || player.spectator)
         return this._error(req, roomId, 'you are a spectator');
 
       const b = eng.getBoard(roomId);
       if (!b) return this._error(req, roomId, 'no active board — rejoin');
 
       const move = typeof data === 'string' ? JSON.parse(data) : data;
-      const result = reg.get(room.game).applyMove(b.state, move, player.symbol);
+      const result = reg.get(room.game).applyMove(b.state, move, user);
 
       if (result.error) return this._error(req, roomId, result.error);
 
@@ -147,7 +142,7 @@ class PlayService extends cds.ApplicationService {
         LOG.info('END', roomId, 'winner=' + result.end.winner);
       } else {
         await this._broadcastState(roomId, room.game, b, 'moved', {});
-        LOG.info('MOVE', roomId, `${user}(${player.symbol})`, 'next=' + b.turn);
+        LOG.info('MOVE', roomId, user, 'next=' + b.turn);
       }
     });
 
@@ -156,7 +151,7 @@ class PlayService extends cds.ApplicationService {
       const { room: roomId } = req.data;
       const { room, err } = await this._roomGuard(req, roomId, 'rematch');
       if (err) return;
-      const b = eng.initBoard(roomId, room.game, room.settings);
+      const b = eng.initBoard(roomId, room.game, room.settings, await this._roster(roomId));
       await UPDATE(Rooms, roomId).with({ status: 'playing' });
       await this._broadcastState(roomId, room.game, b, 'rematched', { firstTurn: b.turn });
       LOG.info('REMATCH', roomId, 'by', req.user.id);
@@ -236,10 +231,10 @@ class PlayService extends cds.ApplicationService {
             this._doLeave(user, room.ID, true).catch(() => {});
           });
           await this.emit('playerDisconnected', {
-            room: room.ID, player: user, symbol: player.symbol,
+            room: room.ID, player: user,
           });
           await this._sysMsg(room.ID, `${user} disconnected.`);
-          LOG.info('DISCONNECT', room.ID, user, player.symbol, '→ paused (60s grace)');
+          LOG.info('DISCONNECT', room.ID, user, '→ paused (60s grace)');
         } else {
           await this._doLeave(user, room.ID);
         }
@@ -281,6 +276,22 @@ class PlayService extends cds.ApplicationService {
     return this.emit('chatMessage', { room, player: 'system', text, ts: new Date().toISOString() });
   }
 
+  /** Role string returned by join() so the client knows if it may move. */
+  _role(player) { return player?.spectator ? 'spectator' : 'player'; }
+
+  /**
+   * Ordered roster of *players* (no spectators) handed to a game's init(): host
+   * first, then by user id for a stable, DB-independent order. Games that need
+   * per-seat marks (e.g. tic-tac-toe's X/O) derive them from this order.
+   */
+  async _roster(roomId) {
+    const players = await SELECT.from('cap.games.Players').where({ room_ID: roomId });
+    return players
+      .filter(p => !p.spectator)
+      .sort((a, b) => (b.isHost ? 1 : 0) - (a.isHost ? 1 : 0) || String(a.user).localeCompare(b.user))
+      .map(p => ({ user: p.user, isHost: p.isHost }));
+  }
+
   /**
    * Broadcast game state, redacting hidden information when the game opts in.
    *
@@ -304,7 +315,7 @@ class PlayService extends cds.ApplicationService {
 
     const players = await SELECT.from('cap.games.Players').where({ room_ID: roomId });
     for (const p of players) {
-      const slice = _sliceFor(game, b.state, p.symbol, pub);
+      const slice = _sliceFor(game, b.state, p.user, p.spectator, pub);
       await this.emit('privateState', { room: roomId, data: slice }, { user: { include: [p.user] } });
     }
   }
@@ -314,7 +325,7 @@ class PlayService extends cds.ApplicationService {
    * slice plus the public table, so they can render immediately. No-op if the
    * game has no active board or does not use projection.
    */
-  async _snapshotTo(roomId, gameId, user, symbol) {
+  async _snapshotTo(roomId, gameId, user, isSpectator) {
     const b = eng.getBoard(roomId);
     if (!b) return;
     const game = reg.get(gameId);
@@ -325,7 +336,7 @@ class PlayService extends cds.ApplicationService {
       return;
     }
     const pub = JSON.stringify(game.publicState(b.state));
-    await this.emit('privateState', { room: roomId, data: _sliceFor(game, b.state, symbol, pub) }, { user: { include: [user] } });
+    await this.emit('privateState', { room: roomId, data: _sliceFor(game, b.state, user, isSpectator, pub) }, { user: { include: [user] } });
     await this.emit('moved', { room: roomId, data: pub }, { user: { include: [user] } });
   }
 
@@ -352,14 +363,13 @@ class PlayService extends cds.ApplicationService {
     const newHost = await this._succeedHostIfNeeded(room, roomId, user);
     await this.emit('playerLeft', {
       room: roomId, player: user,
-      symbol: player.symbol ?? 'spectator',
       newHost: newHost ?? '',
     });
     await this._sysMsg(roomId, `${user} left.`);
     if (wasPlaying) await this.emit('lobbyReset', { room: roomId });
 
     await this._autoDelete(roomId);
-    LOG.info(fromTimeout ? 'TIMEOUT' : 'LEAVE', roomId, user, player.symbol ?? 'spectator',
+    LOG.info(fromTimeout ? 'TIMEOUT' : 'LEAVE', roomId, user,
       newHost ? '→ newHost=' + newHost : '');
   }
 
@@ -395,7 +405,7 @@ class PlayService extends cds.ApplicationService {
       game: room.game,
       room: roomId,
       winner: result.end.winner,
-      players: JSON.stringify(players.map(p => ({ user: p.user, symbol: p.symbol }))),
+      players: JSON.stringify(players.map(p => ({ user: p.user, spectator: p.spectator }))),
       state: JSON.stringify(eng.getBoard(roomId)?.state ?? {}),
     });
 

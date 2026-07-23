@@ -141,17 +141,17 @@ Auth header: `Authorization: Basic <base64(user:user)>` (dev mocked)
 
 | Event | Key payload |
 |-------|-------------|
-| `joined` | `{ room, player, symbol, host, status }` |
+| `joined` | `{ room, player, spectator, host, status }` |
 | `configured` | `{ room, settings }` |
-| `started` | `{ room, firstTurn }` |
+| `started` | `{ room, firstTurn }` — `firstTurn` is a `user` id |
 | `moved` | `{ room, data }` — JSON game state |
-| `finished` | `{ room, winner, state }` |
+| `finished` | `{ room, winner, state }` — `winner` is a `user` id or `'draw'` |
 | `rematched` | `{ room, firstTurn }` |
 | `lobbyReset` | `{ room }` |
-| `playerLeft` | `{ room, player, symbol, newHost }` |
+| `playerLeft` | `{ room, player, newHost }` |
 | `playerKicked` | `{ room, player }` |
-| `playerDisconnected` | `{ room, player, symbol }` |
-| `playerReconnected` | `{ room, player, symbol }` |
+| `playerDisconnected` | `{ room, player }` |
+| `playerReconnected` | `{ room, player }` |
 | `chatMessage` | `{ room, player, text, ts }` |
 | `gameError` | `{ room, message }` |
 
@@ -175,31 +175,33 @@ Copy `games/tictactoe/` as a starting point. Four files — no wiring code:
 **1. `games/mygame/package.json`** — declares the game (CAP merges the `cds` section)
 ```json
 {
-  "name": "@cap-games/mygame", "version": "1.0.0", "type": "module", "main": "index.js",
-  "cds": {
-    "games": { "mygame": { "impl": "@cap-games/mygame" } }
-  }
+  "name": "@cap-games/mygame", "version": "1.0.0", "type": "module", "main": "index.js"
 }
 ```
+The name is all it takes: every `@cap-games/*` dependency is discovered as a game
+by convention (id = the name after the scope) — **no `cds.games` config needed**.
 
-**2. `games/mygame/cds-plugin.js`** — empty marker file (CAP only merges the
-`cds` section of packages that have one). The platform loads `impl` and
-serves `app/` at `/games/mygame` automatically (override via `"ui"` key).
+**2. `games/mygame/cds-plugin.js`** — empty marker file (CAP loads packages that
+have one). The platform serves the game's `app/` at `/games/mygame` automatically
+(override the UI folder with a `cds.games.mygame.ui` entry if needed).
 
-**3. `games/mygame/index.js`** — backend logic
+**3. `games/mygame/index.js`** — backend logic. Players are identified by their
+`user` id — the platform assigns no symbols; a game that wants marks (e.g.
+tic-tac-toe's X/O) derives them itself from the `players` roster in `init`.
 ```js
 module.exports = {
   meta: { name: 'My Game', minPlayers: 2, maxPlayers: 4 },
   settingsSchema: { /* optional */ },
 
-  // state.turn required — platform reads it to track whose move it is
-  init(settings = {}) { return { turn: 'X', /* your state */ }; },
+  // players: ordered roster [{ user, isHost }]; set state.turn to a user id —
+  // the platform reads it to track whose move it is
+  init(settings = {}, players = []) { return { turn: players[0]?.user, /* your state */ }; },
 
-  // end.winner = symbol | 'draw'
-  applyMove(state, move, symbol) {
+  // user = the acting player's id; end.winner = user | 'draw'
+  applyMove(state, move, user) {
     // return { error: 'reason' }
     // return { state: newState, end: null }
-    // return { state: newState, end: { winner: symbol|'draw' } }
+    // return { state: newState, end: { winner: user|'draw' } }
   },
   score(end, players) { /* optional */ },
   extendService(srv)  { /* optional */ },
@@ -222,7 +224,7 @@ export default {
 };
 ```
 
-**Activate:** add `"@cap-games/mygame": "*"` to root `package.json` dependencies, then `npm install`.
+**Activate:** add `"@cap-games/mygame": "*"` to root `package.json` dependencies, then `npm install`. That dependency *is* the registration — the platform discovers it automatically.
 
 The platform provides: lobby, host, join, kick, settings, chat, reconnect, status machine, leaderboard — automatically. Your game only implements the rules and the board UI.
 
@@ -289,4 +291,4 @@ WebSocket (websocat): use `Cookie: X-Authorization=Basic ...` header.
 ## TODO (later)
 
 - Short join codes (4-char) instead of UUIDs — friendlier room sharing
-- Team-play support (multiple players per symbol/side)
+- Team-play support (multiple players per side)

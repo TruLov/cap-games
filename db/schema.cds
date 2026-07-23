@@ -13,12 +13,13 @@ entity Rooms : cuid, managed {
   players  : Composition of many Players on players.room = $self;
 }
 
-// Players in a room
+// Players in a room. The per-room player identity is `user` (the platform
+// invents no game symbols); `spectator` distinguishes watchers from players.
 entity Players : cuid {
-  room   : Association to Rooms;
-  user   : String(255);
-  symbol : String(10);      // 'X'/'O' — game-defined
-  isHost : Boolean default false;
+  room      : Association to Rooms;
+  user      : String(255);
+  spectator : Boolean default false;
+  isHost    : Boolean default false;
 }
 
 // Completed matches — persistent history

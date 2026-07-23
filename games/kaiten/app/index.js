@@ -11,6 +11,7 @@
 
 import { mountChat }    from '/shell/chat.js';
 import { mountPlayers } from '/shell/players.js';
+import { initials } from '/shell/util.js';
 
 const MENU_PRESETS = [
   ['classic',        'Kaiten (classic)'],
@@ -178,7 +179,7 @@ function cardStyle(c) {
 export default {
   mount(rootEl, sdk) {
     const me = sdk.me;
-    const roster = new Set([me.symbol].filter(s => s && s !== 'spectator'));
+    const roster = new Set(me.spectator ? [] : [me.user]);   // user-id tokens
     let pub = null;           // public state (played, counts, scores) — seen by everyone
     let myHand = [];           // this player's own hand — delivered privately
     let menuOffer = null;      // 4 cards revealed by a Menu — delivered privately
@@ -245,7 +246,7 @@ export default {
     function renderHand() {
       const el = $('#sg-hand');
       if (!pub || pub.phase !== 'playing') { el.innerHTML = ''; return; }
-      const mine = Boolean(pub.selected?.[me.symbol]);
+      const mine = Boolean(pub.selected?.[me.user]);
       const waiting = pub.pendingCount ?? 0;
 
       // Menu: 4 cards offered — choose one to play
@@ -263,7 +264,7 @@ export default {
         return;
       }
 
-      const hasSpoon = (pub.played?.[me.symbol] ?? []).some(c => c.type === 'spoon');
+      const hasSpoon = (pub.played?.[me.user] ?? []).some(c => c.type === 'spoon');
 
       const spoonCtl = (!mine && hasSpoon) ? `
         <div class="sg-spoon">
@@ -320,13 +321,13 @@ export default {
       const el = $('#sg-tableau');
       if (!pub) { el.innerHTML = ''; return; }
       const history = pub.history ?? {};
-      const mine = Boolean(pub.selected?.[me.symbol]);
+      const mine = Boolean(pub.selected?.[me.user]);
       const canUseChop = pub.phase === 'playing' && !mine && myHand.length >= 2;
       el.innerHTML = pub.symbols.map(s => {
         const played = pub.played?.[s] ?? [];
         const desserts = pub.desserts?.[s] ?? [];
         const total = pub.totals?.[s] ?? 0;
-        const isMe = s === me.symbol;
+        const isMe = s === me.user;
         // Sort a display copy by type (then by label) so identical cards cluster
         // and it's easy to see how many of each you've collected.
         const sorted = [...played, ...desserts]
@@ -348,7 +349,7 @@ export default {
           </details>`;
         }).join('');
         return `<div class="sg-row">
-            <h4><span>${s}${isMe ? ' (you)' : ''}</span><span>${total} pts</span></h4>
+            <h4><span>${initials(s)}${isMe ? ' (you)' : ''}</span><span>${total} pts</span></h4>
             ${historyHtml}
             <div class="sg-played">${chips || (pub.phase === 'playing' ? '<em>—</em>' : '')}</div>
           </div>`;
@@ -376,11 +377,11 @@ export default {
             ${pub.symbols.map(s => {
               const rs = pub.roundScores?.[s] ?? [];
               const dpts = pub.dessertScores?.[s] ?? 0;
-              const cells = [s + (s === me.symbol ? ' ✓' : '')]
+              const cells = [initials(s) + (s === me.user ? ' ✓' : '')]
                 .concat([0,1,2].map(i => rs[i] != null ? rs[i] : '—'))
                 .concat(isOver ? [dpts] : [])
                 .concat([pub.totals?.[s] ?? 0]);
-              return `<tr class="${s === me.symbol ? 'me' : ''}">
+              return `<tr class="${s === me.user ? 'me' : ''}">
                 ${cells.map((c, i) =>
                   `<td${i === cells.length - 1 ? ' class="total"' : ''}>${c}</td>`).join('')}
               </tr>`;
@@ -398,7 +399,7 @@ export default {
       const top = ranking[0];
       el.innerHTML = `
         <div class="sg-results">
-          <h3 style="margin:0 0 .5rem">${top.symbol === (ranking[1]?.symbol ?? '') ? 'Draw!' : top.symbol + ' wins!'} — Final Scores</h3>
+          <h3 style="margin:0 0 .5rem">${top.symbol === (ranking[1]?.symbol ?? '') ? 'Draw!' : initials(top.symbol) + ' wins!'} — Final Scores</h3>
           <table>
             <thead><tr><th>Player</th><th>Rd 1</th><th>Rd 2</th><th>Rd 3</th><th>🍰</th><th>Total</th></tr></thead>
             <tbody>
@@ -407,7 +408,7 @@ export default {
                 const dpts = pub.dessertScores?.[s] ?? 0;
                 const isWinner = score === top.score && dessertCount === top.desserts;
                 return `<tr class="${isWinner ? 'winner' : ''}">
-                  <td>${s}${s === me.symbol ? ' (you)' : ''}</td>
+                  <td>${initials(s)}${s === me.user ? ' (you)' : ''}</td>
                   ${[0,1,2].map(i => `<td>${rs[i] ?? '—'}</td>`).join('')}
                   <td>${dpts}</td>
                   <td>${score}</td>
@@ -422,17 +423,17 @@ export default {
 
     // ---- events ---------------------------------------------------------
     function onJoined(e) {
-      if (e.symbol && e.symbol !== 'spectator') roster.add(e.symbol);
+      if (!e.spectator) roster.add(e.player);
       renderConfig();
     }
-    function onPlayerLeft(e) { roster.delete(e.symbol); renderConfig(); }
+    function onPlayerLeft(e) { roster.delete(e.player); renderConfig(); }
     function onStarted(e)  { pub = JSON.parse(e.state); chopFirstPick = null; chopsticksActive = false; setStatus('Game started!'); redraw(); }
     function onMoved(e)    { pub = JSON.parse(e.data); chopFirstPick = null; chopsticksActive = false; redraw(); }
     function onPrivate(e)  { const p = JSON.parse(e.data); pub = p; myHand = p.myHand ?? []; menuOffer = p.menuOffer ?? null; chopFirstPick = null; chopsticksActive = false; redraw(); }
     function onFinished(e) {
       pub = JSON.parse(e.state);
       const r = pub.ranking ?? [];
-      const msg = e.winner === 'draw' ? 'Draw!' : `${e.winner} wins!`;
+      const msg = e.winner === 'draw' ? 'Draw!' : `${initials(e.winner)} wins!`;
       setStatus(`Game over — ${msg}`);
       redraw();
     }
@@ -450,7 +451,7 @@ export default {
     sdk.on('rematched',    onRematched);
     sdk.on('gameError',    onError);
 
-    setStatus(`You are ${me.symbol}${me.isHost ? ' (host)' : ''}`);
+    setStatus(`You are ${initials(me.user)}${me.isHost ? ' (host)' : ''}`);
     redraw();
 
     // ---- cleanup --------------------------------------------------------

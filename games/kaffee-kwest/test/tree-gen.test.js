@@ -209,8 +209,8 @@ test('generateTreeWithRepair: propagates parse errors', async () => {
 test('a generated + translated tree actually plays through the real tree.js engine', () => {
   const engineTree = toEngineFormat(validGenTree());
   const party = [
-    { symbol: 'X', user: 'alice', isHost: true },
-    { symbol: 'O', user: 'bob' },
+    { user: 'X', isHost: true },
+    { user: 'O' },
   ];
   // wie in _runTreeBuilder: Casting + Actor-/Bonus-Auflösung VOR init()
   const texts = { X: 'mutig stark', O: 'klug weise' };
