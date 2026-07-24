@@ -32,27 +32,19 @@
   "cds": {
     "requires": {
       "ai": {
-        "model": "gpt-4o-mini",
-        "resourceGroup": "default"
+        "kind": "mock",
+        "resourceGroup": "default",
+        "[hybrid]": { "kind": "aicore" },
+        "[production]": { "kind": "aicore" }
       },
       "auth": {
-        "[development]": {
-          "kind": "mocked"
-        },
-        "[production]": {
-          "kind": "ias"
-        }
+        "kind": "mocked",
+        "[production]": { "kind": "ias" }
       },
       "db": {
-        "[development]": {
-          "kind": "sqlite",
-          "credentials": {
-            "url": ":memory:"
-          }
-        },
-        "[production]": {
-          "kind": "hana"
-        }
+        "kind": "sqlite",
+        "credentials": { "url": ":memory:" },
+        "[production]": { "kind": "hana" }
       }
     },
     "websocket": {

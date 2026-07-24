@@ -4,7 +4,7 @@
  * Implementiert die beiden AI-Ports mit echten Modell-Calls:
  *   treeBuilder — generiert Casting + Entscheidungsbaum via gpt-4o-mini
  *                 (Generate → Validate → Repair, siehe lib/tree-gen.js)
- *   chronicler  — nutzt gpt-4o-mini via Plattform-AI-Client (srv/ai.js)
+ *   chronicler  — nutzt gpt-4o-mini via Plattform-Service (AiService)
  *
  * Fallback-Garantie: wirft bei JEDEM Fehler (Call/Parse/Validierung/
  * Übersetzung/Engine-Test) → KaffeeKwestService fällt auf ai-static zurück.
@@ -12,9 +12,22 @@
  * ai-static.js — austauschbar ohne Änderung am Aufrufer.
  */
 
+import cds from '@sap/cds';
 import { castParty, playerText, resolveTree } from './ai-static.js';
 import { generateTreeWithRepair, toEngineFormat } from './tree-gen.js';
 import * as tree from './tree.js';
+
+/**
+ * Obtains an `aiChat(messages, opts) → string` bound to the platform AI service.
+ * Loose coupling: the game connects to the modeled `AiService` via the CAP
+ * service registry — no relative import into platform internals, no shared
+ * config. A future AI game does exactly this to reach the platform LLM.
+ */
+async function platformAiChat() {
+  const ai = await cds.connect.to('AiService');
+  return (messages, opts = {}) =>
+    ai.send('chat', { messages: JSON.stringify(messages), options: JSON.stringify(opts) });
+}
 
 /**
  * Kern-Logik: generiert Tree via AI, übersetzt ins Engine-Format, castet die
@@ -62,14 +75,13 @@ export async function _runTreeBuilder(aiChat, { scenario, party, profiles = {}, 
 
 /**
  * Generiert Casting + Entscheidungsbaum via AI Core (gpt-4o-mini).
- * Lädt aiChat lazy vom Plattform-Client (srv/ai.js).
+ * Bezieht aiChat lose gekoppelt vom Plattform-Service (AiService).
  *
  * @throws {Error} bei Modell-/Validierungs-/Engine-Fehler — Aufrufer fällt
  *   auf den statischen Adapter (autorisierter Tree) zurück.
  */
 export async function treeBuilder(args) {
-  const { aiChat } = await import('../../../srv/ai.js');
-  return _runTreeBuilder(aiChat, args);
+  return _runTreeBuilder(await platformAiChat(), args);
 }
 
 /**
@@ -134,11 +146,10 @@ Schlage 0–2 szenario-neutrale Chronik-Einträge vor.`,
 
 /**
  * Extrahiert 0–2 prägende, szenario-neutrale Chronik-Sätze aus dem Spielprotokoll.
- * Lädt aiChat lazy vom Plattform-Client (srv/ai.js).
+ * Bezieht aiChat lose gekoppelt vom Plattform-Service (AiService).
  *
  * @throws {Error} bei Modell-/Netzwerkfehler — Aufrufer fällt auf statischen Adapter zurück
  */
 export async function chronicler(finalState, user) {
-  const { aiChat } = await import('../../../srv/ai.js');
-  return _runChronicler(aiChat, finalState, user);
+  return _runChronicler(await platformAiChat(), finalState, user);
 }

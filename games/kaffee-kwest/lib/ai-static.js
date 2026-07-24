@@ -7,9 +7,9 @@
  *     -> 0–2 suggested chronicle entries
  *
  * These make the game fully playable without any model call ("weak/no AI"
- * local development). An AI Core adapter can implement the same signatures
- * (big model: structured casting + tree; big model: chronicle extraction)
- * and gets selected in KaffeeKwestService via cds.requires['kaffee-kwest'].ai.
+ * local development). They are the FALLBACK: KaffeeKwestService always tries the
+ * AI adapter (ai-aicore.js → platform AiService) first and falls back to these
+ * on any error, so a round never fails to start or end.
  */
 
 const norm = s => (s ?? '').toLowerCase();

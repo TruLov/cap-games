@@ -8,66 +8,30 @@
  *  - prepare(): casting + frozen decision tree -> settings JSON for `configure`
  *  - chronicle extraction + player-confirmed persistence (veto by omission)
  *
- * AI port seam: prepare() and suggestChronicle() call the configured adapter
- * (static or AI Core, via cds.requires['kaffee-kwest'].ai — see
- * loadTreeBuilder()/loadChronicler()); both fall back to the static
- * adapters on any error, so a round never fails to start or end.
+ * AI port seam: prepare() and suggestChronicle() use the AI adapter, which talks
+ * to the platform `AiService` (cds.connect.to) — the game requires an AI service
+ * but is agnostic to how it's implemented (mock vs AI Core is a platform/profile
+ * decision). Both fall back to the static adapter on ANY error, so a round never
+ * fails to start or end (and the mock backend simply triggers that fallback).
  */
 import cds from '@sap/cds';
 import { readdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { treeBuilder as aiTreeBuilder, chronicler as aiChronicler } from '../lib/ai-aicore.js';
 import { treeBuilder as staticTreeBuilder, chronicler as staticChronicler } from '../lib/ai-static.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const LOG = cds.log('kaffee-kwest');
 const MAX_ACTIVE = 7;   // chronicle cap — oldest entries retire beyond this
 
-/**
- * Loads the AI chronicler for the configured adapter.
- * Default 'static' (see package.json) — plugin ships local-runnable by
- * convention; '[production]' profile flips to 'aicore'. Falls back to
- * static on any other value or load failure, so a round never breaks.
- */
-async function loadChronicler() {
-  const ai = cds.env.requires?.['kaffee-kwest']?.ai;
-  if (ai !== 'aicore') return staticChronicler;
-  try {
-    const { chronicler } = await import('../lib/ai-aicore.js');
-    LOG.info('kaffee-kwest: using AI Core chronicler');
-    return chronicler;
-  } catch (e) {
-    LOG.warn('kaffee-kwest: failed to load AI Core adapter, falling back to static', e.message);
-    return staticChronicler;
-  }
-}
-
-/**
- * Loads the AI treeBuilder for the configured adapter. Same default/fallback
- * behaviour as loadChronicler() — the returned function is always ASYNC
- * (the static adapter is sync, wrapped here so prepare() can await either
- * uniformly without knowing which one is active).
- */
-async function loadTreeBuilder() {
-  const ai = cds.env.requires?.['kaffee-kwest']?.ai;
-  if (ai !== 'aicore') return async args => staticTreeBuilder(args);
-  try {
-    const { treeBuilder } = await import('../lib/ai-aicore.js');
-    LOG.info('kaffee-kwest: using AI Core treeBuilder');
-    return treeBuilder;
-  } catch (e) {
-    LOG.warn('kaffee-kwest: failed to load AI Core adapter, falling back to static', e.message);
-    return async args => staticTreeBuilder(args);
-  }
-}
-
 export default class KaffeeKwestService extends cds.ApplicationService {
   async init() {
     const { Scenarios, Profiles, ChronicleEntries } = cds.entities('kk');
 
-    // Resolve adapters once on startup (lazy — aicore loads the SDK only when needed)
-    const chronicler = await loadChronicler();
-    const aiTreeBuilder = await loadTreeBuilder();
+    // AI adapter (talks to the platform AiService); static adapters are the
+    // fallback used on any error in prepare()/suggestChronicle().
+    const chronicler = aiChronicler;
 
     cds.once('served', () =>
       this._seedScenarios(Scenarios).catch(e => LOG.error('scenario seeding failed:', e)));

@@ -96,11 +96,14 @@ Finished ──[ KI-Punkt 2: suggestChronicle() — Extraktion (großes Modell) 
 
 **Regeln:**
 - Der Domänenkern importiert kein CAP, macht keine I/O — testbar mit `node --test`.
-- Der Adapterwechsel (statisch ↔ KI) läuft über Konfiguration:
-  `cds.requires.kaffee-kwest.ai = 'none' | 'aicore'` — Default `none`, damit
-  `cds watch` ohne jede KI voll spielbar ist.
+- Das Plugin **fordert nur einen AI-Service an** (`cds.connect.to('AiService')`)
+  und ruft `chat()`; *wie* der implementiert ist, entscheidet die Plattform per
+  Profil (`cds.requires.ai.kind`: `mock` als Default, `aicore` in
+  `[hybrid]`/`[production]`). Liefert der Service nichts Brauchbares (mock/Fehler),
+  fällt das Plugin auf seinen eigenen statischen Adapter zurück — `cds watch`
+  ist damit ohne jede KI voll spielbar, ohne dass das Spiel `aicore` kennt.
 - Die Plattform wird ausschließlich über ihre öffentlichen Verträge genutzt
-  (Game-Interface, SDK, `configure`); Erweiterung statt Modifikation.
+  (Game-Interface, SDK, `configure`, `AiService`); Erweiterung statt Modifikation.
 
 ---
 
@@ -265,7 +268,10 @@ wirklich mit der echten Engine kompatibel ist.
 
 Das Spiel ruft AI Core über einen **foundation-models**-Deployment-Endpunkt an
 (SAP AI Core, anderer Global Account als die CAP-App auf BTP Trial).
-Die Verbindung läuft über den Plattform-AI-Client `srv/ai.js`.
+Die Verbindung läuft über den modellierten Plattform-Service **AiService**
+(`srv/ai-service.js`, `@protocol:'none'`), den das Spiel lose gekoppelt via
+`cds.connect.to('AiService')` konsumiert — kein relativer Import in
+Plattform-Interna.
 
 ### Voraussetzungen
 
@@ -273,20 +279,27 @@ Die Verbindung läuft über den Plattform-AI-Client `srv/ai.js`.
 - Deployment: `foundation-models`-Scenario, Modell `gpt-4o-mini`, Status `RUNNING`
 - Service Key der AI-Core-Instanz (JSON aus BTP Cockpit → Instanz → Service Keys)
 
-### Konfigurationsprinzip: Convention over Configuration
+### Konfigurationsprinzip: AI als Plattform-Service mit Default + Profilen
 
-Wie `db`/`auth` in der Plattform folgt die AI-Config dem Profil-Muster:
+Die AI-Implementierung ist **Plattform-Sache**, nicht Spiel-Sache. Der
+`AiService` (`srv/ai-service.js`) steckt sein Backend per Profil-Config ein:
 
-- **Plugin-Default** (`games/kaffee-kwest/package.json`): `"ai": "static"` — lokal
-  lauffähig ohne Service-Key/SDK, `cds watch` funktioniert ungebremst.
-- **`[production]`-Profil** im selben Plugin schaltet automatisch auf `"aicore"` —
-  kein Override in der konsumierenden App nötig, außer man will bewusst abweichen.
-- **Root-`package.json`** hält nur den *Zugang* (`cds.requires.ai`: Modellname,
-  Resource Group) — keine Deployment-ID (umgebungsspezifisch, kein statischer Default).
-- **Deployment-ID + Secret** ausschließlich via `.env` (`AICORE_DEPLOYMENT_ID`,
-  `AICORE_SERVICE_KEY`) — nie in einer committeten `package.json`.
+- **Root-`package.json` `cds.requires.ai`** — Default + Overrides:
+  `kind: "mock"` (Default/`[development]`: deterministischer Stub, keine
+  Credentials), `[hybrid]`/`[production]`: `kind: "aicore"` (echtes Modell).
+  Dazu `resourceGroup` (Default `default`); Deployment-ID + Secret kommen aus
+  der Umgebung, nie aus committeten Dateien.
+- **Das Spiel kennt kein `aicore`/`static`** mehr: `games/kaffee-kwest/package.json`
+  fordert nur sein eigenes Modell an. Zur Laufzeit ruft es `AiService.chat()`
+  und fällt bei Fehler/Stub auf seinen statischen Adapter zurück.
+- **Credentials** löst das SAP AI SDK selbst auf — `AICORE_SERVICE_KEY` (lokal),
+  VCAP-`aicore`-Binding (Produktion), `cds bind` (Hybrid). Keine eigene Prüfung
+  im Code.
 
 ### Lokale Konfiguration
+
+Lokal ist **keine** AI-Config nötig — Default-Profil = `mock`, das Spiel spielt
+statisch. Um das echte Modell lokal zu testen:
 
 1. `.env` anlegen (basierend auf `.env.example`, **nie committen**):
    ```
@@ -294,10 +307,11 @@ Wie `db`/`auth` in der Plattform folgt die AI-Config dem Profil-Muster:
    AICORE_DEPLOYMENT_ID=d0a60fa69c65d580
    ```
 
-2. AI lokal testen — direkter Dot-Notation-Override in `.env`, **kein Profil-
-   Wechsel** (der würde auch `db`/`auth` auf HANA/IAS umschalten):
+2. Das `aicore`-Backend aktivieren — entweder ein Profil mit `kind: aicore`
+   fahren (`--profile hybrid`) oder gezielt per Dot-Notation in `.env`
+   (schaltet **nur** die AI um, nicht `db`/`auth`):
    ```
-   cds.requires.kaffee-kwest.ai = aicore
+   cds.requires.ai.kind = aicore
    ```
 
 3. Starten:
@@ -310,7 +324,7 @@ Wie `db`/`auth` in der Plattform folgt die AI-Config dem Profil-Muster:
    node --env-file=.env scripts/smoke-chronicler.mjs
    ```
 
-Ohne Schritt 2 läuft alles wie gewohnt statisch (Plugin-Default) — Chronik-
+Ohne Schritt 2 läuft alles statisch (mock-Backend + Plugin-Fallback) — Chronik-
 Heuristik statt echtem Modell-Call, keine Abhängigkeit von Secrets.
 
 ### Bekannte Konfiguration (Stand: Juli 2026)
@@ -326,12 +340,15 @@ Heuristik statt echtem Modell-Call, keine Abhängigkeit von Secrets.
 
 ### Produktiv (Cloud Foundry)
 
+Die `aicore`-Instanz wird über `mta.yaml` gebunden (`cap-games-aicore`), das SAP
+AI SDK liest den Service Key nativ aus dem VCAP-Binding — **kein**
+`AICORE_SERVICE_KEY`-Env nötig. Nur die (nicht geheime, umgebungsspezifische)
+Deployment-ID wird gesetzt:
+
 ```bash
-cf set-env cap-games-srv AICORE_SERVICE_KEY '{"clientid":...}'
-cf set-env cap-games-srv AICORE_DEPLOYMENT_ID d0a60fa69c65d580
-cf restage cap-games-srv
+# per mta-Extension / --var beim Deploy:
+cf deploy … --var aicore-deployment-id=d0a60fa69c65d580
 ```
 
-`--production` (implizit bei CF-Deployment) aktiviert automatisch das
-`[production]`-Profil des Plugins (`ai: "aicore"`) — kein weiteres Setting nötig
-außer den beiden Env-Vars oben.
+Das `[production]`-Profil aktiviert automatisch `cds.requires.ai.kind: "aicore"`
+— kein weiteres Setting nötig.

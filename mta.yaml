@@ -4,6 +4,8 @@ version: 1.0.0
 description: "Browser mini games with CAP backend"
 parameters:
   enable-parallel-deployments: true
+  # Set at deploy time (mta extension or `cf ... --var`); the AI Core deployment id.
+  aicore-deployment-id: ""
 build-parameters:
   before-all:
     - builder: custom
@@ -27,6 +29,10 @@ modules:
         properties:
           srv-url: ${default-url}
           srv-cert-url: '${protocol}://${default-host}.cert.${default-domain}'
+    properties:
+      # AI Core deployment to use (env-specific, non-secret). The service key is
+      # injected by the cap-games-aicore binding below; the SDK reads it natively.
+      AICORE_DEPLOYMENT_ID: "${aicore-deployment-id}"
     requires:
       - name: cap-games-ias
         parameters:
@@ -34,6 +40,7 @@ modules:
             credential-type: X509_GENERATED
             app-identifier: srv
       - name: cap-games-hana
+      - name: cap-games-aicore
 
   - name: cap-games
     type: approuter.nodejs
@@ -90,3 +97,11 @@ resources:
     parameters:
       service: hana
       service-plan: hdi-shared
+
+  # AI Core — the [production] profile binds this; the SAP AI SDK reads its
+  # credentials natively via the service binding (no AICORE_SERVICE_KEY env).
+  - name: cap-games-aicore
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: aicore
+      service-plan: extended

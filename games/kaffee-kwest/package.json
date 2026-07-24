@@ -10,9 +10,7 @@
   "cds": {
     "requires": {
       "kaffee-kwest": {
-        "model": "@cap-games/kaffee-kwest/srv/service.cds",
-        "ai": "static",
-        "[production]": { "ai": "aicore" }
+        "model": "@cap-games/kaffee-kwest/srv/service.cds"
       }
     }
   }

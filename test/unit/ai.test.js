@@ -1,60 +1,30 @@
 /**
- * Unit tests — srv/ai.js (Plattform-AI-Client)
+ * Unit tests — platform AiService.
  *
- * Kein echter AI-Core-Call — prüft Konfigurationsvalidierung und
- * dass aiChat bei fehlendem Service-Key oder Deployment-ID sinnvoll wirft.
+ * The mock/real decision is a config/profile choice (cds.requires.ai.kind);
+ * under the default profile the provider plugs the mock backend, which throws
+ * so callers uniformly fall back to their own no-AI behaviour.
  */
 
-import { test, beforeEach } from 'node:test';
+import cds from '@sap/cds';
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { chat as mockChat } from '../../srv/ai/mock.js';
 
-// ── Hilfsfunktionen ───────────────────────────────────────────────────────────
+cds.test(process.cwd());
 
-function withEnv(vars, fn) {
-  return async () => {
-    const saved = {};
-    for (const [k, v] of Object.entries(vars)) {
-      saved[k] = process.env[k];
-      if (v === undefined) delete process.env[k];
-      else process.env[k] = v;
-    }
-    try { await fn(); }
-    finally {
-      for (const [k, v] of Object.entries(saved)) {
-        if (v === undefined) delete process.env[k];
-        else process.env[k] = v;
-      }
-    }
-  };
-}
-
-// ── Tests ─────────────────────────────────────────────────────────────────────
-
-test('aiChat rejects when AICORE_SERVICE_KEY is missing', async () => {
-  // Reset cached client between tests
-  const { _resetClientForTest, aiChat } = await import('../../srv/ai.js');
-  _resetClientForTest();
-
-  await withEnv({ AICORE_SERVICE_KEY: undefined, AICORE_DEPLOYMENT_ID: 'd1234' }, async () => {
-    // cds.env.requires.ai might have deploymentId set — override via env for test isolation
-    await assert.rejects(
-      () => aiChat([{ role: 'user', content: 'test' }]),
-      /AICORE_SERVICE_KEY/
-    );
-  })();
+test('mock backend throws — "no AI configured" is a first-class outcome, not a fake reply', async () => {
+  await assert.rejects(() => mockChat([{ role: 'user', content: 'hallo welt' }]), /no AI configured/);
 });
 
-test('aiChat rejects when neither deploymentId config nor AICORE_DEPLOYMENT_ID is set', async () => {
-  const { _resetClientForTest, aiChat } = await import('../../srv/ai.js');
-  _resetClientForTest();
+test('AiService (default profile) is connectable; chat() rejects via the mock backend', async () => {
+  const ai = await cds.connect.to('AiService');
+  await assert.rejects(() => ai.send('chat', {
+    messages: JSON.stringify([{ role: 'user', content: 'ping' }]),
+    options: '{}',
+  }));
+});
 
-  await withEnv({
-    AICORE_SERVICE_KEY: undefined,
-    AICORE_DEPLOYMENT_ID: undefined,
-  }, async () => {
-    await assert.rejects(
-      () => aiChat([{ role: 'user', content: 'test' }]),
-      /AICORE_SERVICE_KEY|deploymentId/
-    );
-  })();
+test('the active backend is selected by cds.requires.ai.kind (mock by default)', () => {
+  assert.equal(cds.env.requires?.ai?.kind ?? 'mock', 'mock');
 });
