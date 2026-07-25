@@ -46,7 +46,7 @@ if (!process.env.AICORE_SERVICE_KEY) {
 }
 process.env.AICORE_DEPLOYMENT_ID = process.env.AICORE_DEPLOYMENT_ID || 'd0a60fa69c65d580';
 
-const { aiChat } = await import('../srv/ai.js');
+const { chat: aiChat } = await import('../srv/ai/aicore.js');
 
 // ── CLI-Args ──────────────────────────────────────────────────────────────────
 

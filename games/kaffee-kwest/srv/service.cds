@@ -18,7 +18,7 @@ service KaffeeKwestService {
   function myProfile() returns String;                 // own archetype ('' if none)
   action saveProfile(archetype: String);
 
-  /** party: JSON [{ symbol, user, isHost }] → settings JSON for `configure` */
+  /** party: JSON [{ user, isHost }] → settings JSON for `configure` */
   action prepare(scenario: String, party: LargeString) returns LargeString;
 
   /** finalState: JSON public state of a finished round → 0–2 suggested entries */

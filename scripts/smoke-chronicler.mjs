@@ -21,11 +21,11 @@ if (!process.env.AICORE_SERVICE_KEY) {
   process.exit(0); // kein Fehler — nur skip
 }
 
-// cds.env minimal mocken damit srv/ai.js konfiguriert ist
+// cds.env minimal mocken damit srv/ai/aicore.js konfiguriert ist
 process.env.AICORE_DEPLOYMENT_ID = process.env.AICORE_DEPLOYMENT_ID || 'd0a60fa69c65d580';
 
 // Direkt den Plattform-Client testen
-const { aiChat } = await import('../srv/ai.js');
+const { chat: aiChat } = await import('../srv/ai/aicore.js');
 
 // Und den Game-Adapter testen
 const { _runChronicler } = await import('../games/kaffee-kwest/lib/ai-aicore.js');
