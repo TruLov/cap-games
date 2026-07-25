@@ -6,6 +6,9 @@ parameters:
   enable-parallel-deployments: true
   # Set at deploy time (mta extension or `cf ... --var`); the AI Core deployment id.
   aicore-deployment-id: ""
+  # Set to "true" only if aicore-deployment-id points at a reasoning-family
+  # model (gpt-5*, o1*, o3*, o4*, ...) — see srv/ai/aicore.js.
+  aicore-reasoning-model: ""
 build-parameters:
   before-all:
     - builder: custom
@@ -33,6 +36,7 @@ modules:
       # AI Core deployment to use (env-specific, non-secret). The service key is
       # injected by the cap-games-aicore binding below; the SDK reads it natively.
       AICORE_DEPLOYMENT_ID: "${aicore-deployment-id}"
+      AICORE_REASONING_MODEL: "${aicore-reasoning-model}"
     requires:
       - name: cap-games-ias
         parameters:

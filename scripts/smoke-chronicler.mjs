@@ -47,17 +47,17 @@ try {
 console.log('\n── Test 2: Chronicler (realistisches Spielprotokoll) ──');
 const finalState = {
   party: [
-    { symbol: 'X', user: 'alice', isHost: true },
-    { symbol: 'O', user: 'bob' },
+    { user: 'alice', isHost: true },
+    { user: 'bob' },
   ],
   casting: {
-    X: { role: 'Unterhändler:in des Dorfes', hook: 'redet sich aus allem heraus' },
-    O: { role: 'Schmied:in mit Vorschlaghammer', hook: 'packt Probleme mit roher Kraft an' },
+    alice: { role: 'Unterhändler:in des Dorfes', hook: 'redet sich aus allem heraus' },
+    bob: { role: 'Schmied:in mit Vorschlaghammer', hook: 'packt Probleme mit roher Kraft an' },
   },
   log: [
-    { kind: 'roll', by: 'X', die: 20, bonus: 0, total: 20, target: 12, success: true },
-    { kind: 'moment', by: 'X', text: 'Ich biete dem Wesen meinen Kaffee als Geschenk an.' },
-    { kind: 'roll', by: 'X', die: 1, bonus: 0, total: 1, target: 10, success: false },
+    { kind: 'roll', by: 'alice', die: 20, bonus: 0, total: 20, target: 12, success: true },
+    { kind: 'moment', by: 'alice', text: 'Ich biete dem Wesen meinen Kaffee als Geschenk an.' },
+    { kind: 'roll', by: 'alice', die: 1, bonus: 0, total: 1, target: 10, success: false },
   ],
 };
 
