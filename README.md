@@ -37,7 +37,7 @@ flowchart TB
 ```
 
 Room isolation via `@ws.context` — plugin broadcasts events only to clients in the same room.
-Persistent state: Rooms, Players, Matches, Leaderboard in SQLite (dev) / HANA (prod).
+Persistent state: Rooms, Players, Matches, Leaderboard in SQLite (dev) / Postgres (prod).
 Transient: live board state, chat (not persisted — intentional).
 
 Games are zero-config: `registry.js` discovers any `@cap-games/*` npm dependency
@@ -228,7 +228,13 @@ Creates:
 - `cap-games-srv` — CAP server
 - `cap-games` — Approuter (IAS auth)
 - `cap-games-ias` — IAS identity service
-- `cap-games-hana` — HANA HDI container
+- `cap-games-postgres` — PostgreSQL database (`postgresql-db`/`development`)
+- `cap-games-aicore` — AI Core (production AI backend)
+
+**Trial-account data is ephemeral by design:** BTP trial subaccounts expire
+and get deleted, wiping every service instance in them regardless of which
+database is used. No backup/export strategy is implemented — this deployment
+is a demo/showcase, not a durable store.
 
 **Post-deploy — IAS Self-Registration:**
 1. BTP Cockpit → Services → Instances → `cap-games-ias` → open IAS Admin Console

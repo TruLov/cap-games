@@ -124,7 +124,7 @@ A game may bring its own CDS model — entities and an own (OData) service,
 ```
 
 CAP includes every `requires.*.model` in the effective model: entities are
-deployed (SQLite/HANA) alongside the platform schema, the service is served
+deployed (SQLite/Postgres) alongside the platform schema, the service is served
 with its sibling `service.js` impl. Reference: `games/kaffee-kwest/`
 (scenarios, player chronicles + `KaffeeKwestService` at `/odata/v4/kaffee-kwest`).
 Keep async work (AI calls, cross-room persistence) in such a service —

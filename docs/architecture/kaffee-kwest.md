@@ -91,7 +91,7 @@ Finished ──[ KI-Punkt 2: suggestChronicle() — Extraktion (großes Modell) 
                                              ▼
                           Plugin-eigene Persistenz (index.cds):
                           kk.Scenarios · kk.Profiles · kk.ChronicleEntries
-                          (SQLite dev / HANA prod — deployt wie Plattform-Schema)
+                          (SQLite dev / Postgres prod — deployt wie Plattform-Schema)
 ```
 
 **Regeln:**

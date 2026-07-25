@@ -19,6 +19,7 @@
     "@cap-games/kaiten": "*",
     "@cap-games/tictactoe": "*",
     "@cap-js-community/websocket": "^1",
+    "@cap-js/postgres": "^3",
     "@sap-ai-sdk/foundation-models": "^2",
     "@sap/cds": "^10",
     "express": "^4"
@@ -44,7 +45,7 @@
       "db": {
         "kind": "sqlite",
         "credentials": { "url": ":memory:" },
-        "[production]": { "kind": "hana" }
+        "[production]": { "kind": "postgres" }
       }
     },
     "websocket": {

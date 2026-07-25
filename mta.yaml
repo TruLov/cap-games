@@ -43,8 +43,21 @@ modules:
           config:
             credential-type: X509_GENERATED
             app-identifier: srv
-      - name: cap-games-hana
+      - name: cap-games-postgres
       - name: cap-games-aicore
+
+  - name: cap-games-postgres-deployer
+    type: nodejs
+    path: gen/pg
+    parameters:
+      buildpack: nodejs_buildpack
+      no-route: true
+      no-start: true
+      tasks:
+        - name: deploy-to-postgresql
+          command: npm start
+    requires:
+      - name: cap-games-postgres
 
   - name: cap-games
     type: approuter.nodejs
@@ -96,11 +109,11 @@ resources:
     requires:
       - name: app-api
 
-  - name: cap-games-hana
+  - name: cap-games-postgres
     type: org.cloudfoundry.managed-service
     parameters:
-      service: hana
-      service-plan: hdi-shared
+      service: postgresql-db
+      service-plan: development
 
   # AI Core — the [production] profile binds this; the SAP AI SDK reads its
   # credentials natively via the service binding (no AICORE_SERVICE_KEY env).
