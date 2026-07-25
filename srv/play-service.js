@@ -13,7 +13,7 @@ class PlayService extends cds.ApplicationService {
 
   async init() {
     // Access entities via namespace (cross-package service)
-    const { Rooms, Players, Matches, Leaderboard } = cds.entities('cap.games');
+    const { Rooms, Players } = cds.entities('cap.games');
 
     // ------------------------------------------------------------------ join
     this.on('join', async (req) => {
@@ -81,7 +81,7 @@ class PlayService extends cds.ApplicationService {
     // -------------------------------------------------------------- configure
     this.on('configure', async (req) => {
       const { room: roomId, settings } = req.data;
-      const { room, err } = await this._roomGuard(req, roomId, 'configure');
+      const { err } = await this._roomGuard(req, roomId, 'configure');
       if (err) return;
       await UPDATE(Rooms, roomId).with({ settings });
       await this.emit('configured', { room: roomId, settings });

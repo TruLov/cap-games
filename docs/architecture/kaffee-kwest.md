@@ -295,6 +295,13 @@ Die AI-Implementierung ist **Plattform-Sache**, nicht Spiel-Sache. Der
 - **Credentials** löst das SAP AI SDK selbst auf — `AICORE_SERVICE_KEY` (lokal),
   VCAP-`aicore`-Binding (Produktion), `cds bind` (Hybrid). Keine eigene Prüfung
   im Code.
+- **Reasoning-Modelle** (gpt-5\*, o1/o3/o4\*, ...) brauchen eine andere
+  Request-Form als klassische Chat-Modelle wie `gpt-4o-mini`: `temperature`
+  wird abgelehnt (nur der Default ist erlaubt) und ohne `reasoning_effort`
+  verbrennt das Modell das gesamte Token-Budget auf unsichtbares Reasoning
+  und liefert eine leere Antwort. `srv/ai/aicore.js` schaltet das per
+  `AICORE_REASONING_MODEL=true`-Env-Var um (Deployment-Eigenschaft, analog
+  zu `AICORE_DEPLOYMENT_ID` — kein Spiel-Code betroffen).
 
 ### Lokale Konfiguration
 

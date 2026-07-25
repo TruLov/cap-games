@@ -22,7 +22,7 @@
 
 
 
-import { NIGIRI_VALUES, ONIGIRI_SHAPES, FRUIT_TYPES } from './catalogue.js';
+import { ONIGIRI_SHAPES, FRUIT_TYPES } from './catalogue.js';
 
 // --- helpers ---------------------------------------------------------------
 
@@ -44,18 +44,6 @@ const URAMAKI_POINTS = [8, 5, 2];
 const DUMPLING_TABLE = { 0: 0, 1: 1, 2: 3, 3: 6, 4: 10, 5: 15 };
 const ONIGIRI_TABLE  = { 0: 0, 1: 1, 2: 4, 3: 9, 4: 16 };
 const FRUIT_TABLE    = { 0: -2, 1: 0, 2: 1, 3: 3, 4: 6 }; // 5+ = 10
-
-/**
- * Award a "most" (and optionally "fewest") comparison across players.
- * Returns a map symbol -> points. Ties all receive the full points.
- */
-function rankMost(players, valueOf, points) {
-  const vals = players.map(p => valueOf(p));
-  const max = Math.max(...vals);
-  const out = {};
-  players.forEach((p, i) => { out[p.symbol] = vals[i] === max && max > 0 ? points : 0; });
-  return out;
-}
 
 // --- strategies ------------------------------------------------------------
 

@@ -6,7 +6,7 @@
 
 
 
-import { CARD_TYPES, ROLLS, APPETIZERS, SPECIALS, DESSERTS, cardsOfType } from './cards/catalogue.js';
+import { ROLLS, APPETIZERS, SPECIALS, DESSERTS, cardsOfType } from './cards/catalogue.js';
 
 // --- Predefined menus (from specification.md) ---
 const MENUS = Object.freeze({

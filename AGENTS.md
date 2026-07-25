@@ -8,19 +8,26 @@ Games are self-registering plugin packages — adding a game never touches platf
 
 ## Request Flow
 
-```
-Browser
-  │  HTTPS (REST)          HTTPS + WSS (WebSocket)
-  ▼
-Approuter (IAS auth, websockets.enabled: true)
-  │  forwards Bearer token
-  ▼
-CAP Server (Node.js)
-  ├─ LobbyService   /odata/v4/lobby   — browse games, create rooms, leaderboard
-  └─ PlayService    /ws/play          — join, play, chat, host controls (realtime)
-        │
-        ├─ engine.js    transient board state + grace timers
-        └─ registry.js  cds.env.games → loaded game plugins
+```mermaid
+flowchart TB
+    Browser["Browser"]
+    Approuter["Approuter<br/>IAS auth · websockets.enabled: true<br/>forwards Bearer token"]
+
+    subgraph CAP["CAP Server (Node.js)"]
+        Lobby["LobbyService<br/>/odata/v4/lobby<br/>browse games · create rooms · leaderboard"]
+        Play["PlayService<br/>/ws/play<br/>join · play · chat · host controls (realtime)"]
+        Engine["engine.js<br/>transient board state + grace timers"]
+        Registry["registry.js<br/>discoverGames() scans @cap-games/* deps<br/>→ loaded game plugins"]
+        Ai["AiService<br/>backend by profile: mock / aicore"]
+    end
+
+    Browser -- "HTTPS (REST)" --> Approuter
+    Browser -- "HTTPS + WSS (WebSocket)" --> Approuter
+    Approuter --> Lobby
+    Approuter --> Play
+    Play --> Engine
+    Play --> Registry
+    Registry -. optional .-> Ai
 ```
 
 **Two protocols, one reason:** Room setup (browse catalogue, create room) uses standard OData/REST — no WebSocket needed. Gameplay and chat use WebSocket for bidirectional realtime events.
@@ -35,8 +42,9 @@ CAP Server (Node.js)
 | `srv/lobby-service.cds/.js` | OData service — game catalogue, rooms, leaderboard, createRoom |
 | `srv/play-service.cds/.js` | WebSocket service — all realtime actions + events |
 | `srv/engine.js` | Transient board state, reconnect grace timers, default scoring |
-| `srv/registry.js` | Loads games declared in `cds.env.games` (from plugin package.jsons) |
+| `srv/registry.js` | `discoverGames()` — scans root `package.json` for `@cap-games/*` deps, loads each as a game |
 | `srv/server.js` | Custom bootstrap — serves each game's `ui/` at `/games/<id>` |
+| `srv/ai-service.cds/.js` | Platform `AiService` — backend (`mock`/`aicore`) picked by profile, connected to via `cds.connect.to('AiService')` |
 | `app/` | Shell: login, lobby, header/nav. Static files served by CAP. |
 | `app/sdk.js` | SDK factory — `makeSdk()` + `makeEmitter()` |
 | `app/shell/` | Importable UI components: `chat.js`, `players.js`, `host.js` |
@@ -258,7 +266,5 @@ Activate: add `"@cap-games/mygame": "*"` to root `package.json` dependencies, th
 
 ## TODO
 
-- Short room join codes (4-char) instead of UUIDs — friendlier sharing
 - Team-play support (multiple players per side)
-- `cds.test` test suite to replace ad-hoc Node scripts
 - UI: initial player list sync when joining an existing room

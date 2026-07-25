@@ -190,6 +190,11 @@ illegal combinations and player-count-restricted cards.
 }
 ```
 
+> **Superseded:** resolved at the platform level, not via either option below —
+> `init(settings, players)` now receives the ordered roster directly as a
+> second argument (see `srv/engine.js`). No `extendService` roster-injection
+> needed. Left below as historical record of the design question.
+
 - Deal opening hands per Step 3.
 - Because `init` runs on `start`, the concrete player symbols must be known — the platform passes
   only `settings` to `init`. **Resolve players lazily on the first `start`/reveal**, or use
@@ -325,5 +330,6 @@ state decided in Step 0). Never trust the client to hide cards it received.
 
 - **State projection strategy** (Step 0): server-side per-player events vs. public-only `moved`.
 - **Roster injection** into `init` state (Step 6): `extendService` `started` hook vs. lazy resolve.
+  *Superseded — see the note in Step 6; `init(settings, players)` gets the roster directly.*
 - **Bonus actions transport** (Step 8): fields on `move` vs. dedicated `extendService` actions.
 - **Rematch semantics**: reshuffle a fresh 3-round game with the same menu (reuse `init`).

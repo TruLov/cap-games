@@ -78,7 +78,7 @@ test('vote buffers until everyone voted, then majority wins', () => {
   let r = applyMove(state, { type: 'vote', option: 1 }, 'X');
   assert.equal(r.end, null);
   assert.equal(state.nodeId, 'eingang');           // still waiting
-  r = applyMove(state, { type: 'vote', option: 0 }, 'O');
+  applyMove(state, { type: 'vote', option: 0 }, 'O');
   r = applyMove(state, { type: 'vote', option: 1 }, 'A');
   assert.equal(state.nodeId, 'schacht');           // majority: Lüftungsschacht
   assert.equal(r.end, null);

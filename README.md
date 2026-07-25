@@ -1,39 +1,49 @@
 # cap-games
 
 Multiplayer browser game platform on SAP BTP — built with CAP Node.js.
-Games are plugin packages. Add a game: 3 files, one dependency line, done.
+Games are plugin packages. Add a game: 4 files, one dependency line, done.
 
-**Included:** TicTacToe
+**Included:** TicTacToe, Kaiten, Kaffee-Kwest
 
 ---
 
 ## Architecture
 
-```
-Browser (Lobby: REST / Gameplay: WebSocket)
-     │
-Approuter (IAS auth, websockets.enabled)
-     │
-CAP Server (app/)
-  ├─ LobbyService  (OData /odata/v4/lobby)   — browse games, create rooms, leaderboard
-  └─ PlayService   (WebSocket /ws/play)       — join, play, chat, host controls
+```mermaid
+flowchart TB
+    Browser["Browser<br/>Lobby: REST · Gameplay: WebSocket"]
+    Approuter["Approuter<br/>IAS auth · websockets.enabled"]
 
-platform/
-  ├─ db/schema.cds      Rooms, Players, Matches, Leaderboard
-  ├─ srv/engine.js      transient board state, reconnect grace, scoring
-  ├─ srv/registry.js    game plugin registry (reads cds.env.games)
-  ├─ lobby-service.*    OData service
-  └─ play-service.*     WebSocket service
+    subgraph CAP["CAP Server (app/)"]
+        Lobby["LobbyService<br/>OData /odata/v4/lobby<br/>browse games · create rooms · leaderboard"]
+        Play["PlayService<br/>WebSocket /ws/play<br/>join · play · chat · host controls"]
+        Registry["registry.js<br/>discoverGames() — scans @cap-games/* deps"]
+        Engine["engine.js<br/>transient board state · reconnect grace · scoring"]
+        Ai["AiService<br/>backend by profile: mock / aicore"]
+    end
 
-games/tictactoe/        @cap-games/tictactoe plugin
-  ├─ package.json       declares the game in its "cds" section (merged by CAP)
-  ├─ cds-plugin.js      empty marker — makes CAP treat the package as plugin
-  └─ index.js           game logic only (init / applyMove / score)
+    DB[("db/schema.cds<br/>Rooms · Players · Matches · Leaderboard")]
+    Games["games/*<br/>tictactoe · kaiten · kaffee-kwest"]
+
+    Browser --> Approuter
+    Approuter --> Lobby
+    Approuter --> Play
+    Lobby --> DB
+    Play --> Engine
+    Play --> Registry
+    Play --> DB
+    Registry --> Games
+    Games -. optional .-> Ai
 ```
 
 Room isolation via `@ws.context` — plugin broadcasts events only to clients in the same room.
 Persistent state: Rooms, Players, Matches, Leaderboard in SQLite (dev) / HANA (prod).
 Transient: live board state, chat (not persisted — intentional).
+
+Games are zero-config: `registry.js` discovers any `@cap-games/*` npm dependency
+as a game automatically (see "Adding a new game" below). `AiService` is
+optional platform infrastructure — any game can connect to it for LLM calls
+without knowing which backend answers.
 
 ---
 
@@ -51,64 +61,19 @@ cds watch app
 ### Tools
 
 ```sh
-# websocat for WebSocket testing
-nix shell nixpkgs#websocat       # or add to environment.systemPackages
+# websocat for WebSocket testing — install via your package manager, e.g.:
+brew install websocat        # macOS
+cargo install websocat       # or download a release binary
 ```
 
 ---
 
 ## Quick Game (copy-paste)
 
-**Step 1 — Create room (HTTP/REST, alice is host+X):**
-```sh
-curl -X POST http://localhost:4004/odata/v4/lobby/createRoom \
-  -H "Authorization: Basic YWxpY2U6YWxpY2U=" \
-  -H "Content-Type: application/json" \
-  -d '{"game":"tictactoe"}'
-# → {"value":"<roomId>"}
-```
-
-**Step 2 — Terminal A (alice = X):**
-```sh
-websocat -t -H="Cookie: X-Authorization=Basic YWxpY2U6YWxpY2U" ws://localhost:4004/ws/play
-```
-```
-{"event":"join","data":{"room":"<roomId>"}}
-{"event":"start","data":{"room":"<roomId>"}}
-```
-
-**Step 3 — Terminal B (bob = O):**
-```sh
-websocat -t -H="Cookie: X-Authorization=Basic Ym9iOmJvYg==" ws://localhost:4004/ws/play
-```
-```
-{"event":"join","data":{"room":"<roomId>"}}
-```
-
-**Step 4 — Play (alice X first, alternating):**
-```
-{"event":"move","data":{"room":"<roomId>","data":"{\"cell\":0}"}}
-{"event":"move","data":{"room":"<roomId>","data":"{\"cell\":1}"}}
-{"event":"move","data":{"room":"<roomId>","data":"{\"cell\":4}"}}
-{"event":"move","data":{"room":"<roomId>","data":"{\"cell\":2}"}}
-{"event":"move","data":{"room":"<roomId>","data":"{\"cell\":8}"}}
-```
-→ `finished` winner: X
-
-**Board layout:**
-```
- 0 | 1 | 2
------------
- 3 | 4 | 5
------------
- 6 | 7 | 8
-```
-
-**After game (host only):**
-```
-{"event":"rematch","data":{"room":"<roomId>"}}
-{"event":"backToLobby","data":{"room":"<roomId>"}}
-```
+See [`games/tictactoe/README.md`](games/tictactoe/README.md) for a full
+copy-paste walkthrough (create room → join → play → finish) using the
+reference game — the same file new game authors start from when copying
+`games/tictactoe/` as a template.
 
 ---
 
@@ -127,10 +92,10 @@ Auth header: `Authorization: Basic <base64(user:user)>` (dev mocked)
 
 | Action | Who | Status | Effect |
 |--------|-----|--------|--------|
-| `join(room)` | anyone | any | Join room; creator (via createRoom) is host+X |
+| `join(room)` | anyone | any | Join room; creator (via createRoom) becomes host |
 | `configure(room, settings)` | host | lobby | Set game settings (JSON string) |
 | `start(room)` | host | lobby | → playing |
-| `move(room, data)` | X/O | playing | Game move (JSON string, game-specific) |
+| `move(room, data)` | current turn (`user` id) | playing | Game move (JSON string, game-specific) |
 | `rematch(room)` | host | finished | → playing, keep players |
 | `backToLobby(room)` | host | any | → lobby, all notified |
 | `kick(room, user)` | host | any | Remove player/spectator |
@@ -235,6 +200,12 @@ The platform provides: lobby, host, join, kick, settings, chat, reconnect, statu
 "requires": { "mygame": { "model": "@cap-games/mygame/srv/service.cds" } }
 ```
 
+**Optional — AI Service:** the platform exposes `AiService`
+(`cds.connect.to('AiService')`) for any game that wants LLM calls — the
+backend is picked by profile (`mock` locally, `aicore` in hybrid/production),
+no per-game config needed. See `docs/architecture/kaffee-kwest.md` for the
+worked example.
+
 ---
 
 ## Debug Logging
@@ -290,5 +261,4 @@ WebSocket (websocat): use `Cookie: X-Authorization=Basic ...` header.
 
 ## TODO (later)
 
-- Short join codes (4-char) instead of UUIDs — friendlier room sharing
 - Team-play support (multiple players per side)

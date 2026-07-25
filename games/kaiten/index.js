@@ -95,7 +95,7 @@ export default {
    * identities of cards secretly selected this turn.
    */
   publicState(state) {
-    const { hands, drawPile, dessertPool, pending, menuOffer, menuHold, ...rest } = state;
+    const { hands, drawPile: _drawPile, dessertPool: _dessertPool, pending, menuOffer: _menuOffer, menuHold: _menuHold, ...rest } = state;
     return {
       ...rest,
       handCounts: Object.fromEntries(

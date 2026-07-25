@@ -432,7 +432,6 @@ export default {
     function onPrivate(e)  { const p = JSON.parse(e.data); pub = p; myHand = p.myHand ?? []; menuOffer = p.menuOffer ?? null; chopFirstPick = null; chopsticksActive = false; redraw(); }
     function onFinished(e) {
       pub = JSON.parse(e.state);
-      const r = pub.ranking ?? [];
       const msg = e.winner === 'draw' ? 'Draw!' : `${initials(e.winner)} wins!`;
       setStatus(`Game over — ${msg}`);
       redraw();
