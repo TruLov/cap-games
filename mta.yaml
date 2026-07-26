@@ -4,11 +4,16 @@ version: 1.0.0
 description: "Browser mini games with CAP backend"
 parameters:
   enable-parallel-deployments: true
-  # Set at deploy time (mta extension or `cf ... --var`); the AI Core deployment id.
+  # AI Core is external to this landscape (different global account) — no
+  # cap-games-aicore service binding here. Set all three via an .mtaext
+  # overlay at deploy time (`cf deploy ... -e config.mtaext`), never inline.
   aicore-deployment-id: ""
   # Set to "true" only if aicore-deployment-id points at a reasoning-family
   # model (gpt-5*, o1*, o3*, o4*, ...) — see srv/ai/aicore.js.
   aicore-reasoning-model: ""
+  # Full AI-Core service-key JSON (secret) — same shape as .env.example's
+  # AICORE_SERVICE_KEY. The SAP AI SDK reads it from the env var natively.
+  aicore-service-key: ""
 build-parameters:
   before-all:
     - builder: custom
@@ -33,10 +38,12 @@ modules:
           srv-url: ${default-url}
           srv-cert-url: '${protocol}://${default-host}.cert.${default-domain}'
     properties:
-      # AI Core deployment to use (env-specific, non-secret). The service key is
-      # injected by the cap-games-aicore binding below; the SDK reads it natively.
+      # AI Core is an external/cross-account service — no VCAP binding, so
+      # the SDK's env-var credential path is used instead. AICORE_SERVICE_KEY
+      # comes from an .mtaext overlay at deploy time, never committed here.
       AICORE_DEPLOYMENT_ID: "${aicore-deployment-id}"
       AICORE_REASONING_MODEL: "${aicore-reasoning-model}"
+      AICORE_SERVICE_KEY: "${aicore-service-key}"
     requires:
       - name: cap-games-ias
         parameters:
@@ -44,7 +51,6 @@ modules:
             credential-type: X509_GENERATED
             app-identifier: srv
       - name: cap-games-postgres
-      - name: cap-games-aicore
 
   - name: cap-games-postgres-deployer
     type: nodejs
@@ -113,12 +119,4 @@ resources:
     type: org.cloudfoundry.managed-service
     parameters:
       service: postgresql-db
-      service-plan: development
-
-  # AI Core — the [production] profile binds this; the SAP AI SDK reads its
-  # credentials natively via the service binding (no AICORE_SERVICE_KEY env).
-  - name: cap-games-aicore
-    type: org.cloudfoundry.managed-service
-    parameters:
-      service: aicore
-      service-plan: extended
+      service-plan: trial

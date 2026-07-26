@@ -1,0 +1,21 @@
+# MTA extension for the trial deployment — copy to trial.mtaext (gitignored),
+# fill in real values, never commit the filled-in file.
+#
+# Usage:
+#   mbt build
+#   cf deploy mta_archives/cap-games_1.0.0.mtar -e trial.mtaext
+#
+_schema-version: 3.3.0
+ID: cap-games-trial
+extends: cap-games
+
+parameters:
+  # Same deployment id you use locally (see .env's AICORE_DEPLOYMENT_ID).
+  aicore-deployment-id: "d2671692af131e99"
+  # "true" only if the deployment above is a reasoning-family model
+  # (gpt-5*, o1*, o3*, o4*, ...) — see srv/ai/aicore.js.
+  aicore-reasoning-model: "true"
+  # Full AI-Core service-key JSON — same shape as .env's AICORE_SERVICE_KEY.
+  # AI Core is external/cross-account here, so there's no VCAP binding; the
+  # SAP AI SDK reads this env var directly instead.
+  aicore-service-key: '{"clientid":"...","clientsecret":"...","url":"https://...","serviceurls":{"AI_API_URL":"https://api.ai.prod.us-east-1.aws.ml.hana.ondemand.com"}}'

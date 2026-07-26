@@ -221,15 +221,20 @@ DEBUG=websocket cds watch            # WS transport: connect/disconnect
 
 ```sh
 mbt build
-cf deploy mta_archives/cap-games_1.0.0.mtar
+cf deploy mta_archives/cap-games_1.0.0.mtar -e trial.mtaext
 ```
+
+AI Core is external/cross-account — no `aicore` service instance is
+provisioned here. `trial.mtaext` (copy from `trial.mtaext.example`, gitignored,
+never commit the filled-in version) supplies `AICORE_DEPLOYMENT_ID`,
+`AICORE_REASONING_MODEL`, and `AICORE_SERVICE_KEY` as plain env vars instead
+— the SAP AI SDK reads them natively, same as local dev.
 
 Creates:
 - `cap-games-srv` — CAP server
 - `cap-games` — Approuter (IAS auth)
 - `cap-games-ias` — IAS identity service
-- `cap-games-postgres` — PostgreSQL database (`postgresql-db`/`development`)
-- `cap-games-aicore` — AI Core (production AI backend)
+- `cap-games-postgres` — PostgreSQL database (`postgresql-db`/`trial`)
 
 **Trial-account data is ephemeral by design:** BTP trial subaccounts expire
 and get deleted, wiping every service instance in them regardless of which

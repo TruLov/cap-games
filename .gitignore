@@ -9,6 +9,8 @@ default-*.json
 
 # Secrets / local env
 .env
+*.mtaext
+!*.mtaext.example
 
 # MTA
 mta_archives/
