@@ -12,7 +12,8 @@
     "test:int": "CDS_TEST_ENV_CHECK=y cds test integration"
   },
   "workspaces": [
-    "games/*"
+    "games/*",
+    "app/router"
   ],
   "dependencies": {
     "@cap-games/kaffee-kwest": "*",
