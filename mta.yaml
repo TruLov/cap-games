@@ -92,6 +92,13 @@ modules:
           forwardAuthCertificates: true
           forwardAuthToken: true
           strictSSL: true
+    properties:
+      # Force the OAuth callback URL to carry ?authType=ias. Without it, the
+      # approuter only appends authType when >1 auth service is bound (IAS AND
+      # XSUAA); we bind IAS only, so the callback would arrive bare and the
+      # handler defaults the missing param to "xsuaa" → "OAuth2 requires
+      # clientid" crash on /login/callback. (@sap/approuter getCallBackUrl.)
+      ENABLE_PERMANENT_AUTHTYPE: "true"
     parameters:
       keep-existing-routes: true
       disk-quota: 256M
