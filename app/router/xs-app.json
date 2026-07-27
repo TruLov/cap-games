@@ -1,6 +1,7 @@
 {
   "authenticationMethod": "route",
   "websockets": { "enabled": true },
+  "logout": { "logoutEndpoint": "/logout" },
   "routes": [
     {
       "source": "^/ws/(.*)$",
@@ -14,14 +15,26 @@
       "target": "/odata/$1",
       "destination": "srv-api",
       "authenticationType": "ias",
-      "csrfProtection": true
+      "_comment": "csrf off: only OData mutation is createRoom (session-auth'd); gameplay is on the WS channel. Hardening (token fetch) is a follow-up.",
+      "csrfProtection": false
+    },
+    {
+      "source": "^/games/(.*)$",
+      "target": "/games/$1",
+      "destination": "srv-api",
+      "authenticationType": "ias",
+      "csrfProtection": false
+    },
+    {
+      "source": "^/login.html$",
+      "localDir": "resources",
+      "authenticationType": "ias",
+      "_comment": "protected entrypoint: hitting it while anonymous triggers the IAS login redirect; login.html then bounces the now-authenticated browser to /"
     },
     {
       "source": "^/(.*)$",
-      "target": "$1",
-      "destination": "srv-api",
-      "authenticationType": "ias",
-      "csrfProtection": true
+      "localDir": "resources",
+      "authenticationType": "none"
     }
   ]
 }

@@ -91,6 +91,12 @@ input:focus { outline: 2px solid var(--accent); }
   color: var(--text); border-radius: 8px; padding: .6rem 1.2rem;
 }
 .sh-user-btn:hover { background: var(--border); }
+a.sh-user-btn { text-decoration: none; display: inline-block; }
+
+/* ── Landing (public) ──────────────────────────────────── */
+.sh-landing-games { list-style: none; padding: 0; margin: .5rem 0 1.5rem; text-align: left; max-width: 460px; }
+.sh-landing-games li { padding: .4rem 0; border-bottom: 1px solid var(--border); }
+.sh-landing-games li:last-child { border-bottom: none; }
 
 /* ── Shell components (used by game optionally) ─────────── */
 

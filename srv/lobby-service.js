@@ -36,6 +36,9 @@ class LobbyService extends cds.ApplicationService {
       return roomId;
     });
 
+    // --- whoami: the caller's platform identity ---
+    this.on('whoami', (req) => req.user.id);
+
     await super.init();
   }
 

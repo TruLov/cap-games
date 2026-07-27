@@ -9,7 +9,7 @@ import { makeSdk, makeEmitter } from './sdk.js';
 
 // ── State ────────────────────────────────────────────────────
 const shell = {
-  user:    null,   // { id, authHeader }
+  user:    null,   // { id, authHeader } — authHeader only set in local dev (mocked auth)
   room:    null,   // { id, game }
   me:      null,   // { user, spectator, isHost }
   game:    null,   // loaded game module { mount }
@@ -19,25 +19,63 @@ const shell = {
 let ws      = null;
 let emitter = makeEmitter();
 
-const USERS = ['alice', 'bob', 'carol', 'dave', 'erin'];
+const USERS = ['alice', 'bob', 'carol', 'dave', 'erin'];  // local dev only
 
 // ── DOM ───────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 
 // ── Auth ──────────────────────────────────────────────────────
-function login(userId) {
+// Two modes, distinguished at boot by probing whoami:
+//   • IAS (deployed):  the approuter session cookie carries auth; we send NO
+//     Authorization header. Login/registration happen on the IAS-hosted page.
+//   • mocked (local dev): pick a player → send a Basic auth header ourselves.
+function devLogin(userId) {
   const b64 = btoa(`${userId}:${userId}`);
-  document.cookie = `X-Authorization=Basic ${b64}; path=/`;
+  document.cookie = `X-Authorization=Basic ${b64}; path=/`;   // WS auth in dev
   shell.user = { id: userId, authHeader: `Basic ${b64}` };
   sessionStorage.setItem('user', userId);
 }
 
 function logout() {
-  document.cookie = 'X-Authorization=; path=/; max-age=0';
-  sessionStorage.removeItem('user');
-  if (ws) { ws.close(); ws = null; }
-  shell.user = null;
-  showView('login');
+  if (shell.user?.authHeader) {                 // local dev
+    document.cookie = 'X-Authorization=; path=/; max-age=0';
+    sessionStorage.removeItem('user');
+    if (ws) { ws.close(); ws = null; }
+    shell.user = null;
+    setAuthedChrome(false);
+    renderDevPicker();
+    showView('login');
+  } else {                                       // IAS: approuter clears the session
+    window.location = '/logout';
+  }
+}
+
+/**
+ * Probe backend identity to decide the mode. Uses redirect:'manual' so the
+ * approuter's 302→IAS redirect surfaces as an opaque response (anonymous)
+ * instead of the fetch silently following it to a cross-origin login page.
+ *   → { id }            authenticated (IAS session, or dev with saved header)
+ *   → { iasAnonymous }  IAS in front, not logged in  → public landing
+ *   → { dev }           mocked auth (no approuter)    → dev player picker
+ */
+async function probeAuth() {
+  try {
+    const headers = shell.user?.authHeader ? { Authorization: shell.user.authHeader } : {};
+    const res = await fetch('/odata/v4/lobby/whoami()', { headers, redirect: 'manual' });
+    if (res.type === 'opaqueredirect' || res.status === 0) return { iasAnonymous: true };
+    if (res.status === 401) return { dev: true };
+    if (res.ok) {
+      const body = await res.json();
+      const id = body.value ?? body;
+      // Local mocked auth with no player picked resolves to the anonymous user;
+      // that's the cue to show the dev picker, not to "log in as anonymous".
+      if (!id || id === 'anonymous') return { dev: true };
+      return { id };
+    }
+    return { iasAnonymous: true };
+  } catch {
+    return { iasAnonymous: true };
+  }
 }
 
 // ── Views ─────────────────────────────────────────────────────
@@ -47,11 +85,18 @@ function showView(name) {
   if (el) el.hidden = false;
 }
 
+function setAuthedChrome(authed, id = '') {
+  $('sh-who').textContent = authed ? id : '';
+  $('sh-btn-logout').hidden = !authed;
+}
+
 // ── OData ─────────────────────────────────────────────────────
 async function odata(method, path, body) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (shell.user?.authHeader) headers.Authorization = shell.user.authHeader;   // dev only
   const res = await fetch(`/odata/v4/lobby/${path}`, {
     method,
-    headers: { Authorization: shell.user.authHeader, 'Content-Type': 'application/json' },
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) throw new Error(await res.text());
@@ -185,21 +230,25 @@ async function loadLobby() {
 }
 
 // ── Boot ──────────────────────────────────────────────────────
-function renderLoginView() {
+function enterLobby(id) {
+  shell.user ??= { id, authHeader: null };
+  setAuthedChrome(true, shell.user.id);
+  showView('lobby');
+  loadLobby();
+}
+
+// Local-dev player picker (mocked auth only).
+function renderDevPicker() {
   const ul = $('sh-user-list');
   ul.innerHTML = USERS.map(u =>
     `<button class="sh-user-btn" data-user="${u}">${u}</button>`).join('');
   ul.querySelectorAll('[data-user]').forEach(b =>
-    b.onclick = () => {
-      login(b.dataset.user);
-      $('sh-who').textContent = b.dataset.user;
-      showView('lobby');
-      loadLobby();
-    });
+    b.onclick = () => { devLogin(b.dataset.user); enterLobby(b.dataset.user); });
 }
 
 $('sh-btn-logout').onclick = logout;
 $('sh-btn-leave').onclick  = leaveRoom;
+$('sh-btn-login').onclick  = () => { window.location = '/login.html'; };  // → IAS
 $('sh-btn-copy').onclick   = () => {
   navigator.clipboard.writeText(shell.room?.code ?? '');
   toast('Room code copied');
@@ -210,7 +259,22 @@ $('sh-btn-join').onclick = () => {
   if (id) joinByCode(id);
 };
 
-renderLoginView();
-const saved = sessionStorage.getItem('user');
-if (saved) { login(saved); $('sh-who').textContent = saved; showView('lobby'); loadLobby(); }
-else showView('login');
+async function boot() {
+  // In local dev, restore a previously-picked mock user so probeAuth passes.
+  const saved = sessionStorage.getItem('user');
+  if (saved) devLogin(saved);
+
+  const auth = await probeAuth();
+  if (auth.id) {                       // authenticated (IAS session or dev-restored)
+    shell.user ??= { id: auth.id, authHeader: null };
+    enterLobby(auth.id);
+  } else if (auth.dev) {               // local mocked auth — show the picker
+    shell.user = null;
+    renderDevPicker();
+    showView('login');
+  } else {                             // IAS, not logged in — public landing
+    showView('landing');
+  }
+}
+
+boot();

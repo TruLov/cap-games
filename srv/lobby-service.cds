@@ -24,4 +24,9 @@ service LobbyService {
 
   // Create a room and become its host
   action createRoom(game: String) returns String;  // returns room ID
+
+  // The caller's platform identity (req.user.id) — the authoritative id the
+  // frontend must key on so it matches every gameplay comparison. Under IAS
+  // this is the token subject; under mocked auth it's the basic-auth user.
+  function whoami() returns String;
 }

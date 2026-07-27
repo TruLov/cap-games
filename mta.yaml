@@ -19,7 +19,18 @@ build-parameters:
     - builder: custom
       commands:
         - npm ci
-        - npx cds build --production
+        # --ws-pack: games/* are npm workspace deps ("*" version) — pack them
+        # as tarballs instead of leaving lockfile workspace-symlink entries,
+        # which break once gen/srv is built/packaged in isolation (no games/
+        # sibling folder there for the symlink target to resolve against).
+        - npx cds build --production --ws-pack
+        # The approuter serves the shell UI statically from its resources/
+        # folder. Source of truth stays in app/ (so `cds watch app` dev is
+        # unchanged); copy the shell files in here at build time. resources/
+        # is gitignored (generated).
+        - rm -rf app/router/resources
+        - mkdir -p app/router/resources
+        - cp -R app/index.html app/login.html app/logout.html app/platform.js app/sdk.js app/style.css app/shell app/router/resources/
 modules:
   - name: cap-games-srv
     type: nodejs
