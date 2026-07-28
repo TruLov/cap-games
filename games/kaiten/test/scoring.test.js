@@ -120,13 +120,20 @@ describe('kaiten scoring', () => {
 
   describe('desserts', () => {
 
-    it('pudding: most +6, fewest -6, no penalty at 2p', () => {
+    it('pudding: most +6, fewest -6 — zero counts as fewest, no 2-player exception', () => {
       const players = [player('X',[],[card('pudding'),card('pudding')]), player('O',[],[card('pudding')]), player('A',[],[])];
       const g = scoreGame(players, 3, 'pudding');
       expect(g.X).to.equal(6);
       expect(g.A).to.equal(-6);
       const two = scoreGame([player('X',[],[card('pudding'),card('pudding')]), player('O',[],[])], 2, 'pudding');
-      expect(two.O).to.equal(0);
+      expect(two.X).to.equal(6);
+      expect(two.O).to.equal(-6);
+    });
+
+    it('pudding: a complete tie (including all-zero) never triggers the fewest-penalty', () => {
+      const g = scoreGame([player('X',[],[]), player('O',[],[])], 2, 'pudding');
+      expect(g.X).to.be.at.least(0);
+      expect(g.O).to.be.at.least(0);
     });
 
     it('green tea ice cream: sets of 4 → 12', () => {

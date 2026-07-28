@@ -194,7 +194,7 @@ const STRATEGIES = {
 
   // === Desserts (scored at end of game) =====================================
   pudding: {
-    scoreGame(player, { players, playerCount }) {
+    scoreGame(player, { players }) {
       const countOf = p => p.desserts.filter(c => c.type === 'pudding').length;
       const counts = players.map(countOf);
       const max = Math.max(...counts);
@@ -202,7 +202,7 @@ const STRATEGIES = {
       const mine = countOf(player);
       let pts = 0;
       if (mine === max) pts += 6;
-      if (playerCount > 2 && mine === min && min < max) pts -= 6;
+      if (mine === min && min < max) pts -= 6; // zero counts as least too — no 2-player exception
       return pts;
     },
   },
