@@ -1,20 +1,36 @@
 /**
- * platform.js — CAP Games Shell (thin)
+ * platform.js — CAP Games Shell (thin, but owns more than games now)
  *
- * Owns: login, lobby, WS transport, room lifecycle, header/nav.
- * Does NOT own: game rendering, board, chat, player list, host controls.
- * Those are handled by game UI (mount) + optional shell components.
+ * Owns: login, lobby, WS transport, room lifecycle, header/nav, AND the
+ * entire room chrome — players list, chat, host controls (switch-game,
+ * start, rematch, back-to-room) and the room's live roster (sdk.players).
+ *
+ * A game module is only ever mounted (`game.mount(rootEl, sdk)`) once a match
+ * is actually starting/active — never while the room is just waiting for
+ * players. Games therefore never need to track their own roster or render
+ * any pre-start "lobby" UI; they render gameplay and nothing else. Optional
+ * `game.renderSettings(el, sdk)` lets a game contribute its own pre-start
+ * configuration (e.g. a menu preset), shown inside the platform's waiting
+ * room, host-only.
  */
 import { makeSdk, makeEmitter } from './sdk.js';
+import { mountPlayers } from './shell/players.js';
+import { mountChat } from './shell/chat.js';
+import { mountWaitingRoom } from './shell/host.js';
 
 // ── State ────────────────────────────────────────────────────
 const shell = {
-  user:    null,   // { id, authHeader } — authHeader only set in local dev (mocked auth)
-  mode:    null,   // 'mocked' | 'ias' — drives what the header "Log in" does
-  room:    null,   // { id, game }
-  me:      null,   // { user, spectator, isHost }
-  game:    null,   // loaded game module { mount }
-  unmount: null,   // cleanup fn returned by game.mount()
+  user:   null,   // { id, authHeader } — authHeader only set in local dev (mocked auth)
+  mode:   null,   // 'mocked' | 'ias' — drives what the header "Log in" does
+  room:   null,   // { id, code, game }
+  me:     null,   // { user, spectator, isHost }
+  sdk:    null,   // built once per room session, reused across waiting-room/match/switchGame
+  players: [],    // live roster — the canonical sdk.players array, mutated in place
+  gameModule:     null, // currently loaded game module ({ mount, renderSettings? })
+  matchUnmount:   null, // cleanup for an active game.mount()
+  waitingUnmount: null, // cleanup for the waiting-room controls (shell/host.js)
+  playersUnmount: null, // cleanup for the persistent players component
+  chatUnmount:    null, // cleanup for the persistent chat component
 };
 
 let ws      = null;
@@ -232,6 +248,92 @@ async function joinByCode(input) {
   await joinRoom(room.ID, room.code, room.game);
 }
 
+// ── Roster maintenance — the canonical sdk.players array, kept correct for
+// the room's whole lifetime regardless of which/whether a game is mounted.
+function onRoster({ players }) {
+  try {
+    const list = JSON.parse(players);
+    shell.players.length = 0;
+    shell.players.push(...list);
+  } catch { /* ignore malformed payload */ }
+}
+function onPlayerLeftRoster({ player }) {
+  const i = shell.players.findIndex(p => p.user === player);
+  if (i >= 0) shell.players.splice(i, 1);
+}
+function onPlayerKickedRoster({ player }) { onPlayerLeftRoster({ player }); }
+function onRoleChangedRoster({ player, spectator }) {
+  const p = shell.players.find(p => p.user === player);
+  if (p) p.spectator = spectator;
+}
+
+// ── Kick route — shell handles because a game may not listen ──
+function onSelfKicked({ player }) {
+  if (player === shell.user?.id) { toast('You were kicked'); leaveRoom(); }
+}
+
+// ── Errors — surfaced generically so games don't each need their own handler
+function onGameError({ message }) { if (message) toast(message); }
+
+// ── Match controls (Rematch / Back to room) — host-only, shown whenever the
+// room is 'finished'; generic across every game, so no game needs its own.
+function renderMatchControls(show) {
+  const el = $('room-match-controls');
+  if (!show || !shell.me?.isHost) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="sh-host-controls">
+      <button id="sh-btn-rematch">Rematch</button>
+      <button id="sh-btn-backroom">Back to room</button>
+    </div>`;
+  el.querySelector('#sh-btn-rematch').onclick  = () => sdk_send('rematch');
+  el.querySelector('#sh-btn-backroom').onclick = () => sdk_send('backToRoom');
+  function sdk_send(action) { wsSend(action, { room: shell.room.id }); }
+}
+function onFinishedControls()  { renderMatchControls(true); }
+function onClearedControls()   { renderMatchControls(false); }
+
+// ── Waiting-room ↔ match transitions — the core state machine. A game
+// module is mounted ONLY once a match is actually starting/active; before
+// that (status 'lobby') the platform's own waiting room owns #game-root.
+function mountGame() {
+  const el = $('game-root');
+  el.innerHTML = '';
+  shell.matchUnmount = shell.gameModule.mount(el, shell.sdk) ?? null;
+}
+
+async function showWaitingRoom() {
+  const el = $('game-root');
+  el.innerHTML = '';
+  shell.waitingUnmount = await mountWaitingRoom(el, shell.sdk, shell.gameModule) ?? null;
+}
+
+function onStartedTopLevel(payload) {
+  if (shell.waitingUnmount) {
+    shell.waitingUnmount(); shell.waitingUnmount = null;
+    mountGame();
+    // The 'started' event that triggered this transition already fired before
+    // the freshly-mounted game had a chance to register its own listener —
+    // replay it now so the game's own onStarted sees its first state.
+    emitter.emit('started', payload);
+  }
+  onClearedControls();
+}
+function onRoomResetTopLevel() {
+  if (shell.matchUnmount) { shell.matchUnmount(); shell.matchUnmount = null; }
+  onClearedControls();
+  showWaitingRoom();
+}
+async function onGameSwitchedTopLevel({ game }) {
+  if (!shell.room || shell.room.game === game) return;
+  shell.room.game = game;
+  shell.matchUnmount?.();   shell.matchUnmount = null;
+  shell.waitingUnmount?.(); shell.waitingUnmount = null;
+  const mod = await import(`/games/${game}/index.js`);
+  shell.gameModule = mod.default;
+  await showWaitingRoom();
+  toast('Host switched the game');
+}
+
 async function joinRoom(roomId, code, game) {
   // resolve room details if not provided (e.g. when called from createRoom)
   if (!game) {
@@ -249,7 +351,7 @@ async function joinRoom(roomId, code, game) {
 
   // load game UI module
   const mod = await import(`/games/${game}/index.js`);
-  shell.game = mod.default;
+  shell.gameModule = mod.default;
 
   // connect WS if needed — wsConnect's onopen sends 'join' once shell.room is
   // set (it already is, above), so a fresh connection auto-joins; if a socket
@@ -257,17 +359,19 @@ async function joinRoom(roomId, code, game) {
   if (!ws || ws.readyState > WebSocket.OPEN) wsConnect();
   else wsSend('join', { room: roomId });
 
-  // once joined — platform sets me, then mounts game
+  // once joined — platform sets me, mounts the persistent chrome, then either
+  // the waiting room (status 'lobby') or the game itself (already active)
   emitter.on('joined', function onFirstJoin(payload) {
     if (payload.player !== shell.user.id) return;
     emitter.off('joined', onFirstJoin);
 
     shell.me = { user: shell.user.id, spectator: payload.spectator, isHost: payload.host };
+    shell.players.length = 0; // the server's 'roster' broadcast (sent right after 'joined') fills this in
 
-    // build sdk and hand full control to game
-    const sdk = makeSdk({
+    shell.sdk = makeSdk({
       room: shell.room,
       me:   shell.me,
+      players: shell.players,
       wsSend,
       emitter,
       toastFn: toast,
@@ -275,9 +379,24 @@ async function joinRoom(roomId, code, game) {
     });
 
     showView('room');
-    const rootEl = $('game-root');
-    rootEl.innerHTML = '';
-    shell.unmount = shell.game.mount(rootEl, sdk) ?? null;
+    shell.playersUnmount = mountPlayers($('room-players'), shell.sdk, []);
+    shell.chatUnmount    = mountChat($('room-chat'), shell.sdk);
+
+    // room-scoped listeners — all torn down together in leaveRoom()
+    emitter.on('roster',       onRoster);
+    emitter.on('playerLeft',   onPlayerLeftRoster);
+    emitter.on('playerKicked', onPlayerKickedRoster);
+    emitter.on('roleChanged',  onRoleChangedRoster);
+    emitter.on('playerKicked', onSelfKicked);
+    emitter.on('gameError',    onGameError);
+    emitter.on('started',      onStartedTopLevel);
+    emitter.on('finished',     onFinishedControls);
+    emitter.on('rematched',    onClearedControls);
+    emitter.on('roomReset',    onRoomResetTopLevel);
+    emitter.on('gameSwitched', onGameSwitchedTopLevel);
+
+    if (payload.status === 'lobby') showWaitingRoom();
+    else { mountGame(); if (payload.status === 'finished') onFinishedControls(); }
   });
 }
 
@@ -288,46 +407,34 @@ async function createRoom(game) {
 
 function leaveRoom() {
   if (shell.room) wsSend('leave', { room: shell.room.id });
-  shell.unmount?.();
-  shell.unmount = null;
+  shell.matchUnmount?.();   shell.matchUnmount = null;
+  shell.waitingUnmount?.(); shell.waitingUnmount = null;
+  shell.playersUnmount?.(); shell.playersUnmount = null;
+  shell.chatUnmount?.();    shell.chatUnmount = null;
+  renderMatchControls(false);
+
+  emitter.off('roster',       onRoster);
+  emitter.off('playerLeft',   onPlayerLeftRoster);
+  emitter.off('playerKicked', onPlayerKickedRoster);
+  emitter.off('roleChanged',  onRoleChangedRoster);
+  emitter.off('playerKicked', onSelfKicked);
+  emitter.off('gameError',    onGameError);
+  emitter.off('started',      onStartedTopLevel);
+  emitter.off('finished',     onFinishedControls);
+  emitter.off('rematched',    onClearedControls);
+  emitter.off('roomReset',    onRoomResetTopLevel);
+  emitter.off('gameSwitched', onGameSwitchedTopLevel);
+
   shell.room = null;
   shell.me   = null;
-  shell.game = null;
-  emitter.clear();
+  shell.sdk  = null;
+  shell.gameModule = null;
+  shell.players.length = 0;
   $('sh-room-id').hidden = true;
   $('sh-btn-copy').hidden = true;
   showView('lobby');
   loadLobby();
 }
-
-// ── Kick route — shell handles because game may not listen ────
-emitter.on('playerKicked', ({ player }) => {
-  if (player === shell.user?.id) { toast('You were kicked'); leaveRoom(); }
-});
-
-// ── Errors — surfaced generically so games don't each need their own handler ─
-emitter.on('gameError', ({ message }) => { if (message) toast(message); });
-
-// ── Game switch — platform owns the swap so no game needs to care ─
-emitter.on('gameSwitched', async ({ game }) => {
-  if (!shell.room || shell.room.game === game) return;
-  shell.room.game = game;
-  shell.unmount?.();
-  const mod = await import(`/games/${game}/index.js`);
-  shell.game = mod.default;
-  const rootEl = $('game-root');
-  rootEl.innerHTML = '';
-  const sdk = makeSdk({
-    room: shell.room,
-    me:   shell.me,
-    wsSend,
-    emitter,
-    toastFn: toast,
-    leaveFn: leaveRoom,
-  });
-  shell.unmount = shell.game.mount(rootEl, sdk) ?? null;
-  toast(`Host switched the game`);
-});
 
 // ── Lobby ─────────────────────────────────────────────────────
 async function loadLobby() {

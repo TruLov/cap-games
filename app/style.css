@@ -71,13 +71,16 @@ body {
    that set `display` beat it on origin, not specificity. Force it explicitly. */
 .sh-view[hidden] { display: none; }
 
-/* #game-root fills available space; the game's own layout scrolls internally */
+/* #game-root is the ONLY area a game module ever touches (waiting-room
+   controls or the mounted game); the persistent room chrome — players, chat,
+   and the .gm-layout/.gm-aside split — lives once in index.html, owned by
+   platform.js, never duplicated per game. */
 #view-room:not([hidden])  { max-width: 100%; padding: 0; display: flex; flex-direction: column; min-height: 0; }
+#room-match-controls:empty { display: none; }
+#room-match-controls { padding: .75rem 1.5rem 0; }
 #game-root  { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
-/* ── Shared game two-column layout (main + aside) ─────────
-   Games plug their content into .gm-main / .gm-aside instead of each
-   reimplementing this flex row — see games/*\/app/index.js. */
+/* ── Room layout (main content + players/chat aside) — see index.html ──── */
 .gm-layout { flex: 1; min-height: 0; display: flex; gap: 1.25rem; padding: 1.5rem; }
 .gm-main   { flex: 1; min-width: 0; min-height: 0; overflow-y: auto;
              display: flex; flex-direction: column; gap: 1rem; }

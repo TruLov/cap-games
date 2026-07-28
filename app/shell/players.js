@@ -1,9 +1,9 @@
 /**
  * shell/players.js — Platform Players component
  *
- * Usage in game UI:
- *   import { mountPlayers } from '/shell/players.js';
- *   mountPlayers(containerEl, sdk, initialPlayers);
+ * Mounted once by platform.js for the room's whole session (never by a game
+ * directly) — lives in the persistent room chrome alongside chat, so it's
+ * never torn down across a switchGame/start/finish/rematch cycle.
  */
 
 import { initials } from '/shell/util.js';
@@ -53,9 +53,8 @@ export function mountPlayers(el, sdk, initialPlayers = []) {
   }
 
   // Full authoritative resync — sent by the server on join/reconnect and on
-  // switchGame. Replaces the local list wholesale so a freshly (re)mounted
-  // game UI (e.g. after a host game switch) never shows a stale roster built
-  // only from `[sdk.me]` + whatever `joined` deltas happened to fire since.
+  // switchGame. Replaces the local list wholesale (belt-and-braces alongside
+  // the incremental joined/playerLeft/playerKicked/roleChanged deltas above).
   function onRoster({ players: json }) {
     let list;
     try { list = JSON.parse(json); } catch { return; }

@@ -1,12 +1,11 @@
 /**
  * TicTacToe UI — mount(rootEl, sdk)
  *
- * Game controls its entire layout.
- * Uses shell components (chat, players, host-controls) optionally via DI.
+ * Called only once a match is actually starting/active (or reconnecting into
+ * one) — players, chat and host controls (start/switch-game/rematch/back-to-
+ * room) all live in the platform's persistent room chrome, so this game only
+ * ever renders the board. No settingsSchema, so no renderSettings() either.
  */
-import { mountChat }         from '/shell/chat.js';
-import { mountPlayers }      from '/shell/players.js';
-import { mountHostControls } from '/shell/host.js';
 
 const WIN_LINES = [
   [0,1,2],[3,4,5],[6,7,8],
@@ -50,35 +49,14 @@ function renderBoard(state, boardEl, sdk) {
 
 export default {
   mount(rootEl, sdk) {
-    // ── Build layout ──────────────────────────────────────
     rootEl.innerHTML = `
-      <div class="gm-layout">
-        <div class="gm-main">
-          <div class="ttt-status" id="ttt-status"></div>
-          <div class="ttt-board-wrap" id="ttt-board"></div>
-          <div id="ttt-host"></div>
-        </div>
-        <aside class="gm-aside">
-          <h3>Players</h3>
-          <div id="ttt-players"></div>
-          <h3 style="margin-top:1rem">Chat</h3>
-          <div id="ttt-chat" style="height:260px"></div>
-        </aside>
-      </div>
+      <div class="ttt-status" id="ttt-status"></div>
+      <div class="ttt-board-wrap" id="ttt-board"></div>
     `;
 
     const statusEl = rootEl.querySelector('#ttt-status');
     const boardEl  = rootEl.querySelector('#ttt-board');
 
-    // ── Mount shell components (optional DI) ──────────────
-    const cleanupPlayers = mountPlayers(
-      rootEl.querySelector('#ttt-players'), sdk, [sdk.me]);
-    const cleanupChat    = mountChat(
-      rootEl.querySelector('#ttt-chat'), sdk);
-    const cleanupHost    = mountHostControls(
-      rootEl.querySelector('#ttt-host'), sdk, 'lobby');
-
-    // ── Game event handlers ───────────────────────────────
     function setStatus(msg) { statusEl.textContent = msg; }
 
     function onStarted({ firstTurn, state }) {
@@ -106,11 +84,6 @@ export default {
       renderBoard(s, boardEl, sdk);
     }
 
-    function onRoomReset() {
-      setStatus('Back in the room — waiting for players');
-      boardEl.innerHTML = '';
-    }
-
     function onDisconnected({ player }) {
       setStatus(`${player} disconnected — waiting 60s…`);
     }
@@ -123,23 +96,16 @@ export default {
     sdk.on('moved',             onMoved);
     sdk.on('finished',          onFinished);
     sdk.on('rematched',         onRematched);
-    sdk.on('roomReset',        onRoomReset);
     sdk.on('playerDisconnected', onDisconnected);
     sdk.on('playerReconnected',  onReconnected);
 
-    // host is X, the other player is O (marks are seat-based)
-    setStatus(`You are ${sdk.me.isHost ? 'X (host)' : 'O'} — waiting…`);
+    setStatus('Loading…');
 
-    // ── Unmount cleanup ───────────────────────────────────
     return () => {
-      cleanupPlayers?.();
-      cleanupChat?.();
-      cleanupHost?.();
       sdk.off('started',            onStarted);
       sdk.off('moved',              onMoved);
       sdk.off('finished',           onFinished);
       sdk.off('rematched',          onRematched);
-      sdk.off('roomReset',         onRoomReset);
       sdk.off('playerDisconnected', onDisconnected);
       sdk.off('playerReconnected',  onReconnected);
     };

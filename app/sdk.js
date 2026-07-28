@@ -1,12 +1,17 @@
 /**
  * sdk.js — Platform SDK factory
  *
- * Shell calls makeSdk({ room, me, wsSend, emitter, toastFn, leaveFn }) once per game session.
- * Game receives sdk via mount(rootEl, sdk) and uses it freely.
+ * Shell calls makeSdk({ room, me, players, wsSend, emitter, toastFn, leaveFn })
+ * once per room session. Game receives sdk via mount(rootEl, sdk) — called only
+ * once a match is actually starting/active — and uses it freely.
  *
  * sdk = {
- *   room   { id, game }
- *   me     { user, spectator, isHost }
+ *   room     { id, game }
+ *   me       { user, spectator, isHost }
+ *   players  live roster array [{ user, spectator, isHost }] — the platform
+ *            keeps this current for the room's whole lifetime (joins, leaves,
+ *            kicks, role changes, game switches); games read it directly
+ *            instead of tracking their own copy.
  *   send(action, data)      — send any WS action to PlayService
  *   on(event, fn)           — subscribe to any server event
  *   off(event, fn)          — unsubscribe
@@ -15,10 +20,11 @@
  * }
  */
 
-export function makeSdk({ room, me, wsSend, emitter, toastFn, leaveFn }) {
+export function makeSdk({ room, me, players, wsSend, emitter, toastFn, leaveFn }) {
   return {
     room,
     me,
+    players,
     send(action, data) { wsSend(action, data); },
     on(event, fn)      { emitter.on(event, fn); },
     off(event, fn)     { emitter.off(event, fn); },
@@ -42,9 +48,6 @@ export function makeEmitter() {
     },
     emit(event, data) {
       handlers[event]?.forEach(fn => fn(data));
-    },
-    clear() {
-      Object.keys(handlers).forEach(k => delete handlers[k]);
     },
   };
 }

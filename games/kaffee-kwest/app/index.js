@@ -1,19 +1,17 @@
 /**
- * Kaffee-Kwest UI — mount(rootEl, sdk)
+ * Kaffee-Kwest UI.
  *
- * Three screens inside the game area:
- *   lobby  — scenario pick (host), archetype + own chronicle (everyone)
- *   story  — narrative log, progress, one mechanic panel (vote / roll / moment)
- *   finale — reached ending, chronicle suggestions with player veto
- *
- * The host UI drives the prepare flow (Kaiten pattern):
- *   KaffeeKwestService.prepare() -> configure(settings) -> start
- * Note: the platform's generic host "Start game" button is NOT used — starting
- * without prepare would fail, so this game renders its own start control.
+ * renderSettings(el, sdk) — shown to EVERYONE in the platform's waiting room
+ *   before the match starts: archetype + own chronicle (every player), plus
+ *   a host-only scenario picker (Kaiten pattern: prepare() -> configure() ->
+ *   start(); the platform's generic Start button is intentionally unused —
+ *   starting without prepare() would fail). Reads sdk.players (the
+ *   platform's live roster) at click time — never tracks its own copy.
+ * mount(rootEl, sdk) — called only once the match is actually starting/
+ *   active: story log / mechanic panel / finale. Players + chat live in the
+ *   platform's persistent room chrome.
  */
-import { mountChat }    from '/shell/chat.js';
-import { mountPlayers } from '/shell/players.js';
-import { initials }     from '/shell/util.js';
+import { initials } from '/shell/util.js';
 
 const CSS = `
 .kk-card   { background:rgba(127,127,127,.08); border:1px solid rgba(127,127,127,.25);
@@ -65,109 +63,101 @@ async function odata(method, path, body) {
 const esc = s => String(s ?? '').replace(/[&<>"]/g,
   c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+async function refreshChronicle(el) {
+  const ul = el.querySelector('#kk-chron');
+  if (!ul) return;
+  try {
+    const { value } = await odata('GET', 'MyChronicle');
+    ul.innerHTML = value.length
+      ? value.map(e => `<li>${esc(e.text)}</li>`).join('')
+      : '<li class="kk-small">Noch leer — ein unbeschriebenes Blatt.</li>';
+  } catch { ul.innerHTML = '<li class="kk-small">Chronik nicht ladbar.</li>'; }
+}
+
 export default {
+  // ---- pre-start settings (archetype/chronicle for everyone; scenario
+  // picker + start for the host only) --------------------------------------
+  renderSettings(el, sdk) {
+    el.innerHTML = `
+      <style>${CSS}</style>
+      <div class="kk-card">
+        <div class="kk-title">☕ Kaffee-Kwest</div>
+        <div class="kk-small">Ein 10–20-Minuten-Abenteuer. Eure Charaktere wachsen über
+        Runden hinweg — nicht über Stats, sondern über ihre Chronik.</div>
+      </div>
+      <div class="kk-card">
+        <div class="kk-title">Dein Charakter</div>
+        <div class="kk-row"><input type="text" id="kk-arch" maxlength="255"
+          placeholder="Archetyp, z. B. 'neugierig, redet sich gern raus'">
+          <button id="kk-arch-save">Speichern</button></div>
+        <div class="kk-title" style="margin-top:.6rem">Chronik</div>
+        <ul class="kk-chron" id="kk-chron"><li class="kk-small">…</li></ul>
+      </div>
+      <div class="kk-card" id="kk-host-panel"></div>`;
+
+    odata('GET', 'myProfile()').then(d => { el.querySelector('#kk-arch').value = d?.value ?? ''; }).catch(() => {});
+    refreshChronicle(el);
+    el.querySelector('#kk-arch-save').onclick = async () => {
+      try {
+        await odata('POST', 'saveProfile', { archetype: el.querySelector('#kk-arch').value });
+        sdk.toast('Archetyp gespeichert');
+      } catch { sdk.toast('Speichern fehlgeschlagen'); }
+    };
+
+    const panel = el.querySelector('#kk-host-panel');
+    if (!sdk.me.isHost) {
+      panel.innerHTML = `<div class="kk-wait">Warte, bis der Host das Abenteuer startet…</div>`;
+      return () => {};
+    }
+
+    panel.innerHTML = `<div class="kk-title">Abenteuer wählen</div>
+      <div class="kk-row"><select id="kk-scenario"></select></div>
+      <div class="kk-small" id="kk-premise"></div>
+      <div class="kk-row"><button id="kk-start">Abenteuer vorbereiten &amp; starten</button></div>
+      <div class="kk-small" id="kk-start-hint"></div>`;
+
+    odata('GET', 'Scenarios').then(({ value: scenarios }) => {
+      const sel = panel.querySelector('#kk-scenario');
+      sel.innerHTML = scenarios.map(s => `<option value="${esc(s.ID)}">${esc(s.title)}</option>`).join('');
+      const showPremise = () => {
+        const s = scenarios.find(x => x.ID === sel.value);
+        panel.querySelector('#kk-premise').textContent = s ? `${s.premise} (${s.tone})` : '';
+      };
+      sel.onchange = showPremise; showPremise();
+    }).catch(() => { panel.querySelector('#kk-premise').textContent = 'Szenarien konnten nicht geladen werden.'; });
+
+    panel.querySelector('#kk-start').onclick = async () => {
+      const party = sdk.players.filter(p => !p.spectator).map(p => ({ user: p.user, isHost: p.isHost }));
+      if (party.length < 2) { sdk.toast('Mindestens 2 Spieler nötig'); return; }
+      const btn = panel.querySelector('#kk-start');
+      btn.disabled = true;
+      panel.querySelector('#kk-start-hint').textContent = 'Die Geschichte wird gewoben…';
+      try {
+        const { value: settings } = await odata('POST', 'prepare', {
+          scenario: panel.querySelector('#kk-scenario').value,
+          party: JSON.stringify(party),
+        });
+        sdk.send('configure', { room: sdk.room.id, settings });
+        sdk.send('start',     { room: sdk.room.id });
+      } catch (e) {
+        btn.disabled = false;
+        panel.querySelector('#kk-start-hint').textContent = '';
+        sdk.toast('Vorbereitung fehlgeschlagen'); console.error(e);
+      }
+    };
+
+    return () => {};
+  },
+
+  // ---- gameplay (mounted only once the match is starting/active) ----------
   mount(rootEl, sdk) {
     let pub  = null;    // last public state
     let priv = null;    // own private slice (role + hook)
     let myVote = null;  // my picked option on the current node
     let lastNodeId = null;
 
-    // party as the host needs it for prepare(); everyone tracks it anyway
-    const party = [{ user: sdk.me.user, isHost: sdk.me.isHost }];
-
-    rootEl.innerHTML = `
-      <style>${CSS}</style>
-      <div class="gm-layout">
-        <div class="gm-main" id="kk-main"></div>
-        <aside class="gm-aside">
-          <h3>Spieler</h3><div id="kk-players"></div>
-          <h3 style="margin-top:1rem">Chat</h3><div id="kk-chat" style="height:240px"></div>
-        </aside>
-      </div>`;
+    rootEl.innerHTML = `<style>${CSS}</style><div id="kk-main"></div>`;
     const main = rootEl.querySelector('#kk-main');
-
-    const cleanupPlayers = mountPlayers(rootEl.querySelector('#kk-players'), sdk, [sdk.me]);
-    const cleanupChat    = mountChat(rootEl.querySelector('#kk-chat'), sdk);
-
-    // ── lobby ─────────────────────────────────────────────────
-    async function renderLobby() {
-      pub = null; priv = null; myVote = null; lastNodeId = null;
-      main.innerHTML = `
-        <div class="kk-card">
-          <div class="kk-title">☕ Kaffee-Kwest</div>
-          <div class="kk-small">Ein 10–20-Minuten-Abenteuer. Eure Charaktere wachsen über
-          Runden hinweg — nicht über Stats, sondern über ihre Chronik.</div>
-        </div>
-        <div class="kk-card">
-          <div class="kk-title">Dein Charakter</div>
-          <div class="kk-row"><input type="text" id="kk-arch" maxlength="255"
-            placeholder="Archetyp, z. B. 'neugierig, redet sich gern raus'">
-            <button id="kk-arch-save">Speichern</button></div>
-          <div class="kk-title" style="margin-top:.6rem">Chronik</div>
-          <ul class="kk-chron" id="kk-chron"><li class="kk-small">…</li></ul>
-        </div>
-        <div class="kk-card" id="kk-host-panel"></div>`;
-
-      odata('GET', 'myProfile()').then(d => { main.querySelector('#kk-arch').value = d?.value ?? ''; }).catch(() => {});
-      refreshChronicle();
-      main.querySelector('#kk-arch-save').onclick = async () => {
-        try {
-          await odata('POST', 'saveProfile', { archetype: main.querySelector('#kk-arch').value });
-          sdk.toast('Archetyp gespeichert');
-        } catch { sdk.toast('Speichern fehlgeschlagen'); }
-      };
-
-      const panel = main.querySelector('#kk-host-panel');
-      if (!sdk.me.isHost) {
-        panel.innerHTML = `<div class="kk-wait">Warte, bis der Host das Abenteuer startet…</div>`;
-        return;
-      }
-      panel.innerHTML = `<div class="kk-title">Abenteuer wählen</div>
-        <div class="kk-row"><select id="kk-scenario"></select></div>
-        <div class="kk-small" id="kk-premise"></div>
-        <div class="kk-row"><button id="kk-start">Abenteuer vorbereiten &amp; starten</button></div>
-        <div class="kk-small" id="kk-start-hint"></div>`;
-      try {
-        const { value: scenarios } = await odata('GET', 'Scenarios');
-        const sel = panel.querySelector('#kk-scenario');
-        sel.innerHTML = scenarios.map(s => `<option value="${esc(s.ID)}">${esc(s.title)}</option>`).join('');
-        const showPremise = () => {
-          const s = scenarios.find(x => x.ID === sel.value);
-          panel.querySelector('#kk-premise').textContent = s ? `${s.premise} (${s.tone})` : '';
-        };
-        sel.onchange = showPremise; showPremise();
-      } catch { panel.querySelector('#kk-premise').textContent = 'Szenarien konnten nicht geladen werden.'; }
-
-      panel.querySelector('#kk-start').onclick = async () => {
-        if (party.length < 2) { sdk.toast('Mindestens 2 Spieler nötig'); return; }
-        const btn = panel.querySelector('#kk-start');
-        btn.disabled = true;
-        panel.querySelector('#kk-start-hint').textContent = 'Die Geschichte wird gewoben…';
-        try {
-          const { value: settings } = await odata('POST', 'prepare', {
-            scenario: panel.querySelector('#kk-scenario').value,
-            party: JSON.stringify(party),
-          });
-          sdk.send('configure', { room: sdk.room.id, settings });
-          sdk.send('start',     { room: sdk.room.id });
-        } catch (e) {
-          btn.disabled = false;
-          panel.querySelector('#kk-start-hint').textContent = '';
-          sdk.toast('Vorbereitung fehlgeschlagen'); console.error(e);
-        }
-      };
-    }
-
-    async function refreshChronicle() {
-      const ul = main.querySelector('#kk-chron');
-      if (!ul) return;
-      try {
-        const { value } = await odata('GET', 'MyChronicle');
-        ul.innerHTML = value.length
-          ? value.map(e => `<li>${esc(e.text)}</li>`).join('')
-          : '<li class="kk-small">Noch leer — ein unbeschriebenes Blatt.</li>';
-      } catch { ul.innerHTML = '<li class="kk-small">Chronik nicht ladbar.</li>'; }
-    }
 
     // ── story ─────────────────────────────────────────────────
     function renderStory() {
@@ -264,20 +254,14 @@ export default {
     }
 
     // ── finale ────────────────────────────────────────────────
+    // Rematch / back-to-room are the platform's generic match controls now
+    // (shown above the game area whenever status is 'finished') — the finale
+    // only shows the chronicle-suggestion flow.
     async function renderFinale(el) {
       el.innerHTML = `
         <div class="kk-title">Finale — ${esc(pub.ending?.title ?? '')}</div>
         <div class="kk-small">Chronik-Vorschläge werden gesammelt…</div>
-        <div class="kk-suggest" id="kk-suggest"></div>
-        <div id="kk-hostend" class="kk-row"></div>`;
-
-      if (sdk.me.isHost) {
-        el.querySelector('#kk-hostend').innerHTML =
-          `<button id="kk-rematch">Nochmal (neuer Seed)</button>
-           <button id="kk-back">Zurück zum Raum</button>`;
-        el.querySelector('#kk-rematch').onclick = () => sdk.send('rematch',     { room: sdk.room.id });
-        el.querySelector('#kk-back').onclick    = () => sdk.send('backToRoom', { room: sdk.room.id });
-      }
+        <div class="kk-suggest" id="kk-suggest"></div>`;
 
       const box = el.querySelector('#kk-suggest');
       if (!pub.symbols?.includes(sdk.me.user)) { el.querySelector('.kk-small').textContent = ''; return; }
@@ -312,43 +296,25 @@ export default {
     const onFinished  = ({ state }) => onState(state);
     const onRematched = ({ state }) => { sdk.toast('Neue Runde!'); onState(state); };
     const onPrivate   = ({ data })  => { priv = typeof data === 'string' ? JSON.parse(data) : data; if (pub) renderStory(); };
-    const onLobby     = () => renderLobby();
     const onError     = ({ message }) => sdk.toast(message);
-    const onJoined    = ({ player, spectator, host }) => {
-      if (!spectator && !party.find(p => p.user === player)) party.push({ user: player, isHost: !!host });
-      if (!pub) renderLobby();   // refresh player count hint
-    };
-    const onGone      = ({ player }) => {
-      const i = party.findIndex(p => p.user === player);
-      if (i >= 0) party.splice(i, 1);
-    };
 
     sdk.on('started',      onStarted);
     sdk.on('moved',        onMoved);
     sdk.on('finished',     onFinished);
     sdk.on('rematched',    onRematched);
     sdk.on('privateState', onPrivate);
-    sdk.on('roomReset',   onLobby);
     sdk.on('gameError',    onError);
-    sdk.on('joined',       onJoined);
-    sdk.on('playerLeft',   onGone);
-    sdk.on('playerKicked', onGone);
 
-    renderLobby();
+    main.innerHTML = '<div class="kk-wait">…</div>';
 
     return () => {
-      cleanupPlayers?.();
-      cleanupChat?.();
       sdk.off('started',      onStarted);
       sdk.off('moved',        onMoved);
       sdk.off('finished',     onFinished);
       sdk.off('rematched',    onRematched);
       sdk.off('privateState', onPrivate);
-      sdk.off('roomReset',   onLobby);
       sdk.off('gameError',    onError);
-      sdk.off('joined',       onJoined);
-      sdk.off('playerLeft',   onGone);
-      sdk.off('playerKicked', onGone);
     };
   }
 };
+

@@ -1,16 +1,16 @@
 /**
- * Kaiten — Game UI. mount(rootEl, sdk)
+ * Kaiten — Game UI.
  *
- * The game owns its whole UI area. It reuses shell components (chat, players)
- * via dynamic import, and drives the platform via sdk.send / sdk.on.
- *
- * Start flow: because the platform's init(settings) needs the player roster,
- * the host UI sends `configure` (menu preset + roster) and then `start`.
- * The generic host "Start" button is intentionally not used for lobby start.
+ * renderSettings(el, sdk) — shown to everyone in the platform's waiting room
+ *   before the match starts; only the host gets a real picker (menu preset,
+ *   then configure()+start()) — Kaiten has nothing else pre-start for anyone
+ *   else. Reads sdk.players (the platform's live roster) at click time —
+ *   never tracks its own copy.
+ * mount(rootEl, sdk) — called only once the match is actually starting/
+ *   active; renders hand/tableau/scores/results only. Players + chat live in
+ *   the platform's persistent room chrome.
  */
 
-import { mountChat }    from '/shell/chat.js';
-import { mountPlayers } from '/shell/players.js';
 import { initials } from '/shell/util.js';
 
 const MENU_PRESETS = [
@@ -174,9 +174,40 @@ function cardStyle(c) {
 }
 
 export default {
+  // ---- pre-start settings (shown to everyone in the platform waiting room;
+  // only the host gets an actual picker — Kaiten has nothing else to offer
+  // non-hosts pre-start) --------------------------------------------------
+  renderSettings(el, sdk) {
+    if (!sdk.me.isHost) {
+      el.innerHTML = `<p class="sh-small">Waiting for the host to start…</p>`;
+      return () => {};
+    }
+
+    el.innerHTML = `
+      <style>${STYLE}</style>
+      <div class="sg-menu">
+        <label>Menu:
+          <select id="sg-preset">
+            ${MENU_PRESETS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}
+          </select>
+        </label>
+        <button id="sg-start">Start game</button>
+      </div>`;
+
+    el.querySelector('#sg-start').addEventListener('click', () => {
+      const preset = el.querySelector('#sg-preset').value;
+      const players = sdk.players.filter(p => !p.spectator).map(p => p.user);
+      if (players.length < 2) { sdk.toast('Need at least 2 players'); return; }
+      sdk.send('configure', { room: sdk.room.id, settings: JSON.stringify({ preset, players }) });
+      sdk.send('start', { room: sdk.room.id });
+    });
+
+    return () => {};
+  },
+
+  // ---- gameplay (mounted only once the match is starting/active) ----------
   mount(rootEl, sdk) {
     const me = sdk.me;
-    const roster = new Set(me.spectator ? [] : [me.user]);   // user-id tokens
     let pub = null;           // public state (played, counts, scores) — seen by everyone
     let myHand = [];           // this player's own hand — delivered privately
     let menuOffer = null;      // 4 cards revealed by a Menu — delivered privately
@@ -185,54 +216,16 @@ export default {
 
     rootEl.innerHTML = `
       <style>${STYLE}</style>
-      <div class="gm-layout">
-        <div class="gm-main">
-          <div class="sg-status" id="sg-status"></div>
-          <div id="sg-config"></div>
-          <div id="sg-hand"></div>
-          <div class="sg-tableau" id="sg-tableau"></div>
-          <div id="sg-results"></div>
-        </div>
-        <aside class="gm-aside">
-          <h3>Players</h3>
-          <div id="sg-players"></div>
-          <h3 style="margin-top:.8rem">Scores</h3>
-          <div id="sg-scores"></div>
-          <h3 style="margin-top:.8rem">Chat</h3>
-          <div id="sg-chat" style="height:200px"></div>
-        </aside>
-      </div>
+      <div class="sg-status" id="sg-status"></div>
+      <div id="sg-hand"></div>
+      <div class="sg-tableau" id="sg-tableau"></div>
+      <div id="sg-scores"></div>
+      <div id="sg-results"></div>
     `;
 
     const $ = id => rootEl.querySelector(id);
     const statusEl = $('#sg-status');
     const setStatus = m => { statusEl.textContent = m; };
-
-    const cleanupPlayers = mountPlayers($('#sg-players'), sdk, [me]);
-    const cleanupChat    = mountChat($('#sg-chat'), sdk);
-
-    // ---- lobby / config (host only) ------------------------------------
-    function renderConfig() {
-      const cfg = $('#sg-config');
-      if (pub) { cfg.innerHTML = ''; return; }
-      if (!me.isHost) { cfg.innerHTML = '<p>Waiting for the host to start…</p>'; return; }
-      cfg.innerHTML = `
-        <div class="sg-menu">
-          <label>Menu:
-            <select id="sg-preset">
-              ${MENU_PRESETS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}
-            </select>
-          </label>
-          <button id="sg-start">Start game</button>
-        </div>`;
-      $('#sg-start').addEventListener('click', () => {
-        const preset = $('#sg-preset').value;
-        const players = [...roster];
-        if (players.length < 2) { sdk.toast('Need at least 2 players'); return; }
-        sdk.send('configure', { room: sdk.room.id, settings: JSON.stringify({ preset, players }) });
-        sdk.send('start', { room: sdk.room.id });
-      });
-    }
 
     // ---- gameplay rendering --------------------------------------------
     const menuTypes = () => {
@@ -416,14 +409,9 @@ export default {
         </div>`;
     }
 
-    function redraw() { renderConfig(); renderHand(); renderTableau(); renderScores(); renderResults(); }
+    function redraw() { renderHand(); renderTableau(); renderScores(); renderResults(); }
 
     // ---- events ---------------------------------------------------------
-    function onJoined(e) {
-      if (!e.spectator) roster.add(e.player);
-      renderConfig();
-    }
-    function onPlayerLeft(e) { roster.delete(e.player); renderConfig(); }
     function onStarted(e)  { pub = JSON.parse(e.state); chopFirstPick = null; chopsticksActive = false; setStatus('Game started!'); redraw(); }
     function onMoved(e)    { pub = JSON.parse(e.data); chopFirstPick = null; chopsticksActive = false; redraw(); }
     function onPrivate(e)  { const p = JSON.parse(e.data); pub = p; myHand = p.myHand ?? []; menuOffer = p.menuOffer ?? null; chopFirstPick = null; chopsticksActive = false; redraw(); }
@@ -433,34 +421,24 @@ export default {
       setStatus(`Game over — ${msg}`);
       redraw();
     }
-    function onRoomReset() { pub = null; myHand = []; menuOffer = null; chopFirstPick = null; chopsticksActive = false; setStatus('Back in the room — waiting for players'); redraw(); }
     function onRematched(e) { pub = JSON.parse(e.state); chopFirstPick = null; chopsticksActive = false; setStatus('Rematch!'); redraw(); }
     function onError(e)    { sdk.toast(e.message); }
 
-    sdk.on('joined',       onJoined);
-    sdk.on('playerLeft',   onPlayerLeft);
     sdk.on('started',      onStarted);
     sdk.on('moved',        onMoved);
     sdk.on('privateState', onPrivate);
     sdk.on('finished',     onFinished);
-    sdk.on('roomReset',   onRoomReset);
     sdk.on('rematched',    onRematched);
     sdk.on('gameError',    onError);
 
-    setStatus(`You are ${initials(me.user)}${me.isHost ? ' (host)' : ''}`);
-    redraw();
+    setStatus('Loading…');
 
     // ---- cleanup --------------------------------------------------------
     return () => {
-      cleanupPlayers?.();
-      cleanupChat?.();
-      sdk.off('joined',       onJoined);
-      sdk.off('playerLeft',   onPlayerLeft);
       sdk.off('started',      onStarted);
       sdk.off('moved',        onMoved);
       sdk.off('privateState', onPrivate);
       sdk.off('finished',     onFinished);
-      sdk.off('roomReset',   onRoomReset);
       sdk.off('rematched',    onRematched);
       sdk.off('gameError',    onError);
     };

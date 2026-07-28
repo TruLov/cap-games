@@ -1,9 +1,9 @@
 /**
  * shell/chat.js — Platform Chat component
  *
- * Usage in game UI:
- *   import { mountChat } from '/shell/chat.js';
- *   mountChat(containerEl, sdk);   // sdk provides send + on/off
+ * Mounted once by platform.js for the room's whole session (never by a game
+ * directly) — lives in the persistent room chrome, so it's never torn down
+ * across a switchGame/start/finish/rematch cycle.
  */
 
 export function mountChat(el, sdk) {

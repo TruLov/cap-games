@@ -140,26 +140,42 @@ never in `applyMove`, which stays pure and synchronous.
 
 ### UI Architecture: Shell + SDK + Game
 
-The shell owns login/lobby/header. Once a room is joined, the game owns its entire UI area.
+The shell owns login/lobby/header, AND the entire room chrome — players list,
+chat, and host controls (switch-game, start, rematch, back-to-room) — for the
+room's whole lifetime. A game module is only ever mounted once a match is
+actually starting/active; it never renders any pre-start "lobby" UI and never
+tracks its own roster.
 
 ```
-Shell (thin)                         Game UI
-─────────────────────────────────    ────────────────────────────────────
-Header/Nav (always)                  mount(rootEl, sdk)
-Login + Lobby                          ├─ build own layout freely
-WS transport + reconnect               ├─ sdk.on('moved', redraw)
-Room lifecycle (join/leave)            ├─ sdk.send('move', payload)
-                                       └─ optional: import shell components
-                                            import { mountChat }    from '/shell/chat.js'
-                                            import { mountPlayers } from '/shell/players.js'
-                                            import { mountHostControls } from '/shell/host.js'
+Shell (owns the room)                        Game UI
+──────────────────────────────────────       ──────────────────────────────────
+Header/Nav, Login + Lobby                    renderSettings(el, sdk)  [optional]
+WS transport + auto-reconnect                  ├─ host-only pre-start config
+Room lifecycle (join/leave)                    │  (e.g. a menu preset) — shown
+Persistent players + chat (whole session)      │  in the platform's waiting room
+Waiting room (status 'lobby'):                 └─ takes over the Start trigger
+  switch-game, Start (generic or the              itself if it needs to e.g.
+  game's own via renderSettings)                  configure() before start()
+Match controls (Rematch/Back to room,
+  shown whenever status is 'finished')        mount(rootEl, sdk)
+sdk.players — live roster, canonical,          ├─ called ONLY once the match is
+  kept correct for the whole room session          starting/active (or you're
+                                                    reconnecting into one)
+                                                ├─ renders gameplay ONLY — board,
+                                                │  hand, log, whatever your game needs
+                                                ├─ sdk.on('moved', redraw)
+                                                ├─ sdk.send('move', payload)
+                                                └─ torn down on backToRoom/switchGame
 ```
 
-**SDK object** passed to `mount(rootEl, sdk)`:
+**SDK object** passed to `renderSettings(el, sdk)` and `mount(rootEl, sdk)`:
 ```js
 sdk = {
   room,                    // { id, game }
   me,                      // { user, spectator, isHost }
+  players,                 // live roster [{ user, spectator, isHost }] — the
+                           // platform keeps this current for the room's whole
+                           // lifetime; read it directly, never track your own copy
   send(action, data),      // any WS action → PlayService (not just 'move')
   on(event, fn),           // subscribe to any server event
   off(event, fn),          // unsubscribe (call in unmount cleanup)
@@ -168,7 +184,8 @@ sdk = {
 }
 ```
 
-Shell components (`/shell/*.js`) are **optional** — game imports and places them where it wants, or skips them entirely. Each returns a cleanup function.
+Shell components (`/shell/*.js`) are platform-internal — mounted once by
+`platform.js` for the room's whole session. Games never import them directly.
 
 ### Game Interface Contract
 
@@ -201,6 +218,24 @@ module.exports = {
 };
 ```
 
+The **frontend** module (`games/<name>/app/index.js`) has a separate, smaller contract:
+```js
+export default {
+  // Optional — pre-start configuration, shown in the platform's waiting room
+  // (status 'lobby') for EVERY player, not just the host — the game decides
+  // internally what a non-host sees there (or nothing). If your settings flow
+  // needs its own Start trigger (e.g. configure() before start(), sometimes
+  // async), render it here and call sdk.send('start', ...) yourself — the
+  // platform's generic Start button is suppressed whenever this hook exists.
+  renderSettings(el, sdk) { /* ... */ return () => { /* cleanup */ }; },
+
+  // Required — called ONLY once a match is starting/active (or you're
+  // reconnecting into one already playing/paused/finished). Never called
+  // while the room is just waiting for players. Render gameplay only.
+  mount(rootEl, sdk) { /* ... */ return () => { /* cleanup */ }; },
+};
+```
+
 ### Hidden Information (state projection)
 
 By default the platform broadcasts the full `state` to the whole room — fine for
@@ -220,7 +255,8 @@ This is a generic platform capability; game logic stays in `games/<name>/`.
 
 ### Adding a Game (4 files)
 
-Use `games/tictactoe/` as reference — copy and adapt.
+Use `games/tictactoe/` as reference — copy and adapt. `games/kaiten/` shows a
+game that also uses `renderSettings` for pre-start configuration.
 
 ```
 games/mygame/
@@ -228,23 +264,10 @@ games/mygame/
                    // no "cds.games" needed — discovered as a game by its @cap-games/* name
   cds-plugin.js    empty marker file — makes CAP load the package
   index.js         backend — exports the interface above
-  app/index.js     frontend — exports default { mount(rootEl, sdk) }
+  app/index.js     frontend — exports default { mount(rootEl, sdk), renderSettings? }
 ```
 
-**`app/index.js`** is served automatically at `/games/<name>/index.js` by the platform (`srv/server.js`, UI folder defaults to `app`). The platform shell (`app/platform.js`) dynamically imports it and calls `mount()` once when the room starts.
-
-Game UI contract:
-```js
-export default {
-  mount(rootEl, sdk) {
-    // build your full game UI into rootEl — layout, board, anything
-    // sdk.on('started'/'moved'/'finished', handler) — subscribe to events
-    // sdk.send('move', payload) — send moves (payload must match applyMove)
-    // optional: import + use shell components
-    return () => { /* cleanup: sdk.off, remove listeners */ };
-  }
-};
-```
+**`app/index.js`** is served automatically at `/games/<name>/index.js` by the platform (`srv/server.js`, UI folder defaults to `app`). The platform shell (`app/platform.js`) dynamically imports it and calls `mount()` only once the match is actually starting/active.
 
 Activate: add `"@cap-games/mygame": "*"` to root `package.json` dependencies, then `npm install`.
 
@@ -275,4 +298,3 @@ Activate: add `"@cap-games/mygame": "*"` to root `package.json` dependencies, th
 ## TODO
 
 - Team-play support (multiple players per side)
-- UI: initial player list sync when joining an existing room
