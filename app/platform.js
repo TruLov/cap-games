@@ -365,6 +365,7 @@ async function joinRoom(roomId, code, game) {
   $('sh-room-id').textContent = shell.room.code;
   $('sh-room-id').hidden = false;
   $('sh-btn-copy').hidden = false;
+  $('sh-btn-invite').hidden = false;
 
   // load game UI module
   const mod = await import(`/games/${game}/index.js`);
@@ -449,6 +450,7 @@ function leaveRoom() {
   shell.players.length = 0;
   $('sh-room-id').hidden = true;
   $('sh-btn-copy').hidden = true;
+  $('sh-btn-invite').hidden = true;
   showView('lobby');
   loadLobby();
 }
@@ -497,18 +499,48 @@ async function loadOpenRooms() {
 }
 
 // ── Boot ──────────────────────────────────────────────────────
+
+// Shareable invite links: `#/join/<CODE>` — captured into sessionStorage
+// immediately (before any login redirect can strip the URL fragment) and
+// consumed the moment we reach the lobby, authenticated, whichever path got
+// us there (already-logged-in, dev picker, or a full IAS round trip).
+(function capturePendingJoin() {
+  const m = location.hash.match(/^#\/join\/([A-Za-z0-9]{4,})$/);
+  if (m) {
+    sessionStorage.setItem('pendingJoin', m[1].toUpperCase());
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+})();
+
+function consumePendingJoin() {
+  const code = sessionStorage.getItem('pendingJoin');
+  if (!code) return;
+  sessionStorage.removeItem('pendingJoin');
+  joinByCode(code);
+}
+
 function enterLobby(id) {
   shell.user ??= { id, authHeader: null };
   closeAccountMenu();
   renderAccount();               // header now shows the avatar
   showView('lobby');
   loadLobby();
+  consumePendingJoin();
 }
 
 $('sh-btn-leave').onclick  = leaveRoom;
 $('sh-btn-copy').onclick   = () => {
   navigator.clipboard.writeText(shell.room?.code ?? '');
   toast('Room code copied');
+};
+$('sh-btn-invite').onclick = () => {
+  const link = `${location.origin}${location.pathname}#/join/${shell.room?.code ?? ''}`;
+  if (navigator.share) {
+    navigator.share({ title: 'Join my Gambito room', url: link }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(link);
+    toast('Invite link copied');
+  }
 };
 $('sh-join-input').onkeydown = e => { if (e.key === 'Enter') $('sh-btn-join').click(); };
 $('sh-btn-join').onclick = () => {
