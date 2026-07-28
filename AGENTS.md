@@ -298,3 +298,6 @@ Activate: add `"@cap-games/mygame": "*"` to root `package.json` dependencies, th
 ## TODO
 
 - Team-play support (multiple players per side)
+- Refactor games' inline CSS (tictactoe/kaiten/kaffee-kwest) onto the shared
+  `var(--...)` design tokens so the light/dark theme toggle reaches game
+  boards too — currently shell-only, games keep their own hardcoded palettes
