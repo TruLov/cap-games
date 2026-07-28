@@ -12,12 +12,14 @@
   <header class="sh-header">
     <span class="sh-logo">🎮 cap-games</span>
     <nav class="sh-nav">
-      <span id="sh-who" class="sh-user"></span>
       <code id="sh-room-id" hidden></code>
       <button id="sh-btn-copy" class="sh-small" hidden title="Copy room code">Copy</button>
       <span id="sh-toast" class="sh-toast" hidden></span>
       <button id="sh-btn-leave" class="sh-small danger" hidden>Leave</button>
-      <button id="sh-btn-logout" class="sh-small" hidden>Logout</button>
+      <div id="sh-account" class="sh-account" hidden>
+        <button id="sh-account-btn" class="sh-account-btn"></button>
+        <div id="sh-account-menu" class="sh-account-menu" hidden></div>
+      </div>
     </nav>
   </header>
 
@@ -30,14 +32,7 @@
       <li><strong>Kaiten</strong> — a sushi-drafting card game, 2–8 players.</li>
       <li><strong>Kaffee-Kwest</strong> — an AI-hosted co-op adventure, 2–6 players.</li>
     </ul>
-    <button id="sh-btn-login" class="sh-user-btn">Log in / Register</button>
-  </main>
-
-  <!-- ── Dev login (local mocked-auth only — player picker) ── -->
-  <main id="view-login" class="sh-view sh-center" hidden>
-    <h1>cap-games</h1>
-    <p>Choose your player <span class="sh-small">(local dev)</span></p>
-    <div id="sh-user-list" class="sh-user-list"></div>
+    <p class="sh-small">Use <strong>Log in</strong> (top right) to start playing.</p>
   </main>
 
   <!-- ── Lobby ─────────────────────────────────────────────── -->

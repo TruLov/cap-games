@@ -10,6 +10,7 @@ import { makeSdk, makeEmitter } from './sdk.js';
 // ── State ────────────────────────────────────────────────────
 const shell = {
   user:    null,   // { id, authHeader } — authHeader only set in local dev (mocked auth)
+  mode:    null,   // 'mocked' | 'ias' — drives what the header "Log in" does
   room:    null,   // { id, game }
   me:      null,   // { user, spectator, isHost }
   game:    null,   // loaded game module { mount }
@@ -37,53 +38,50 @@ function devLogin(userId) {
 }
 
 function logout() {
+  closeAccountMenu();
   if (shell.user?.authHeader) {                 // local dev
     document.cookie = 'X-Authorization=; path=/; max-age=0';
     sessionStorage.removeItem('user');
     if (ws) { ws.close(); ws = null; }
     shell.user = null;
-    setAuthedChrome(false);
-    renderDevPicker();
-    showView('login');
+    shell.mode = 'mocked';
+    renderAccount();
+    showView('landing');
   } else {                                       // IAS: approuter clears the session
     window.location = '/logout';
   }
 }
 
 /**
- * Which auth mode the backend runs under — 'mocked' locally, 'ias' when
- * deployed. This is the CAP-native source of truth (cds.env.requires.auth.kind),
- * exposed via a public endpoint so we can pick the right login UI *before* any
- * user exists — instead of guessing from whoami's HTTP status (which is
- * ambiguous: the approuter answers an anonymous fetch with 401, not a redirect).
+ * Probe identity AND mode in a single whoami() call — its response already
+ * distinguishes every case, so no separate mode endpoint is needed:
+ *   • 401 / opaque redirect → the approuter's IAS gate answered an anonymous
+ *     fetch → deployed, not logged in → public landing (IAS login button).
+ *   • 200 'anonymous'       → local mocked auth, no player picked → dev picker.
+ *   • 200 <id>              → authenticated (IAS session or dev-restored) → lobby.
+ * redirect:'manual' keeps a stray 302 from being silently followed to a
+ * cross-origin login page (it surfaces as an opaque response instead).
+ *   → { id }      authenticated
+ *   → { mocked }  local mocked auth — pick a player
+ *   → { ias }     IAS in front, not logged in — public landing
+ *
+ * NB: this relies on whoami() being reachable anonymously (no @requires). Under
+ * IAS the approuter gates it (→ 401); under mocked auth CAP answers 'anonymous'.
  */
-async function authKind() {
-  try {
-    const res = await fetch('/odata/v4/lobby/authKind()', { headers: { Accept: 'application/json' } });
-    if (!res.ok) throw new Error(res.status);
-    const body = await res.json();
-    return body.value ?? body;
-  } catch {
-    return 'ias';   // safe default: a login button beats a dead dev picker
-  }
-}
-
-/**
- * The authenticated identity, or null if anonymous. Under IAS an anonymous
- * fetch is answered by the approuter with 401 (it can't redirect a fetch);
- * under mocked auth an unpicked user resolves to 'anonymous'. Either → null.
- */
-async function whoami() {
+async function probeAuth() {
   try {
     const headers = { Accept: 'application/json' };
     if (shell.user?.authHeader) headers.Authorization = shell.user.authHeader;   // dev only
     const res = await fetch('/odata/v4/lobby/whoami()', { headers, redirect: 'manual' });
-    if (!res.ok) return null;
-    const body = await res.json();
-    const id = body.value ?? body;
-    return (id && id !== 'anonymous') ? id : null;
+    if (res.type === 'opaqueredirect' || res.status === 0 || res.status === 401) return { ias: true };
+    if (res.ok) {
+      const body = await res.json();
+      const id = body.value ?? body;
+      return (id && id !== 'anonymous') ? { id } : { mocked: true };
+    }
+    return { ias: true };
   } catch {
-    return null;
+    return { ias: true };
   }
 }
 
@@ -94,10 +92,59 @@ function showView(name) {
   if (el) el.hidden = false;
 }
 
-function setAuthedChrome(authed, id = '') {
-  $('sh-who').textContent = authed ? id : '';
-  $('sh-btn-logout').hidden = !authed;
+// ── Account control (header, top-right) ───────────────────────
+// One control, three shapes:
+//   • logged in       → avatar circle (initials); menu = name + Logout
+//   • anonymous mocked → "Log in" button; menu = mock-user picker
+//   • anonymous ias    → "Log in" button; click → IAS login page
+function initials(id) {
+  if (!id) return '?';
+  const parts = id.split('@')[0].split(/[.\-_ ]+/).filter(Boolean);
+  const chars = parts.length >= 2 ? parts[0][0] + parts[1][0] : parts[0].slice(0, 1);
+  return chars.toUpperCase();
 }
+
+function toggleAccountMenu() { const m = $('sh-account-menu'); m.hidden = !m.hidden; }
+function closeAccountMenu()  { $('sh-account-menu').hidden = true; }
+
+function renderAccount() {
+  const btn  = $('sh-account-btn');
+  const menu = $('sh-account-menu');
+  menu.hidden = true;
+  menu.innerHTML = '';
+  $('sh-account').hidden = false;
+
+  if (shell.user) {                              // logged in → avatar + logout menu
+    btn.className = 'sh-account-btn sh-avatar';
+    btn.textContent = initials(shell.user.id);
+    btn.title = shell.user.id;
+    menu.innerHTML =
+      `<div class="sh-account-name">${shell.user.id}</div>` +
+      `<button class="sh-menu-item" data-act="logout">Logout</button>`;
+    menu.querySelector('[data-act="logout"]').onclick = logout;
+    btn.onclick = toggleAccountMenu;
+  } else if (shell.mode === 'mocked') {          // local → pick a mock player
+    btn.className = 'sh-account-btn';
+    btn.textContent = 'Log in';
+    btn.title = '';
+    menu.innerHTML = USERS.map(u =>
+      `<button class="sh-menu-item" data-user="${u}">${u}</button>`).join('');
+    menu.querySelectorAll('[data-user]').forEach(b =>
+      b.onclick = () => { closeAccountMenu(); devLogin(b.dataset.user); enterLobby(b.dataset.user); });
+    btn.onclick = toggleAccountMenu;
+  } else {                                       // IAS → straight to the login page
+    btn.className = 'sh-account-btn';
+    btn.textContent = 'Log in';
+    btn.title = '';
+    btn.onclick = () => { window.location = '/login.html'; };
+  }
+}
+
+// Close the menu when clicking anywhere outside the account control.
+document.addEventListener('click', e => {
+  const acc = $('sh-account');
+  if (acc && !acc.hidden && !acc.contains(e.target)) closeAccountMenu();
+});
 
 // ── OData ─────────────────────────────────────────────────────
 async function odata(method, path, body) {
@@ -241,23 +288,13 @@ async function loadLobby() {
 // ── Boot ──────────────────────────────────────────────────────
 function enterLobby(id) {
   shell.user ??= { id, authHeader: null };
-  setAuthedChrome(true, shell.user.id);
+  closeAccountMenu();
+  renderAccount();               // header now shows the avatar
   showView('lobby');
   loadLobby();
 }
 
-// Local-dev player picker (mocked auth only).
-function renderDevPicker() {
-  const ul = $('sh-user-list');
-  ul.innerHTML = USERS.map(u =>
-    `<button class="sh-user-btn" data-user="${u}">${u}</button>`).join('');
-  ul.querySelectorAll('[data-user]').forEach(b =>
-    b.onclick = () => { devLogin(b.dataset.user); enterLobby(b.dataset.user); });
-}
-
-$('sh-btn-logout').onclick = logout;
 $('sh-btn-leave').onclick  = leaveRoom;
-$('sh-btn-login').onclick  = () => { window.location = '/login.html'; };  // → IAS
 $('sh-btn-copy').onclick   = () => {
   navigator.clipboard.writeText(shell.room?.code ?? '');
   toast('Room code copied');
@@ -273,18 +310,15 @@ async function boot() {
   const saved = sessionStorage.getItem('user');
   if (saved) devLogin(saved);
 
-  // Mode comes from the backend (authoritative); identity from whoami.
-  const [kind, id] = await Promise.all([authKind(), whoami()]);
-
-  if (id) {                            // authenticated (IAS session or dev-restored)
-    shell.user ??= { id, authHeader: null };
-    enterLobby(id);
-  } else if (kind === 'ias') {         // deployed, not logged in — public landing
-    showView('landing');
-  } else {                             // local mocked auth — show the player picker
+  const auth = await probeAuth();
+  if (auth.id) {                       // authenticated (IAS session or dev-restored)
+    shell.user ??= { id: auth.id, authHeader: null };
+    enterLobby(auth.id);
+  } else {                             // anonymous → landing + header "Log in"
     shell.user = null;
-    renderDevPicker();
-    showView('login');
+    shell.mode = auth.mocked ? 'mocked' : 'ias';
+    renderAccount();
+    showView('landing');
   }
 }
 

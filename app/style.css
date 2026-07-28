@@ -32,8 +32,33 @@ body {
 }
 .sh-logo  { font-weight: bold; font-size: 1.1rem; }
 .sh-nav   { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
-.sh-user  { font-weight: 600; color: var(--accent); }
 .sh-toast { background: var(--border); border-radius: 4px; padding: .2rem .6rem; font-size: .85rem; }
+
+/* ── Account control (header, top-right) ─────────────────── */
+.sh-account     { position: relative; }
+.sh-account-btn { font-size: .85rem; padding: .35rem .85rem; }
+.sh-account-btn.sh-avatar {
+  width: 34px; height: 34px; padding: 0; border-radius: 50%;
+  font-weight: 700; font-size: .78rem; letter-spacing: .5px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.sh-account-menu {
+  position: absolute; right: 0; top: calc(100% + .4rem);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: .35rem; min-width: 160px; z-index: 20;
+  display: flex; flex-direction: column; gap: .1rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+}
+.sh-account-menu[hidden] { display: none; }
+.sh-account-name {
+  font-size: .78rem; color: var(--muted); padding: .3rem .6rem .45rem;
+  border-bottom: 1px solid var(--border); margin-bottom: .2rem; word-break: break-all;
+}
+.sh-menu-item {
+  background: transparent; color: var(--text); text-align: left;
+  border-radius: 6px; padding: .45rem .6rem; font-size: .9rem;
+}
+.sh-menu-item:hover { background: var(--border); }
 
 /* ── Views ──────────────────────────────────────────────── */
 .sh-view  { flex: 1; padding: 2rem 1.5rem; max-width: 900px; width: 100%; }
@@ -85,7 +110,6 @@ input:focus { outline: 2px solid var(--accent); }
   background: var(--surface); border-radius: 8px; padding: .6rem 1rem;
 }
 
-.sh-user-list { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; }
 .sh-user-btn  {
   background: var(--surface); border: 1px solid var(--border);
   color: var(--text); border-radius: 8px; padding: .6rem 1.2rem;
