@@ -25,6 +25,7 @@ service LobbyService {
     virtual null as gameName    : String,
     virtual null as playerCount : Integer,
     virtual null as maxPlayers  : Integer,
+    virtual null as isMember    : Boolean,
   } excluding { createdBy, modifiedBy, createdAt, modifiedAt };
 
   // Leaderboard

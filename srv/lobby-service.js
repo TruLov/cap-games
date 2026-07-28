@@ -17,7 +17,7 @@ class LobbyService extends cds.ApplicationService {
 
     // --- Rooms: decorate with gameName/playerCount/maxPlayers so the start
     // page can list open rooms with a headcount (see lobby-service.cds) ---
-    this.after('READ', 'Rooms', async (rooms) => {
+    this.after('READ', 'Rooms', async (rooms, req) => {
       const list = Array.isArray(rooms) ? rooms : rooms ? [rooms] : [];
       if (!list.length) return;
 
@@ -28,11 +28,21 @@ class LobbyService extends cds.ApplicationService {
         .groupBy('room_ID');
       const countByRoom = Object.fromEntries(counts.map(c => [c.room_ID, c.n]));
 
+      // Rooms the caller already has a seat in — the start page shows
+      // "Reconnect" instead of "Join"/"Spectate" for these (matters after a
+      // disconnect: the room may look "full" from the outside, but that seat
+      // is the caller's own).
+      const own = await SELECT.from(Players)
+        .columns('room_ID')
+        .where({ room_ID: { in: ids }, user: req.user.id });
+      const memberOf = new Set(own.map(p => p.room_ID));
+
       for (const r of list) {
         const g = registry.get(r.game);
         r.gameName    = g?.meta.name ?? r.game;
         r.maxPlayers  = g?.meta.maxPlayers ?? null;
         r.playerCount = countByRoom[r.ID] ?? 0;
+        r.isMember    = memberOf.has(r.ID);
       }
     });
 

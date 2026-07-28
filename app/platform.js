@@ -532,6 +532,10 @@ async function loadOpenRooms() {
 
   roomList.innerHTML = rooms.map(r => {
     const full = r.maxPlayers != null && r.playerCount >= r.maxPlayers;
+    // Already have a seat here (e.g. disconnected mid-match)? The room may
+    // look "full" from the outside, but that seat is the caller's own —
+    // always offer "Reconnect", never "Spectate", for a returning member.
+    const label = r.isMember ? 'Reconnect' : full ? 'Spectate' : 'Join';
     return `
     <li>
       <strong>${r.gameName ?? r.game}</strong>
@@ -539,7 +543,7 @@ async function loadOpenRooms() {
       <span class="sh-small">${r.host}</span>
       <span class="sh-small">${r.playerCount}${r.maxPlayers != null ? '/' + r.maxPlayers : ''} players${full ? ' — full' : ''}</span>
       <span class="sh-small">${r.status}</span>
-      <button data-room="${r.ID}" class="sh-small">${full ? 'Spectate' : 'Join'}</button>
+      <button data-room="${r.ID}" class="sh-small">${label}</button>
     </li>`;
   }).join('');
   roomList.querySelectorAll('[data-room]').forEach(b =>

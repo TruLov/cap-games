@@ -37,6 +37,13 @@ class PlayService extends cds.ApplicationService {
         if (room.status === 'paused') {
           await UPDATE(Rooms, roomId).with({ status: 'playing' });
         }
+        // 'joined' is what the reconnecting client itself waits on to (re)build
+        // its room UI (app/platform.js's onFirstJoin) — 'playerReconnected' alone
+        // only reaches OTHER clients already in the room, never this one.
+        await this.emit('joined', {
+          room: roomId, player: user, spectator: player?.spectator ?? true,
+          host: player?.isHost ?? false, status: room.status,
+        });
         await this.emit('playerReconnected', { room: roomId, player: user });
         await this._sysMsg(roomId, `${user} reconnected.`);
         await this._snapshotTo(roomId, room.game, user, player?.spectator ?? true);
@@ -290,9 +297,11 @@ class PlayService extends cds.ApplicationService {
         // Grace period in ANY status — a transient drop (network blip, tab
         // backgrounded) should never silently and permanently remove someone,
         // whether mid-game or just sitting in the room between games. Only
-        // 'playing' additionally flips the room to 'paused' (mid-match pause
-        // semantics); other statuses hold the player provisionally as-is.
-        if (room.status === 'playing') {
+        // an active player disconnecting mid-match flips the room to 'paused'
+        // (mid-match pause semantics) — a spectator dropping never affects
+        // the match in progress; other statuses hold the player provisionally
+        // as-is.
+        if (room.status === 'playing' && !player.spectator) {
           await UPDATE(Rooms, room.ID).with({ status: 'paused' });
         }
         eng.setGraceTimer(room.ID, user, () => {
