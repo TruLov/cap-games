@@ -99,9 +99,12 @@ a { color: var(--accent); }
   flex-shrink: 0;
 }
 .sh-logo  {
-  font-weight: 700; font-size: 1.15rem; letter-spacing: .01em;
+  font-weight: 700; font-size: 1.4rem; letter-spacing: .01em;
   display: inline-flex; align-items: center; gap: .4rem;
+  background: none; border: none; padding: 0; color: inherit;
+  font-family: inherit; cursor: pointer;
 }
+.sh-logo:hover { color: var(--accent); }
 .sh-nav   { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .sh-toast {
   background: var(--surface); border: 1px solid var(--border);
@@ -202,6 +205,8 @@ button.danger    { background: var(--danger); }
 button.danger:hover { background: #f47686; }
 button.sh-ghost  { background: transparent; border: 1px solid var(--border); color: var(--text); }
 button.sh-ghost:hover { background: var(--surface-hover); }
+#sh-theme-toggle,
+.sh-icon-btn { display: inline-flex; align-items: center; justify-content: center; padding: .4rem; }
 
 /* ── Inputs ─────────────────────────────────────────────── */
 input, select {
@@ -229,6 +234,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
   box-shadow: var(--shadow-sm); transition: border-color var(--transition);
 }
 .sh-list li:hover { border-color: var(--border-strong); }
+.sh-list li button { margin-left: auto; flex-shrink: 0; }
 
 .sh-user-btn  {
   background: var(--surface); border: 1px solid var(--border);
