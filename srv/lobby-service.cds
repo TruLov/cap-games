@@ -15,9 +15,17 @@ service LobbyService {
         maxPlayers  : Integer;
   }
 
-  // Active rooms — created via createRoom action
-  @readonly entity Rooms as projection on db.Rooms
-    excluding { createdBy, modifiedBy, createdAt, modifiedAt };
+  // Active rooms — created via createRoom action. gameName/playerCount/
+  // maxPlayers are virtual — populated in an `after READ` handler from the
+  // game registry + a Players count query (see lobby-service.js), so the
+  // start page can list open rooms with a headcount without exposing the
+  // full roster (Players is not a top-level entity here).
+  @readonly entity Rooms as projection on db.Rooms {
+    *,
+    virtual null as gameName    : String,
+    virtual null as playerCount : Integer,
+    virtual null as maxPlayers  : Integer,
+  } excluding { createdBy, modifiedBy, createdAt, modifiedAt };
 
   // Leaderboard
   @readonly entity Leaderboard as projection on db.Leaderboard;

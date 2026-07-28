@@ -465,6 +465,35 @@ async function loadLobby() {
     </li>`).join('');
   list.querySelectorAll('[data-game]').forEach(b =>
     b.onclick = () => createRoom(b.dataset.game));
+
+  await loadOpenRooms();
+}
+
+// ── Open rooms — browse & join from the start page ─────────────
+async function loadOpenRooms() {
+  const roomList = $('sh-room-list');
+  const data = await odata('GET', "Rooms?$filter=status ne 'finished'").catch(() => ({ value: [] }));
+  const rooms = data.value ?? [];
+
+  if (!rooms.length) {
+    roomList.innerHTML = `<li class="sh-small">No open rooms right now — create one above.</li>`;
+    return;
+  }
+
+  roomList.innerHTML = rooms.map(r => {
+    const full = r.maxPlayers != null && r.playerCount >= r.maxPlayers;
+    return `
+    <li>
+      <strong>${r.gameName ?? r.game}</strong>
+      <code>${r.code}</code>
+      <span class="sh-small">${r.host}</span>
+      <span class="sh-small">${r.playerCount}${r.maxPlayers != null ? '/' + r.maxPlayers : ''} players${full ? ' — full' : ''}</span>
+      <span class="sh-small">${r.status}</span>
+      <button data-room="${r.ID}" class="sh-small">${full ? 'Spectate' : 'Join'}</button>
+    </li>`;
+  }).join('');
+  roomList.querySelectorAll('[data-room]').forEach(b =>
+    b.onclick = () => joinRoom(b.dataset.room));
 }
 
 // ── Boot ──────────────────────────────────────────────────────
@@ -486,6 +515,7 @@ $('sh-btn-join').onclick = () => {
   const id = $('sh-join-input').value.trim();
   if (id) joinByCode(id);
 };
+$('sh-btn-refresh-rooms').onclick = () => loadOpenRooms();
 
 async function boot() {
   // In local dev, restore a previously-picked mock user so whoami passes.

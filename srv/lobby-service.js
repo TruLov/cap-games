@@ -15,6 +15,27 @@ class LobbyService extends cds.ApplicationService {
       }));
     });
 
+    // --- Rooms: decorate with gameName/playerCount/maxPlayers so the start
+    // page can list open rooms with a headcount (see lobby-service.cds) ---
+    this.after('READ', 'Rooms', async (rooms) => {
+      const list = Array.isArray(rooms) ? rooms : rooms ? [rooms] : [];
+      if (!list.length) return;
+
+      const ids = [...new Set(list.map(r => r.ID))];
+      const counts = await SELECT.from(Players)
+        .columns('room_ID', 'count(*) as n')
+        .where({ room_ID: { in: ids }, spectator: false })
+        .groupBy('room_ID');
+      const countByRoom = Object.fromEntries(counts.map(c => [c.room_ID, c.n]));
+
+      for (const r of list) {
+        const g = registry.get(r.game);
+        r.gameName    = g?.meta.name ?? r.game;
+        r.maxPlayers  = g?.meta.maxPlayers ?? null;
+        r.playerCount = countByRoom[r.ID] ?? 0;
+      }
+    });
+
     // --- createRoom ---
     this.on('createRoom', async (req) => {
       const { game } = req.data;
