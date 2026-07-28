@@ -16,9 +16,6 @@ import { mountPlayers } from '/shell/players.js';
 import { initials }     from '/shell/util.js';
 
 const CSS = `
-.kk-layout { display:flex; gap:1rem; align-items:flex-start; }
-.kk-main   { flex:1; min-width:0; }
-.kk-aside  { width:230px; flex-shrink:0; }
 .kk-card   { background:rgba(127,127,127,.08); border:1px solid rgba(127,127,127,.25);
              border-radius:8px; padding:.8rem 1rem; margin-bottom:.8rem; }
 .kk-title  { font-weight:bold; margin-bottom:.4rem; }
@@ -80,9 +77,9 @@ export default {
 
     rootEl.innerHTML = `
       <style>${CSS}</style>
-      <div class="kk-layout">
-        <div class="kk-main" id="kk-main"></div>
-        <aside class="kk-aside">
+      <div class="gm-layout">
+        <div class="gm-main" id="kk-main"></div>
+        <aside class="gm-aside">
           <h3>Spieler</h3><div id="kk-players"></div>
           <h3 style="margin-top:1rem">Chat</h3><div id="kk-chat" style="height:240px"></div>
         </aside>

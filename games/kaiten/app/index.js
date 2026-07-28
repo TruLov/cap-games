@@ -25,9 +25,6 @@ const MENU_PRESETS = [
 ];
 
 const STYLE = `
-  .sg-layout{display:flex;gap:1rem;align-items:flex-start}
-  .sg-main{flex:1;min-width:0}
-  .sg-aside{width:280px}
   .sg-status{font-weight:600;margin-bottom:.5rem}
   .sg-hand{display:flex;flex-wrap:wrap;gap:.4rem;margin:.5rem 0}
   .sg-card{border:1px solid #999;border-radius:8px;padding:.4rem .5rem;min-width:76px;max-width:96px;
@@ -52,7 +49,7 @@ const STYLE = `
   .sg-spoon{margin:.3rem 0;font-size:.85rem;background:#fff8e6;border:1px solid #e5c86a;border-radius:6px;padding:.35rem .5rem}
   .sg-chopsticks{margin:.3rem 0;font-size:.85rem;background:#e8f4ff;border:1px solid #7ab4e0;border-radius:6px;padding:.35rem .5rem}
   .sg-card.selected{border-color:#2266cc;background:#ddeeff;box-shadow:0 0 0 2px #2266cc55}
-  .sg-score-table{width:100%;border-collapse:collapse;font-size:.78rem;margin-top:.4rem}
+  .sg-score-table{width:100%;border-collapse:collapse;font-size:.78rem;margin-top:.4rem;background:#fff}
   .sg-score-table th,.sg-score-table td{padding:.2rem .35rem;text-align:center;border:1px solid #ddd;color:#222}
   .sg-score-table th{background:#f5f5f5;font-weight:600}
   .sg-score-table tr.me td{background:#fffce0}
@@ -61,7 +58,7 @@ const STYLE = `
   .sg-history-details summary{cursor:pointer;color:#448;user-select:none}
   .sg-history-chips{display:flex;flex-wrap:wrap;gap:.2rem;margin-top:.2rem}
   .sg-history-chip{background:#e8e8e8;color:#333;border:1px solid #ccc;border-radius:4px;padding:.1rem .3rem}
-  .sg-results{margin-top:1rem;border:2px solid #2a7;border-radius:8px;padding:.8rem}
+  .sg-results{margin-top:1rem;border:2px solid #2a7;border-radius:8px;padding:.8rem;background:#fff}
   .sg-results table{width:100%;border-collapse:collapse;font-size:.88rem}
   .sg-results th,.sg-results td{padding:.3rem .5rem;text-align:right;border-bottom:1px solid #eee;color:#222}
   .sg-results th:first-child,.sg-results td:first-child{text-align:left}
@@ -188,15 +185,15 @@ export default {
 
     rootEl.innerHTML = `
       <style>${STYLE}</style>
-      <div class="sg-layout">
-        <div class="sg-main">
+      <div class="gm-layout">
+        <div class="gm-main">
           <div class="sg-status" id="sg-status"></div>
           <div id="sg-config"></div>
           <div id="sg-hand"></div>
           <div class="sg-tableau" id="sg-tableau"></div>
           <div id="sg-results"></div>
         </div>
-        <aside class="sg-aside">
+        <aside class="gm-aside">
           <h3>Players</h3>
           <div id="sg-players"></div>
           <h3 style="margin-top:.8rem">Scores</h3>

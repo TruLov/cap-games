@@ -279,7 +279,7 @@ async function loadLobby() {
     <li>
       <strong>${g.name}</strong>
       <span class="sh-small">${g.minPlayers}–${g.maxPlayers} players</span>
-      <button class="sh-small" data-game="${g.id}">Create room</button>
+      <button data-game="${g.id}">Create room</button>
     </li>`).join('');
   list.querySelectorAll('[data-game]').forEach(b =>
     b.onclick = () => createRoom(b.dataset.game));

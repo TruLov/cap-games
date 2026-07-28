@@ -52,13 +52,13 @@ export default {
   mount(rootEl, sdk) {
     // ── Build layout ──────────────────────────────────────
     rootEl.innerHTML = `
-      <div class="ttt-layout">
-        <div class="ttt-main">
+      <div class="gm-layout">
+        <div class="gm-main">
           <div class="ttt-status" id="ttt-status"></div>
           <div class="ttt-board-wrap" id="ttt-board"></div>
           <div id="ttt-host"></div>
         </div>
-        <aside class="ttt-aside">
+        <aside class="gm-aside">
           <h3>Players</h3>
           <div id="ttt-players"></div>
           <h3 style="margin-top:1rem">Chat</h3>
