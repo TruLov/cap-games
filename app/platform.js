@@ -51,31 +51,39 @@ function logout() {
 }
 
 /**
- * Probe backend identity to decide the mode. Uses redirect:'manual' so the
- * approuter's 302→IAS redirect surfaces as an opaque response (anonymous)
- * instead of the fetch silently following it to a cross-origin login page.
- *   → { id }            authenticated (IAS session, or dev with saved header)
- *   → { iasAnonymous }  IAS in front, not logged in  → public landing
- *   → { dev }           mocked auth (no approuter)    → dev player picker
+ * Which auth mode the backend runs under — 'mocked' locally, 'ias' when
+ * deployed. This is the CAP-native source of truth (cds.env.requires.auth.kind),
+ * exposed via a public endpoint so we can pick the right login UI *before* any
+ * user exists — instead of guessing from whoami's HTTP status (which is
+ * ambiguous: the approuter answers an anonymous fetch with 401, not a redirect).
  */
-async function probeAuth() {
+async function authKind() {
+  try {
+    const res = await fetch('/odata/v4/lobby/authKind()', { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error(res.status);
+    const body = await res.json();
+    return body.value ?? body;
+  } catch {
+    return 'ias';   // safe default: a login button beats a dead dev picker
+  }
+}
+
+/**
+ * The authenticated identity, or null if anonymous. Under IAS an anonymous
+ * fetch is answered by the approuter with 401 (it can't redirect a fetch);
+ * under mocked auth an unpicked user resolves to 'anonymous'. Either → null.
+ */
+async function whoami() {
   try {
     const headers = { Accept: 'application/json' };
-    if (shell.user?.authHeader) headers.Authorization = shell.user.authHeader;
+    if (shell.user?.authHeader) headers.Authorization = shell.user.authHeader;   // dev only
     const res = await fetch('/odata/v4/lobby/whoami()', { headers, redirect: 'manual' });
-    if (res.type === 'opaqueredirect' || res.status === 0) return { iasAnonymous: true };
-    if (res.status === 401) return { dev: true };
-    if (res.ok) {
-      const body = await res.json();
-      const id = body.value ?? body;
-      // Local mocked auth with no player picked resolves to the anonymous user;
-      // that's the cue to show the dev picker, not to "log in as anonymous".
-      if (!id || id === 'anonymous') return { dev: true };
-      return { id };
-    }
-    return { iasAnonymous: true };
+    if (!res.ok) return null;
+    const body = await res.json();
+    const id = body.value ?? body;
+    return (id && id !== 'anonymous') ? id : null;
   } catch {
-    return { iasAnonymous: true };
+    return null;
   }
 }
 
@@ -261,20 +269,22 @@ $('sh-btn-join').onclick = () => {
 };
 
 async function boot() {
-  // In local dev, restore a previously-picked mock user so probeAuth passes.
+  // In local dev, restore a previously-picked mock user so whoami passes.
   const saved = sessionStorage.getItem('user');
   if (saved) devLogin(saved);
 
-  const auth = await probeAuth();
-  if (auth.id) {                       // authenticated (IAS session or dev-restored)
-    shell.user ??= { id: auth.id, authHeader: null };
-    enterLobby(auth.id);
-  } else if (auth.dev) {               // local mocked auth — show the picker
+  // Mode comes from the backend (authoritative); identity from whoami.
+  const [kind, id] = await Promise.all([authKind(), whoami()]);
+
+  if (id) {                            // authenticated (IAS session or dev-restored)
+    shell.user ??= { id, authHeader: null };
+    enterLobby(id);
+  } else if (kind === 'ias') {         // deployed, not logged in — public landing
+    showView('landing');
+  } else {                             // local mocked auth — show the player picker
     shell.user = null;
     renderDevPicker();
     showView('login');
-  } else {                             // IAS, not logged in — public landing
-    showView('landing');
   }
 }
 

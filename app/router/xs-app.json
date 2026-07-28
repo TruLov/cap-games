@@ -11,6 +11,13 @@
       "csrfProtection": false
     },
     {
+      "source": "^/odata/(v4/lobby/authKind.*)$",
+      "target": "/odata/$1",
+      "destination": "srv-api",
+      "authenticationType": "none",
+      "csrfProtection": false
+    },
+    {
       "source": "^/odata/(.*)$",
       "target": "/odata/$1",
       "destination": "srv-api",

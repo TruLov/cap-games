@@ -39,6 +39,9 @@ class LobbyService extends cds.ApplicationService {
     // --- whoami: the caller's platform identity ---
     this.on('whoami', (req) => req.user.id);
 
+    // --- authKind: which auth mode is active (public; drives the login UI) ---
+    this.on('authKind', () => cds.env.requires.auth.kind);
+
     await super.init();
   }
 
