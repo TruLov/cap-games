@@ -99,6 +99,10 @@ modules:
       # handler defaults the missing param to "xsuaa" → "OAuth2 requires
       # clientid" crash on /login/callback. (@sap/approuter getCallBackUrl.)
       ENABLE_PERMANENT_AUTHTYPE: "true"
+      # Include id_token_hint on the IAS end-session redirect so IAS can
+      # cleanly identify and terminate the session being logged out of,
+      # instead of a bare redirect with no session context.
+      LOGOUT_WITH_TOKEN_HINT: "true"
     parameters:
       keep-existing-routes: true
       disk-quota: 256M
@@ -128,7 +132,7 @@ resources:
             - http://localhost:5000/login/callback?authType=ias
             - ~{app-api/app-protocol}://*~{app-api/app-uri}/login/callback
           post-logout-redirect-uris:
-            - ~{app-api/app-protocol}://*~{app-api/app-uri}/*/logout.html
+            - ~{app-api/app-protocol}://*~{app-api/app-uri}/logout.html
         xsuaa-cross-consumption: true
     requires:
       - name: app-api

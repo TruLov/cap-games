@@ -60,7 +60,8 @@ function logout() {
  */
 async function probeAuth() {
   try {
-    const headers = shell.user?.authHeader ? { Authorization: shell.user.authHeader } : {};
+    const headers = { Accept: 'application/json' };
+    if (shell.user?.authHeader) headers.Authorization = shell.user.authHeader;
     const res = await fetch('/odata/v4/lobby/whoami()', { headers, redirect: 'manual' });
     if (res.type === 'opaqueredirect' || res.status === 0) return { iasAnonymous: true };
     if (res.status === 401) return { dev: true };

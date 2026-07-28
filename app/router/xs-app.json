@@ -1,7 +1,7 @@
 {
   "authenticationMethod": "route",
   "websockets": { "enabled": true },
-  "logout": { "logoutEndpoint": "/logout" },
+  "logout": { "logoutEndpoint": "/logout", "logoutPage": "/logout.html" },
   "routes": [
     {
       "source": "^/ws/(.*)$",
@@ -27,7 +27,13 @@
     {
       "source": "^/login.html$",
       "localDir": "resources",
-      "authenticationType": "ias"
+      "authenticationType": "ias",
+      "cacheControl": "no-store"
+    },
+    {
+      "source": "^/logout.html$",
+      "localDir": "resources",
+      "authenticationType": "none"
     },
     {
       "source": "^/(.*)$",

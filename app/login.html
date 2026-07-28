@@ -5,9 +5,15 @@
   <title>Signing in…</title>
 </head>
 <body>
-  <!-- Reaching this file means the approuter has authenticated us (the route
-       requires IAS). Bounce to the app root, where the shell now sees a live
-       session and shows the lobby. -->
+  <!--
+    This page is served ONLY when the approuter has confirmed a valid IAS
+    session (route authenticationType: ias). Reaching it therefore means we're
+    logged in — just hand off to the shell. If there is no session the approuter
+    302s to IAS *before* this file is ever served, so no auth check is needed here.
+
+    The route is marked cacheControl: no-store (xs-app.json) so the browser never
+    reuses a cached copy after logout — otherwise the IAS redirect would be skipped.
+  -->
   <script>location.replace('/');</script>
 </body>
 </html>
