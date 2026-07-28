@@ -57,10 +57,13 @@ class PlayService extends cds.ApplicationService {
         return this._role(existing);
       }
 
-      // -- assign slot: a player while seats remain, otherwise a spectator
+      // -- assign slot: a player while seats remain AND the room is still in
+      // the lobby, otherwise a spectator (joining mid-match never grants a
+      // live seat, even if one is technically open — host can promote via
+      // setRole once they've seen the room)
       const players = await SELECT.from(Players).where({ room_ID: roomId });
       const seatsTaken = players.filter(p => !p.spectator).length;
-      const spectator = seatsTaken >= game.meta.maxPlayers;
+      const spectator = room.status !== 'lobby' || seatsTaken >= game.meta.maxPlayers;
 
       const isHost = players.length === 0;  // first to join is host
       await INSERT.into(Players).entries({ room_ID: roomId, user, spectator, isHost });
