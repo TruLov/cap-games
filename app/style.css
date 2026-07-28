@@ -45,6 +45,31 @@
   * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
+/* Light theme — same variable names, flipped palette. Applied via
+   [data-theme="light"] on <html>, set before first paint (inline script in
+   index.html/login.html/logout.html <head>) to avoid a flash of the wrong
+   theme. Toggled + persisted from the header account menu (platform.js). */
+:root[data-theme="light"] {
+  --bg:           #f4f6fb;
+  --bg-elevated:  #ffffff;
+  --surface:      #ffffff;
+  --surface-hover:#eef1f8;
+  --border:       #dde2ee;
+  --border-strong:#c7cee0;
+  --text:         #1b2030;
+  --muted:        #6b7690;
+  --accent:       #3b63e0;
+  --accent-hover: #2f52c4;
+  --accent-soft:  rgba(59,99,224,.12);
+  --danger:       #d8384f;
+  --danger-soft:  rgba(216,56,79,.12);
+  --success:      #1f9c5f;
+  --success-soft: rgba(31,156,95,.12);
+  --shadow-sm: 0 1px 2px rgba(20,25,40,.08);
+  --shadow-md: 0 4px 16px rgba(20,25,40,.10);
+  --shadow-lg: 0 12px 40px rgba(20,25,40,.16);
+}
+
 html, body { height: 100%; }
 
 body {
@@ -55,6 +80,7 @@ body {
   flex-direction: column;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+  transition: background-color var(--transition), color var(--transition);
 }
 
 ::selection { background: var(--accent-soft); color: var(--text); }

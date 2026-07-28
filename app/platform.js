@@ -108,6 +108,23 @@ function showView(name) {
   if (el) el.hidden = false;
 }
 
+// ── Theme (light/dark) ──────────────────────────────────────────
+// Applied via [data-theme] on <html> — style.css defines both palettes
+// under the same variable names. index.html/logout.html set the initial
+// value inline (before first paint, no flash); this just handles toggling
+// + persistence for the running session.
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem('theme', theme);
+  const btn = $('sh-theme-toggle');
+  if (btn) btn.textContent = theme === 'light' ? '🌙' : '☀️';
+}
+function toggleTheme() {
+  applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
+}
+$('sh-theme-toggle').onclick = toggleTheme;
+applyTheme(document.documentElement.dataset.theme ?? 'dark'); // sync button glyph to the inline pre-paint choice
+
 // ── Account control (header, top-right) ───────────────────────
 // One control, three shapes:
 //   • logged in       → avatar circle (initials); menu = name + Logout
