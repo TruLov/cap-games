@@ -1,72 +1,119 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── Design tokens ─────────────────────────────────────────
+   Dark is the default palette; Phase 2 adds a light set under
+   :root[data-theme="light"] with the exact same variable names, so every
+   rule below is theme-agnostic by construction — nothing here should ever
+   hardcode a color that should flip with the theme. */
 :root {
-  --bg:      #0f1117;
-  --surface: #1e293b;
-  --border:  #334155;
-  --text:    #e2e8f0;
-  --muted:   #94a3b8;
-  --accent:  #3b82f6;
-  --danger:  #ef4444;
-  --success: #22c55e;
-  --shadow:  0 1px 3px rgba(0,0,0,.3);
+  --bg:           #0b0d13;
+  --bg-elevated:  #11141c;
+  --surface:      #1a1f2b;
+  --surface-hover:#222838;
+  --border:       #2c3444;
+  --border-strong:#3a4356;
+  --text:         #e8ecf4;
+  --muted:        #93a0b8;
+  --accent:       #4f7cff;
+  --accent-hover: #6e91ff;
+  --accent-soft:  rgba(79,124,255,.15);
+  --danger:       #f0576a;
+  --danger-soft:  rgba(240,87,106,.15);
+  --success:      #2fd480;
+  --success-soft: rgba(47,212,128,.15);
+
+  --radius-sm: 6px;
+  --radius:    10px;
+  --radius-lg: 16px;
+
+  --space-1: .35rem;
+  --space-2: .6rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --space-5: 2.25rem;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.35);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.35);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,.45);
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --transition: .15s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --transition: 0s; }
+  * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
 html, body { height: 100%; }
 
 body {
-  font-family: system-ui, sans-serif;
+  font-family: var(--font);
   background: var(--bg);
   color: var(--text);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
 }
+
+::selection { background: var(--accent-soft); color: var(--text); }
+
+a { color: var(--accent); }
 
 /* ── Shell Header ───────────────────────────────────────── */
 .sh-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: .6rem 1.5rem;
-  background: var(--surface);
+  padding: var(--space-2) var(--space-4);
+  background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
   flex-shrink: 0;
 }
-.sh-logo  { font-weight: bold; font-size: 1.1rem; }
-.sh-nav   { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
-.sh-toast { background: var(--border); border-radius: 4px; padding: .2rem .6rem; font-size: .85rem; }
+.sh-logo  {
+  font-weight: 700; font-size: 1.15rem; letter-spacing: .01em;
+  display: inline-flex; align-items: center; gap: .4rem;
+}
+.sh-nav   { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.sh-toast {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 999px; padding: .3rem .8rem; font-size: .82rem;
+}
 
 /* ── Account control (header, top-right) ─────────────────── */
 .sh-account     { position: relative; }
-.sh-account-btn { font-size: .85rem; padding: .35rem .85rem; }
+.sh-account-btn { font-size: .85rem; padding: .4rem .9rem; }
 .sh-account-btn.sh-avatar {
   width: 34px; height: 34px; padding: 0; border-radius: 50%;
   font-weight: 700; font-size: .78rem; letter-spacing: .5px;
   display: inline-flex; align-items: center; justify-content: center;
+  overflow: hidden;
 }
+.sh-account-btn.sh-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .sh-account-menu {
-  position: absolute; right: 0; top: calc(100% + .4rem);
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 8px; padding: .35rem; min-width: 160px; z-index: 20;
+  position: absolute; right: 0; top: calc(100% + .5rem);
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: .4rem; min-width: 170px; z-index: 20;
   display: flex; flex-direction: column; gap: .1rem;
-  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  box-shadow: var(--shadow-lg);
 }
 .sh-account-menu[hidden] { display: none; }
 .sh-account-name {
-  font-size: .78rem; color: var(--muted); padding: .3rem .6rem .45rem;
-  border-bottom: 1px solid var(--border); margin-bottom: .2rem; word-break: break-all;
+  font-size: .78rem; color: var(--muted); padding: .3rem .6rem .5rem;
+  border-bottom: 1px solid var(--border); margin-bottom: .25rem; word-break: break-all;
 }
 .sh-menu-item {
   background: transparent; color: var(--text); text-align: left;
-  border-radius: 6px; padding: .45rem .6rem; font-size: .9rem;
+  border-radius: var(--radius-sm); padding: .5rem .65rem; font-size: .9rem;
+  transition: background var(--transition);
 }
-.sh-menu-item:hover { background: var(--border); }
+.sh-menu-item:hover { background: var(--surface-hover); }
 
 /* ── Views ──────────────────────────────────────────────── */
-.sh-view  { flex: 1; min-height: 0; overflow-y: auto; padding: 2rem 1.5rem; max-width: 900px; width: 100%; }
-.sh-center { display: flex; flex-direction: column; align-items: center; gap: 1rem; text-align: center; }
+.sh-view  { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-5) var(--space-4); max-width: 900px; width: 100%; }
+.sh-center { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); text-align: center; }
 /* [hidden] is only a UA-stylesheet rule — author rules like .sh-center/#view-room
    that set `display` beat it on origin, not specificity. Force it explicitly. */
 .sh-view[hidden] { display: none; }
@@ -77,15 +124,15 @@ body {
    platform.js, never duplicated per game. */
 #view-room:not([hidden])  { max-width: 100%; padding: 0; display: flex; flex-direction: column; min-height: 0; }
 #room-match-controls:empty { display: none; }
-#room-match-controls { padding: .75rem 1.5rem 0; }
+#room-match-controls { padding: var(--space-3) var(--space-4) 0; }
 #game-root  { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
 /* ── Room layout (main content + players/chat aside) — see index.html ──── */
-.gm-layout { flex: 1; min-height: 0; display: flex; gap: 1.25rem; padding: 1.5rem; }
+.gm-layout { flex: 1; min-height: 0; display: flex; gap: var(--space-4); padding: var(--space-4); }
 .gm-main   { flex: 1; min-width: 0; min-height: 0; overflow-y: auto;
-             display: flex; flex-direction: column; gap: 1rem; }
+             display: flex; flex-direction: column; gap: var(--space-3); }
 .gm-aside  { width: 280px; flex-shrink: 0; min-height: 0; overflow-y: auto;
-             display: flex; flex-direction: column; gap: 1rem; }
+             display: flex; flex-direction: column; gap: var(--space-3); }
 @media (max-width: 760px) {
   body { overflow: auto; }
   .sh-view, #game-root, .gm-layout { overflow: visible; min-height: auto; }
@@ -93,9 +140,9 @@ body {
   .gm-aside  { width: 100%; }
 }
 
-h1 { font-size: 2rem; }
-h2 { font-size: 1.4rem; margin-bottom: 1rem; }
-h3 { font-size: .95rem; color: var(--muted); margin: 1.2rem 0 .4rem; }
+h1 { font-size: 2.1rem; letter-spacing: -.01em; }
+h2 { font-size: 1.4rem; margin-bottom: var(--space-3); }
+h3 { font-size: .85rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: var(--space-4) 0 var(--space-2); }
 
 /* ── Buttons ────────────────────────────────────────────── */
 button {
@@ -103,80 +150,93 @@ button {
   background: var(--accent);
   color: #fff;
   border: none;
-  border-radius: 6px;
-  padding: .5rem 1rem;
+  border-radius: var(--radius-sm);
+  padding: .55rem 1.1rem;
   font-size: .95rem;
-  transition: background .15s;
+  font-family: inherit;
+  font-weight: 600;
+  transition: background var(--transition), transform var(--transition), filter var(--transition);
 }
-button:hover     { filter: brightness(1.15); }
-button:disabled  { background: var(--border); color: var(--muted); cursor: default; }
-button.sh-small  { font-size: .8rem; padding: .28rem .65rem; }
+button:hover     { background: var(--accent-hover); }
+button:active    { transform: translateY(1px); }
+button:disabled  { background: var(--border); color: var(--muted); cursor: default; transform: none; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.sh-small  { font-size: .8rem; padding: .32rem .7rem; }
 button.danger    { background: var(--danger); }
+button.danger:hover { background: #f47686; }
 button.sh-ghost  { background: transparent; border: 1px solid var(--border); color: var(--text); }
+button.sh-ghost:hover { background: var(--surface-hover); }
 
 /* ── Inputs ─────────────────────────────────────────────── */
-input {
+input, select {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--text);
-  padding: .5rem .75rem;
+  padding: .55rem .8rem;
   font-size: .95rem;
+  font-family: inherit;
   flex: 1;
+  transition: border-color var(--transition);
 }
-input:focus { outline: 2px solid var(--accent); }
+input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 /* ── Utilities ──────────────────────────────────────────── */
-.sh-row   { display: flex; gap: .5rem; align-items: center; }
+.sh-row   { display: flex; gap: var(--space-2); align-items: center; }
 .sh-small { font-size: .82rem; color: var(--muted); }
 
-.sh-list  { list-style: none; display: flex; flex-direction: column; gap: .4rem; }
+.sh-list  { list-style: none; display: flex; flex-direction: column; gap: var(--space-2); }
 .sh-list li {
-  display: flex; align-items: center; gap: .75rem;
-  background: var(--surface); border-radius: 8px; padding: .6rem 1rem;
-  box-shadow: var(--shadow);
+  display: flex; align-items: center; gap: var(--space-3);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: var(--space-3);
+  box-shadow: var(--shadow-sm); transition: border-color var(--transition);
 }
+.sh-list li:hover { border-color: var(--border-strong); }
 
 .sh-user-btn  {
   background: var(--surface); border: 1px solid var(--border);
-  color: var(--text); border-radius: 8px; padding: .6rem 1.2rem;
+  color: var(--text); border-radius: var(--radius); padding: .7rem 1.3rem;
 }
-.sh-user-btn:hover { background: var(--border); }
+.sh-user-btn:hover { background: var(--surface-hover); }
 a.sh-user-btn { text-decoration: none; display: inline-block; }
 
 /* ── Landing (public) ──────────────────────────────────── */
-.sh-landing-games { list-style: none; padding: 0; margin: .5rem 0 1.5rem; text-align: left; max-width: 460px; }
-.sh-landing-games li { padding: .4rem 0; border-bottom: 1px solid var(--border); }
+.sh-landing-games { list-style: none; padding: 0; margin: var(--space-2) 0 var(--space-4); text-align: left; max-width: 460px; }
+.sh-landing-games li { padding: .5rem 0; border-bottom: 1px solid var(--border); }
 .sh-landing-games li:last-child { border-bottom: none; }
 
 /* ── Shell components (used by game optionally) ─────────── */
 
 /* Players */
-.sh-players  { list-style: none; display: flex; flex-direction: column; gap: .3rem; }
-.sh-player   { display: flex; align-items: center; gap: .5rem;
-               background: var(--surface); border-radius: 6px; padding: .35rem .7rem;
-               box-shadow: var(--shadow); }
-.sh-player.me { border: 1px solid var(--accent); }
-.sh-sym      { background: var(--border); border-radius: 4px; padding: .1rem .4rem;
-               font-weight: bold; font-size: .85rem; }
+.sh-players  { list-style: none; display: flex; flex-direction: column; gap: var(--space-1); }
+.sh-player   { display: flex; align-items: center; gap: var(--space-2);
+               background: var(--surface); border: 1px solid var(--border);
+               border-radius: var(--radius-sm); padding: .4rem .75rem; }
+.sh-player.me { border-color: var(--accent); background: var(--accent-soft); }
+.sh-sym      { background: var(--border); border-radius: var(--radius-sm); padding: .1rem .4rem;
+               font-weight: bold; font-size: .85rem;
+               width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center;
+               overflow: hidden; }
+.sh-sym img  { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-sm); }
 .sh-name     { flex: 1; }
 
 /* Host controls */
-.sh-host-controls { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
-.sh-switch-game    { width: 100%; margin-top: .35rem; }
-.sh-switch-game select { background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: .35rem .5rem; }
+.sh-host-controls { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+.sh-switch-game    { width: 100%; margin-top: .4rem; }
+.sh-switch-game select { background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius-sm); padding: .4rem .5rem; }
 
 /* Chat */
 .sh-chat        { display: flex; flex-direction: column; height: 100%; }
 .sh-chat-messages {
-  flex: 1; overflow-y: auto; background: var(--surface);
-  border-radius: 8px; padding: .75rem; display: flex;
-  flex-direction: column; gap: .25rem;
+  flex: 1; overflow-y: auto; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: var(--space-3); display: flex;
+  flex-direction: column; gap: .3rem;
 }
-.sh-chat-msg    { font-size: .9rem; color: #cbd5e1; }
-.sh-chat-msg strong { color: #93c5fd; }
+.sh-chat-msg    { font-size: .9rem; color: var(--text); }
+.sh-chat-msg strong { color: var(--accent-hover); }
 .sh-chat-sys    { color: var(--muted); font-style: italic; font-size: .82rem; }
-.sh-chat-input  { display: flex; gap: .5rem; margin-top: .5rem; }
+.sh-chat-input  { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
 
 /* TicTacToe board (game-owned, placed here for global access) */
 .ttt-board {
@@ -185,13 +245,13 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 }
 .ttt-cell {
   aspect-ratio: 1; font-size: 2rem; font-weight: bold;
-  border-radius: 8px; background: var(--surface);
+  border-radius: var(--radius-sm); background: var(--surface);
   border: 2px solid var(--border); color: var(--text);
-  transition: background .1s;
+  transition: background var(--transition);
 }
 .ttt-cell.open       { border-color: var(--accent); }
-.ttt-cell.open:hover { background: #1d3557; }
-.ttt-cell.win        { border-color: var(--success); background: #14532d; color: #86efac; }
+.ttt-cell.open:hover { background: var(--surface-hover); }
+.ttt-cell.win        { border-color: var(--success); background: var(--success-soft); color: var(--success); }
 
 /* TicTacToe game layout (uses shared .gm-layout/.gm-main/.gm-aside) */
 .ttt-status { font-size: 1rem; color: var(--muted); min-height: 1.4rem; }

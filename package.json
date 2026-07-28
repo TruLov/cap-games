@@ -1,7 +1,7 @@
 {
   "name": "cap-games",
   "version": "1.0.0",
-  "description": "Multiplayer browser game platform on SAP BTP",
+  "description": "Gambito — multiplayer browser game platform on SAP BTP",
   "type": "module",
   "scripts": {
     "sync:approuter": "node scripts/sync-approuter.mjs",

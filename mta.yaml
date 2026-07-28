@@ -1,7 +1,7 @@
 _schema-version: 3.3.0
 ID: cap-games
 version: 1.0.0
-description: "Browser mini games with CAP backend"
+description: "Gambito — browser mini games with CAP backend"
 parameters:
   enable-parallel-deployments: true
   # AI Core is external to this landscape (different global account) — no
