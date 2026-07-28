@@ -274,9 +274,9 @@ export default {
       if (sdk.me.isHost) {
         el.querySelector('#kk-hostend').innerHTML =
           `<button id="kk-rematch">Nochmal (neuer Seed)</button>
-           <button id="kk-back">Zurück zur Lobby</button>`;
+           <button id="kk-back">Zurück zum Raum</button>`;
         el.querySelector('#kk-rematch').onclick = () => sdk.send('rematch',     { room: sdk.room.id });
-        el.querySelector('#kk-back').onclick    = () => sdk.send('backToLobby', { room: sdk.room.id });
+        el.querySelector('#kk-back').onclick    = () => sdk.send('backToRoom', { room: sdk.room.id });
       }
 
       const box = el.querySelector('#kk-suggest');
@@ -328,7 +328,7 @@ export default {
     sdk.on('finished',     onFinished);
     sdk.on('rematched',    onRematched);
     sdk.on('privateState', onPrivate);
-    sdk.on('lobbyReset',   onLobby);
+    sdk.on('roomReset',   onLobby);
     sdk.on('gameError',    onError);
     sdk.on('joined',       onJoined);
     sdk.on('playerLeft',   onGone);
@@ -344,7 +344,7 @@ export default {
       sdk.off('finished',     onFinished);
       sdk.off('rematched',    onRematched);
       sdk.off('privateState', onPrivate);
-      sdk.off('lobbyReset',   onLobby);
+      sdk.off('roomReset',   onLobby);
       sdk.off('gameError',    onError);
       sdk.off('joined',       onJoined);
       sdk.off('playerLeft',   onGone);

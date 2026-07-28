@@ -14,9 +14,9 @@ describe('engine', () => {
       expect(eng.guardStatus('lobby',    'start'      )).to.equal(undefined);
       expect(eng.guardStatus('playing',  'move'       )).to.equal(undefined);
       expect(eng.guardStatus('finished', 'rematch'    )).to.equal(undefined);
-      expect(eng.guardStatus('finished', 'backToLobby')).to.equal(undefined);
-      expect(eng.guardStatus('playing',  'backToLobby')).to.equal(undefined);
-      expect(eng.guardStatus('paused',   'backToLobby')).to.equal(undefined);
+      expect(eng.guardStatus('finished', 'backToRoom')).to.equal(undefined);
+      expect(eng.guardStatus('playing',  'backToRoom')).to.equal(undefined);
+      expect(eng.guardStatus('paused',   'backToRoom')).to.equal(undefined);
     });
 
     it('rejects forbidden transitions', () => {
@@ -25,6 +25,13 @@ describe('engine', () => {
       expect(eng.guardStatus('playing',  'rematch')).to.be.ok;
       expect(eng.guardStatus('finished', 'move'   )).to.be.ok;
       expect(eng.guardStatus('lobby',    'rematch')).to.be.ok;
+    });
+
+    it('switchGame/setRole only allowed while lobby', () => {
+      expect(eng.guardStatus('lobby',    'switchGame')).to.equal(undefined);
+      expect(eng.guardStatus('lobby',    'setRole'   )).to.equal(undefined);
+      expect(eng.guardStatus('playing',  'switchGame')).to.be.ok;
+      expect(eng.guardStatus('finished', 'setRole'   )).to.be.ok;
     });
 
   });

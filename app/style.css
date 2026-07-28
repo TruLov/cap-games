@@ -159,7 +159,9 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 .sh-name     { flex: 1; }
 
 /* Host controls */
-.sh-host-controls { display: flex; gap: .5rem; flex-wrap: wrap; }
+.sh-host-controls { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+.sh-switch-game    { width: 100%; margin-top: .35rem; }
+.sh-switch-game select { background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: .35rem .5rem; }
 
 /* Chat */
 .sh-chat        { display: flex; flex-direction: column; height: 100%; }

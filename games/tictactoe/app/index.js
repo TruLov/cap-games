@@ -106,8 +106,8 @@ export default {
       renderBoard(s, boardEl, sdk);
     }
 
-    function onLobbyReset() {
-      setStatus('Back in lobby');
+    function onRoomReset() {
+      setStatus('Back in the room — waiting for players');
       boardEl.innerHTML = '';
     }
 
@@ -123,7 +123,7 @@ export default {
     sdk.on('moved',             onMoved);
     sdk.on('finished',          onFinished);
     sdk.on('rematched',         onRematched);
-    sdk.on('lobbyReset',        onLobbyReset);
+    sdk.on('roomReset',        onRoomReset);
     sdk.on('playerDisconnected', onDisconnected);
     sdk.on('playerReconnected',  onReconnected);
 
@@ -139,7 +139,7 @@ export default {
       sdk.off('moved',              onMoved);
       sdk.off('finished',           onFinished);
       sdk.off('rematched',          onRematched);
-      sdk.off('lobbyReset',         onLobbyReset);
+      sdk.off('roomReset',         onRoomReset);
       sdk.off('playerDisconnected', onDisconnected);
       sdk.off('playerReconnected',  onReconnected);
     };

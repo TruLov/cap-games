@@ -14,7 +14,9 @@ service PlayService {
   action start(room: String);                                  // host only, lobby → playing
   action move(room: String, data: String);                    // game-specific JSON move
   action rematch(room: String);                               // host only, finished → playing
-  action backToLobby(room: String);                           // host only → lobby
+  action backToRoom(room: String);                            // host only → back to room's waiting state (lobby)
+  action switchGame(room: String, game: String);              // host only, lobby only — change the room's game
+  action setRole(room: String, user: String, spectator: Boolean); // host only, lobby only — player ↔ spectator
   action kick(room: String, user: String);                    // host only
   action leave(room: String);
   action chat(room: String, text: String);
@@ -27,7 +29,9 @@ service PlayService {
   event moved              { @ws.context room: String; data: String; }
   event finished           { @ws.context room: String; winner: String; state: String; }
   event rematched          { @ws.context room: String; firstTurn: String; state: String; }
-  event lobbyReset         { @ws.context room: String; }
+  event roomReset          { @ws.context room: String; }
+  event gameSwitched       { @ws.context room: String; game: String; name: String; minPlayers: Integer; maxPlayers: Integer; }
+  event roleChanged        { @ws.context room: String; player: String; spectator: Boolean; }
   // Per-recipient private state slice (hidden information). Delivered only to a
   // single user via the `user` emit filter. NO @ws.context here on purpose:
   // combining a room context with a user filter would OR them and broadcast to

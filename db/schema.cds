@@ -15,7 +15,9 @@ entity Rooms : cuid, managed {
 
 // Players in a room. The per-room player identity is `user` (the platform
 // invents no game symbols); `spectator` distinguishes watchers from players.
-entity Players : cuid {
+// `managed` gives createdAt — used to preserve original join order when a
+// game switch re-splits players into player/spectator against a new maxPlayers.
+entity Players : cuid, managed {
   room      : Association to Rooms;
   user      : String(255);
   spectator : Boolean default false;

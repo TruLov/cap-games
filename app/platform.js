@@ -271,6 +271,30 @@ emitter.on('playerKicked', ({ player }) => {
   if (player === shell.user?.id) { toast('You were kicked'); leaveRoom(); }
 });
 
+// ── Errors — surfaced generically so games don't each need their own handler ─
+emitter.on('gameError', ({ message }) => { if (message) toast(message); });
+
+// ── Game switch — platform owns the swap so no game needs to care ─
+emitter.on('gameSwitched', async ({ game }) => {
+  if (!shell.room || shell.room.game === game) return;
+  shell.room.game = game;
+  shell.unmount?.();
+  const mod = await import(`/games/${game}/index.js`);
+  shell.game = mod.default;
+  const rootEl = $('game-root');
+  rootEl.innerHTML = '';
+  const sdk = makeSdk({
+    room: shell.room,
+    me:   shell.me,
+    wsSend,
+    emitter,
+    toastFn: toast,
+    leaveFn: leaveRoom,
+  });
+  shell.unmount = shell.game.mount(rootEl, sdk) ?? null;
+  toast(`Host switched the game`);
+});
+
 // ── Lobby ─────────────────────────────────────────────────────
 async function loadLobby() {
   const data = await odata('GET', 'Games').catch(() => ({ value: [] }));

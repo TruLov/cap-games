@@ -18,13 +18,18 @@ export function mountPlayers(el, sdk, initialPlayers = []) {
           <span class="sh-sym">${initials(p.user)}</span>
           <span class="sh-name">${p.user}${p.user === sdk.me.user ? ' (you)' : ''}${p.spectator ? ' — spectator' : ''}</span>
           ${sdk.me.isHost && p.user !== sdk.me.user
-            ? `<button class="sh-kick small danger" data-user="${p.user}">kick</button>`
+            ? `<button class="sh-role sh-small" data-user="${p.user}" data-spectator="${!p.spectator}">${p.spectator ? '→ player' : '→ spectator'}</button>
+               <button class="sh-kick sh-small danger" data-user="${p.user}">kick</button>`
             : ''}
         </li>`).join('')}
     </ul>`;
 
     el.querySelectorAll('.sh-kick').forEach(b =>
       b.onclick = () => sdk.send('kick', { room: sdk.room.id, user: b.dataset.user }));
+    el.querySelectorAll('.sh-role').forEach(b =>
+      b.onclick = () => sdk.send('setRole', {
+        room: sdk.room.id, user: b.dataset.user, spectator: b.dataset.spectator === 'true',
+      }));
   }
 
   function onJoined({ player, spectator }) {
@@ -41,9 +46,16 @@ export function mountPlayers(el, sdk, initialPlayers = []) {
 
   function onKicked({ player }) { onLeft({ player }); }
 
+  function onRoleChanged({ player, spectator }) {
+    const p = players.find(p => p.user === player);
+    if (p) p.spectator = spectator;
+    render();
+  }
+
   sdk.on('joined',       onJoined);
   sdk.on('playerLeft',   onLeft);
   sdk.on('playerKicked', onKicked);
+  sdk.on('roleChanged',  onRoleChanged);
 
   render();
 
@@ -51,5 +63,6 @@ export function mountPlayers(el, sdk, initialPlayers = []) {
     sdk.off('joined',       onJoined);
     sdk.off('playerLeft',   onLeft);
     sdk.off('playerKicked', onKicked);
+    sdk.off('roleChanged',  onRoleChanged);
   };
 }

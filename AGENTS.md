@@ -72,18 +72,26 @@ flowchart TB
 
 ## Status Machine
 
+> **"Lobby" is two different things — don't confuse them:**
+> - **Platform Lobby** (`view-lobby` in the shell) — the start page: browse games, create/join a room.
+> - **Room status `lobby`** — a joined room's *waiting-room* phase (players gathering, host can configure/switch game/set roles, not yet started). Never shown to users as the word "lobby" — UI calls it "waiting for players" / "the room".
+
 ```
          join + start
 lobby ────────────────► playing ───── win/draw ──► finished
   ▲                       │  ▲                         │
-  │ backToLobby           │  │ reconnect (60s grace)   │ rematch
+  │ backToRoom            │  │ reconnect (60s grace)   │ rematch
   │                       ▼  │                         │
-  └──── backToLobby ── paused │                         ▼
+  └──── backToRoom ── paused │                         ▼
                     (disconnect)               playing (rematch)
 ```
 
 Status is persisted in `Rooms.status`. Board state is transient (`engine.js`).
-After a server restart, `playing`/`paused` rooms stay in DB but have no board state — players rejoin and the host can `backToLobby` or `rematch`.
+After a server restart, `playing`/`paused` rooms stay in DB but have no board state — players rejoin and the host can `backToRoom` or `rematch`.
+
+While a room is in status `lobby` (waiting room), the host may also:
+- `switchGame(room, game)` — change the room's game before it starts; resets settings, re-splits existing players into player/spectator against the new game's `maxPlayers` (host first, then original join order), emits `gameSwitched` (platform swaps the mounted game UI automatically — no per-game code needed) and `roleChanged` for anyone bumped to spectator.
+- `setRole(room, user, spectator)` — promote a spectator to player or demote a player to spectator (capped by `maxPlayers`); emits `roleChanged`.
 
 ---
 

@@ -157,15 +157,71 @@ class PlayService extends cds.ApplicationService {
       LOG.info('REMATCH', roomId, 'by', req.user.id);
     });
 
-    // ----------------------------------------------------------- backToLobby
-    this.on('backToLobby', async (req) => {
+    // ------------------------------------------------------------- backToRoom
+    this.on('backToRoom', async (req) => {
       const { room: roomId } = req.data;
-      const { err } = await this._roomGuard(req, roomId, 'backToLobby');
+      const { err } = await this._roomGuard(req, roomId, 'backToRoom');
       if (err) return;
       eng.deleteBoard(roomId);
       await UPDATE(Rooms, roomId).with({ status: 'lobby' });
-      await this.emit('lobbyReset', { room: roomId });
-      LOG.info('LOBBY', roomId, 'by', req.user.id);
+      await this.emit('roomReset', { room: roomId });
+      LOG.info('ROOM', roomId, 'back to waiting state, by', req.user.id);
+    });
+
+    // ------------------------------------------------------------ switchGame
+    this.on('switchGame', async (req) => {
+      const { room: roomId, game: newGame } = req.data;
+      const { err } = await this._roomGuard(req, roomId, 'switchGame');
+      if (err) return;
+
+      const game = reg.get(newGame);
+      if (!game) return this._error(req, roomId, `unknown game: ${newGame}`);
+
+      await UPDATE(Rooms, roomId).with({ game: newGame, settings: '{}' });
+
+      // re-split existing roster into player/spectator against the new game's
+      // maxPlayers — host first, then stable by user id (see _roster()).
+      const roster = await this._roster(roomId);          // players only, ordered
+      const keepAsPlayers = new Set(roster.slice(0, game.meta.maxPlayers).map(p => p.user));
+      const all = await SELECT.from(Players).where({ room_ID: roomId });
+      for (const p of all) {
+        const shouldBeSpectator = !keepAsPlayers.has(p.user);
+        if (p.spectator !== shouldBeSpectator) {
+          await UPDATE(Players).set({ spectator: shouldBeSpectator }).where({ room_ID: roomId, user: p.user });
+          await this.emit('roleChanged', { room: roomId, player: p.user, spectator: shouldBeSpectator });
+        }
+      }
+
+      await this.emit('gameSwitched', {
+        room: roomId, game: newGame,
+        name: game.meta.name, minPlayers: game.meta.minPlayers, maxPlayers: game.meta.maxPlayers,
+      });
+      await this._sysMsg(roomId, `Host switched the game to ${game.meta.name}.`);
+      LOG.info('SWITCH', roomId, '→', newGame, 'by', req.user.id);
+    });
+
+    // ---------------------------------------------------------------- setRole
+    this.on('setRole', async (req) => {
+      const { room: roomId, user: target, spectator } = req.data;
+      const { room, err } = await this._roomGuard(req, roomId, 'setRole');
+      if (err) return;
+
+      const player = await SELECT.one.from(Players).where({ room_ID: roomId, user: target });
+      if (!player) return this._error(req, roomId, 'player not found');
+      if (player.spectator === spectator) return; // no-op
+
+      if (!spectator) {
+        const game = reg.get(room.game);
+        const players = await SELECT.from(Players).where({ room_ID: roomId });
+        const seatsTaken = players.filter(p => !p.spectator).length;
+        if (seatsTaken >= game.meta.maxPlayers)
+          return this._error(req, roomId, 'no seats available');
+      }
+
+      await UPDATE(Players).set({ spectator }).where({ room_ID: roomId, user: target });
+      await this.emit('roleChanged', { room: roomId, player: target, spectator });
+      await this._sysMsg(roomId, `${target} is now a ${spectator ? 'spectator' : 'player'}.`);
+      LOG.info('ROLE', roomId, target, '→', spectator ? 'spectator' : 'player', 'by', req.user.id);
     });
 
     // ------------------------------------------------------------------ kick
@@ -190,7 +246,7 @@ class PlayService extends cds.ApplicationService {
       await this.emit('playerKicked', { room: roomId, player: target });
       await this._sysMsg(roomId, `${target} was kicked.`);
       if (['playing', 'paused'].includes(room.status))
-        await this.emit('lobbyReset', { room: roomId });
+        await this.emit('roomReset', { room: roomId });
       await this._autoDelete(roomId);
       LOG.info('KICK', roomId, target, 'by', user);
     });
@@ -281,14 +337,15 @@ class PlayService extends cds.ApplicationService {
 
   /**
    * Ordered roster of *players* (no spectators) handed to a game's init(): host
-   * first, then by user id for a stable, DB-independent order. Games that need
-   * per-seat marks (e.g. tic-tac-toe's X/O) derive them from this order.
+   * first, then by original join order (createdAt) for a stable order. Games
+   * that need per-seat marks (e.g. tic-tac-toe's X/O) derive them from this
+   * order. Also used by switchGame() to decide who keeps a seat.
    */
   async _roster(roomId) {
     const players = await SELECT.from('cap.games.Players').where({ room_ID: roomId });
     return players
       .filter(p => !p.spectator)
-      .sort((a, b) => (b.isHost ? 1 : 0) - (a.isHost ? 1 : 0) || String(a.user).localeCompare(b.user))
+      .sort((a, b) => (b.isHost ? 1 : 0) - (a.isHost ? 1 : 0) || new Date(a.createdAt) - new Date(b.createdAt))
       .map(p => ({ user: p.user, isHost: p.isHost }));
   }
 
@@ -366,7 +423,7 @@ class PlayService extends cds.ApplicationService {
       newHost: newHost ?? '',
     });
     await this._sysMsg(roomId, `${user} left.`);
-    if (wasPlaying) await this.emit('lobbyReset', { room: roomId });
+    if (wasPlaying) await this.emit('roomReset', { room: roomId });
 
     await this._autoDelete(roomId);
     LOG.info(fromTimeout ? 'TIMEOUT' : 'LEAVE', roomId, user,

@@ -27,7 +27,9 @@ const TRANSITIONS = {
   start:       { from: ['lobby'] },
   move:        { from: ['playing'] },
   rematch:     { from: ['finished'] },
-  backToLobby: { from: ['finished', 'playing', 'paused'] },
+  backToRoom:  { from: ['finished', 'playing', 'paused'] },
+  switchGame:  { from: ['lobby'] },
+  setRole:     { from: ['lobby'] },
 };
 
 function guardStatus(status, action) {

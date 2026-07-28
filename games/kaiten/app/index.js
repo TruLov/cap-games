@@ -433,7 +433,7 @@ export default {
       setStatus(`Game over — ${msg}`);
       redraw();
     }
-    function onLobbyReset() { pub = null; myHand = []; menuOffer = null; chopFirstPick = null; chopsticksActive = false; setStatus('Back in lobby'); redraw(); }
+    function onRoomReset() { pub = null; myHand = []; menuOffer = null; chopFirstPick = null; chopsticksActive = false; setStatus('Back in the room — waiting for players'); redraw(); }
     function onRematched(e) { pub = JSON.parse(e.state); chopFirstPick = null; chopsticksActive = false; setStatus('Rematch!'); redraw(); }
     function onError(e)    { sdk.toast(e.message); }
 
@@ -443,7 +443,7 @@ export default {
     sdk.on('moved',        onMoved);
     sdk.on('privateState', onPrivate);
     sdk.on('finished',     onFinished);
-    sdk.on('lobbyReset',   onLobbyReset);
+    sdk.on('roomReset',   onRoomReset);
     sdk.on('rematched',    onRematched);
     sdk.on('gameError',    onError);
 
@@ -460,7 +460,7 @@ export default {
       sdk.off('moved',        onMoved);
       sdk.off('privateState', onPrivate);
       sdk.off('finished',     onFinished);
-      sdk.off('lobbyReset',   onLobbyReset);
+      sdk.off('roomReset',   onRoomReset);
       sdk.off('rematched',    onRematched);
       sdk.off('gameError',    onError);
     };
