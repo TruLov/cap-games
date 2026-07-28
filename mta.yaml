@@ -26,11 +26,10 @@ build-parameters:
         - npx cds build --production --ws-pack
         # The approuter serves the shell UI statically from its resources/
         # folder. Source of truth stays in app/ (so `cds watch app` dev is
-        # unchanged); copy the shell files in here at build time. resources/
-        # is gitignored (generated).
-        - rm -rf app/router/resources
-        - mkdir -p app/router/resources
-        - cp -R app/index.html app/login.html app/logout.html app/platform.js app/sdk.js app/style.css app/shell app/router/resources/
+        # unchanged); scripts/sync-approuter.mjs copies it in here — same
+        # script `npm run dev`/`npm start` run locally, so there's exactly
+        # one place that knows which files make up the shell.
+        - node scripts/sync-approuter.mjs
 modules:
   - name: cap-games-srv
     type: nodejs
