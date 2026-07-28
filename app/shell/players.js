@@ -13,15 +13,19 @@ export function mountPlayers(el, sdk, initialPlayers = []) {
 
   function render() {
     el.innerHTML = `<ul class="sh-players">
-      ${players.map(p => `
+      ${players.map(p => {
+        const name  = sdk.nameOf(p.user);
+        const avUrl = sdk.avatarUrl(p.user);
+        return `
         <li class="sh-player${p.user === sdk.me.user ? ' me' : ''}${p.spectator ? ' sh-spectator' : ''}">
-          <span class="sh-sym">${initials(p.user)}</span>
-          <span class="sh-name">${p.user}${p.user === sdk.me.user ? ' (you)' : ''}${p.spectator ? ' — spectator' : ''}</span>
+          <span class="sh-sym">${avUrl ? `<img src="${avUrl}" alt="">` : initials(name)}</span>
+          <span class="sh-name">${name}${p.user === sdk.me.user ? ' (you)' : ''}${p.spectator ? ' — spectator' : ''}</span>
           ${sdk.me.isHost && p.user !== sdk.me.user
             ? `<button class="sh-role sh-small" data-user="${p.user}" data-spectator="${!p.spectator}">${p.spectator ? '→ player' : '→ spectator'}</button>
                <button class="sh-kick sh-small danger" data-user="${p.user}">kick</button>`
             : ''}
-        </li>`).join('')}
+        </li>`;
+      }).join('')}
     </ul>`;
 
     el.querySelectorAll('.sh-kick').forEach(b =>
@@ -68,6 +72,7 @@ export function mountPlayers(el, sdk, initialPlayers = []) {
   sdk.on('playerKicked', onKicked);
   sdk.on('roleChanged',  onRoleChanged);
   sdk.on('roster',       onRoster);
+  sdk.on('profilesUpdated', render); // gamertag/avatar can resolve after initial render
 
   render();
 
@@ -77,5 +82,6 @@ export function mountPlayers(el, sdk, initialPlayers = []) {
     sdk.off('playerKicked', onKicked);
     sdk.off('roleChanged',  onRoleChanged);
     sdk.off('roster',       onRoster);
+    sdk.off('profilesUpdated', render);
   };
 }

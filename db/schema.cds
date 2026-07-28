@@ -42,3 +42,16 @@ entity Leaderboard {
   draws      : Integer default 0;
   points     : Integer default 0;
 }
+
+// User profile — gamertag + avatar picture. Purely a DISPLAY layer: `user`
+// stays the canonical identity everywhere else (rooms, moves, chat,
+// leaderboard) — this only controls how a user is shown. All writes are
+// scoped to the caller (see srv/profile-service.js) — nobody can edit
+// another user's row, even though reads are open (needed to label a room's
+// roster with everyone's gamertag/avatar).
+entity Profiles {
+  key user  : String(255);
+  gamertag  : String(40);
+  avatar    : LargeBinary @Core.MediaType: mediaType @Core.ContentDisposition.Filename: 'avatar.jpg';
+  mediaType : String @Core.IsMediaType;
+}

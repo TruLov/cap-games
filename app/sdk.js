@@ -1,9 +1,10 @@
 /**
  * sdk.js — Platform SDK factory
  *
- * Shell calls makeSdk({ room, me, players, wsSend, emitter, toastFn, leaveFn })
- * once per room session. Game receives sdk via mount(rootEl, sdk) — called only
- * once a match is actually starting/active — and uses it freely.
+ * Shell calls makeSdk({ room, me, players, wsSend, emitter, toastFn, leaveFn,
+ * nameOf, avatarUrl }) once per room session. Game receives sdk via
+ * mount(rootEl, sdk) — called only once a match is actually starting/active
+ * — and uses it freely.
  *
  * sdk = {
  *   room     { id, game }
@@ -17,10 +18,18 @@
  *   off(event, fn)          — unsubscribe
  *   toast(msg)              — show brief status in shell header
  *   leave()                 — leave room (shell handles routing)
+ *   nameOf(user)            — gamertag for a user id, falling back to the id
+ *                             itself if none is set; resolved via the
+ *                             platform's profile cache (never fetch this
+ *                             yourself — a game never talks to ProfileService
+ *                             directly, only through sdk)
+ *   avatarUrl(user)         — avatar image URL for a user id, or null if
+ *                             they haven't set one (render your own fallback,
+ *                             e.g. initials, in that case)
  * }
  */
 
-export function makeSdk({ room, me, players, wsSend, emitter, toastFn, leaveFn }) {
+export function makeSdk({ room, me, players, wsSend, emitter, toastFn, leaveFn, nameOf, avatarUrl }) {
   return {
     room,
     me,
@@ -30,6 +39,8 @@ export function makeSdk({ room, me, players, wsSend, emitter, toastFn, leaveFn }
     off(event, fn)     { emitter.off(event, fn); },
     toast(msg)         { toastFn(msg); },
     leave()            { leaveFn(); },
+    nameOf(user)       { return nameOf ? nameOf(user) : user; },
+    avatarUrl(user)    { return avatarUrl ? avatarUrl(user) : null; },
   };
 }
 

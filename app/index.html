@@ -66,6 +66,23 @@
     </section>
   </main>
 
+  <!-- ── Edit profile — gamertag + avatar (own only) ─────────── -->
+  <main id="view-profile" class="sh-view" hidden>
+    <h2>Edit profile</h2>
+    <div class="sh-row">
+      <div id="profile-avatar-preview" class="sh-avatar-preview"></div>
+      <div>
+        <input type="file" id="profile-avatar-input" accept="image/png,image/jpeg,image/webp" />
+        <div class="sh-small">PNG/JPEG/WEBP — resized automatically, max 256 KB.</div>
+      </div>
+    </div>
+    <div class="sh-row" style="margin-top:1rem">
+      <input id="profile-gamertag-input" placeholder="Gamertag" maxlength="40" />
+      <button id="profile-save-btn">Save</button>
+    </div>
+    <button id="profile-back-btn" class="sh-ghost sh-small" style="margin-top:1rem">Back to lobby</button>
+  </main>
+
   <!-- ── Room — persistent chrome (players + chat) live for the whole room
        session; #game-root is the ONLY area a game module ever touches, and
        only once a match is actually starting/active. Before that (status

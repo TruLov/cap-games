@@ -36,6 +36,11 @@ const shell = {
 let ws      = null;
 let emitter = makeEmitter();
 
+// Re-render the header whenever a profile resolves (own gamertag/avatar may
+// arrive asynchronously after the initial login render). Global/always-on —
+// profile lookups can happen both inside and outside a room.
+emitter.on('profilesUpdated', () => { if (shell.user) renderAccount(); });
+
 const USERS = ['alice', 'bob', 'carol', 'dave', 'erin'];  // local dev only
 
 // ── DOM ───────────────────────────────────────────────────────
@@ -148,12 +153,18 @@ function renderAccount() {
   $('sh-account').hidden = false;
 
   if (shell.user) {                              // logged in → avatar + logout menu
+    const name = nameOf(shell.user.id);
+    const avatar = avatarUrlOf(shell.user.id);
     btn.className = 'sh-account-btn sh-avatar';
-    btn.textContent = initials(shell.user.id);
-    btn.title = shell.user.id;
+    btn.innerHTML = avatar ? `<img src="${avatar}" alt="">` : '';
+    if (!avatar) btn.textContent = initials(name);
+    btn.title = name;
     menu.innerHTML =
-      `<div class="sh-account-name">${shell.user.id}</div>` +
+      `<div class="sh-account-name">${name}</div>` +
+      (shell.room ? '' : `<button class="sh-menu-item" data-act="profile">Edit profile</button>`) +
       `<button class="sh-menu-item" data-act="logout">Logout</button>`;
+    menu.querySelector('[data-act="profile"]')?.addEventListener('click',
+      () => { closeAccountMenu(); showProfilePage(); });
     menu.querySelector('[data-act="logout"]').onclick = logout;
     btn.onclick = toggleAccountMenu;
   } else if (shell.mode === 'mocked') {          // local → pick a mock player
@@ -181,15 +192,49 @@ document.addEventListener('click', e => {
 
 // ── OData ─────────────────────────────────────────────────────
 async function odata(method, path, body) {
+  return serviceCall('lobby', method, path, body);
+}
+
+// Generic OData call against any platform service (lobby/profile/...).
+async function serviceCall(service, method, path, body) {
   const headers = { 'Content-Type': 'application/json' };
   if (shell.user?.authHeader) headers.Authorization = shell.user.authHeader;   // dev only
-  const res = await fetch(`/odata/v4/lobby/${path}`, {
+  const res = await fetch(`/odata/v4/${service}/${path}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text;
+    try { message = JSON.parse(text).error?.message || text; } catch { /* not JSON — use raw text */ }
+    throw new Error(message);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+// ── Profiles (gamertag + avatar) — a display layer over the stable `user`
+// id used everywhere else. Own writes go through dedicated actions; reads
+// are batch-resolved and cached here, then exposed to games only via
+// sdk.nameOf()/sdk.avatarUrl() — no game ever talks to ProfileService itself.
+const profiles = new Map(); // user -> { gamertag, hasAvatar }
+
+function nameOf(user) { return profiles.get(user)?.gamertag || user; }
+function avatarUrlOf(user) {
+  return profiles.get(user)?.hasAvatar
+    ? `/odata/v4/profile/Profiles(user='${encodeURIComponent(user)}')/avatar`
+    : null;
+}
+
+async function ensureProfiles(users) {
+  const missing = [...new Set(users)].filter(u => u && !profiles.has(u));
+  if (!missing.length) return;
+  missing.forEach(u => profiles.set(u, { gamertag: '', hasAvatar: false })); // avoid duplicate concurrent fetches
+  try {
+    const data = await serviceCall('profile', 'POST', 'profilesOf', { users: missing });
+    for (const p of data.value ?? []) profiles.set(p.user, { gamertag: p.gamertag, hasAvatar: p.hasAvatar });
+  } catch { /* keep the empty placeholders — falls back to raw id/initials */ }
+  emitter.emit('profilesUpdated', {});
 }
 
 // ── WebSocket ─────────────────────────────────────────────────
@@ -272,6 +317,7 @@ function onRoster({ players }) {
     const list = JSON.parse(players);
     shell.players.length = 0;
     shell.players.push(...list);
+    ensureProfiles(list.map(p => p.user));
   } catch { /* ignore malformed payload */ }
 }
 function onPlayerLeftRoster({ player }) {
@@ -394,6 +440,8 @@ async function joinRoom(roomId, code, game) {
       emitter,
       toastFn: toast,
       leaveFn: leaveRoom,
+      nameOf,
+      avatarUrl: avatarUrlOf,
     });
 
     showView('room');
@@ -525,6 +573,7 @@ function enterLobby(id) {
   renderAccount();               // header now shows the avatar
   showView('lobby');
   loadLobby();
+  ensureProfiles([id]);
   consumePendingJoin();
 }
 
@@ -548,6 +597,86 @@ $('sh-btn-join').onclick = () => {
   if (id) joinByCode(id);
 };
 $('sh-btn-refresh-rooms').onclick = () => loadOpenRooms();
+
+// ── Edit profile (gamertag + avatar) ────────────────────────────
+// Client-side resize before upload: avoids relying solely on the server
+// rejecting an oversized image — the user gets a usable avatar instead of
+// an error. Downscales to a small square and re-encodes as JPEG, shrinking
+// quality until the result fits under maxBytes.
+async function resizeImageToLimit(file, maxBytes = 256 * 1024, maxDim = 256) {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+  const w = Math.max(1, Math.round(bitmap.width * scale));
+  const h = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h);
+
+  let quality = 0.85;
+  for (let i = 0; i < 6; i++) {
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
+    if (blob.size <= maxBytes || quality <= 0.3) return blob;
+    quality -= 0.15;
+  }
+  return new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.3));
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload  = () => resolve(r.result.split(',')[1]);
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+}
+
+let pendingAvatarBlob = null;
+
+function renderProfileAvatarPreview() {
+  const el = $('profile-avatar-preview');
+  if (pendingAvatarBlob) {
+    el.innerHTML = `<img src="${URL.createObjectURL(pendingAvatarBlob)}" alt="">`;
+    return;
+  }
+  const url = avatarUrlOf(shell.user.id);
+  el.innerHTML = url ? `<img src="${url}" alt="">` : '';
+  if (!url) el.textContent = initials(nameOf(shell.user.id));
+}
+
+async function showProfilePage() {
+  pendingAvatarBlob = null;
+  $('profile-gamertag-input').value = profiles.get(shell.user.id)?.gamertag ?? '';
+  renderProfileAvatarPreview();
+  showView('profile');
+}
+
+$('profile-avatar-input').onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    pendingAvatarBlob = await resizeImageToLimit(file);
+    renderProfileAvatarPreview();
+  } catch { toast('Could not read that image'); }
+};
+
+$('profile-save-btn').onclick = async () => {
+  const tag = $('profile-gamertag-input').value.trim();
+  try {
+    if (tag) await serviceCall('profile', 'POST', 'saveGamertag', { gamertag: tag });
+    if (pendingAvatarBlob) {
+      const data = await blobToBase64(pendingAvatarBlob);
+      await serviceCall('profile', 'POST', 'saveAvatar', { data, mediaType: 'image/jpeg' });
+      pendingAvatarBlob = null;
+    }
+    profiles.delete(shell.user.id);
+    await ensureProfiles([shell.user.id]);
+    toast('Profile saved');
+    showView('lobby');
+  } catch (e) {
+    toast(e.message || 'Could not save profile');
+  }
+};
+$('profile-back-btn').onclick = () => showView('lobby');
 
 async function boot() {
   // In local dev, restore a previously-picked mock user so whoami passes.

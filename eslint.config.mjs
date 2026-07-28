@@ -5,7 +5,10 @@ export default [
   // legitimate browser globals we actually use.
   {
     files: ['**/app/**/*.js'],
-    languageOptions: { globals: { WebSocket: 'readonly', navigator: 'readonly' } },
+    languageOptions: { globals: {
+      WebSocket: 'readonly', navigator: 'readonly',
+      createImageBitmap: 'readonly', FileReader: 'readonly',
+    } },
   },
   // scripts/ are CLI diagnostic tools — console output is the whole point.
   {

@@ -181,11 +181,38 @@ sdk = {
   off(event, fn),          // unsubscribe (call in unmount cleanup)
   toast(msg),              // brief status in shell header
   leave(),                 // leave room
+  nameOf(user),            // gamertag for a user id (falls back to the id
+                           // itself if none set) — resolved via the
+                           // platform's ProfileService cache
+  avatarUrl(user),         // avatar image URL for a user id, or null —
+                           // render your own fallback (e.g. initials)
 }
 ```
 
 Shell components (`/shell/*.js`) are platform-internal — mounted once by
 `platform.js` for the room's whole session. Games never import them directly.
+
+**Identity vs. display**: `user` (the IAS subject / dev-auth name) stays the
+canonical identity everywhere it matters — room membership, moves, chat,
+leaderboard keys, DB rows. A user's **gamertag + avatar are a display layer
+only**, added via `ProfileService` (`srv/profile-service.cds/.js`, entity
+`Profiles` in `db/schema.cds`) and never substituted in for `user` anywhere
+in game logic. Reads are open (any authenticated user can look up anyone
+else's gamertag/avatar — needed to label a room's roster); every write is a
+dedicated action scoped to `req.user.id` (`saveGamertag`, `saveAvatar`),
+never generic OData PUT/PATCH, so nobody can edit another user's row. The
+avatar is served as a real CAP media stream (`LargeBinary @Core.MediaType`)
+— `GET .../profile/Profiles(user='...')/avatar` — capped at 256 KB and a
+png/jpeg/webp mime whitelist, enforced in `profile-service.js` (the service
+also raises the default express body-parser limit via
+`@cds.server.body_parser.limit`, otherwise a legitimate base64-encoded
+upload would be rejected before that check ever runs). `platform.js` batch-
+resolves and caches `{gamertag, hasAvatar}` per user (`ProfileService.
+profilesOf`) and exposes it to games only through `sdk.nameOf`/
+`sdk.avatarUrl` — a game never calls ProfileService itself. Currently wired
+into the shell (header, players list, chat) only; adopting it inside a
+game's own board/board-adjacent UI (e.g. Kaiten's tableau) is a deliberate
+follow-up once the shell version is exercised live.
 
 ### Game Interface Contract
 
@@ -281,9 +308,10 @@ Activate: add `"@cap-games/mygame": "*"` to root `package.json` dependencies, th
 | `Players` | Players per room — user id, spectator flag, isHost |
 | `Matches` | Completed match history — winner, player snapshot, final state |
 | `Leaderboard` | Aggregated stats per user+game — wins, losses, draws, points |
+| `Profiles` | Display layer per user — gamertag, avatar (media stream) |
 
 `Rooms` and `Players` are cleaned up automatically when a room empties.
-`Matches` and `Leaderboard` are permanent.
+`Matches`, `Leaderboard`, and `Profiles` are permanent.
 
 ---
 
