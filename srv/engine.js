@@ -18,8 +18,13 @@ import { get as registryGet } from './registry.js';
 const GRACE_MS = 60_000;
 
 // Transient board state (non-persistent, lost on restart — intentional)
-// roomId → { game, state, turn, disconnected: Map<userId, timer> }
+// roomId → { game, state, turn }
 const boardState = {};
+
+// Reconnect grace timers — kept independent of board state so they work in
+// ANY room status (lobby/playing/paused/finished), not just while a board
+// exists. roomId → Map<userId, timer>
+const graceTimers = {};
 
 // --- Status transitions ---
 const TRANSITIONS = {
@@ -49,31 +54,30 @@ function deleteBoard(roomId) { delete boardState[roomId]; }
 function initBoard(roomId, game, settings, players = []) {
   const gm = registryGet(game);
   const state = gm.init(settings ? JSON.parse(settings) : {}, players);
-  boardState[roomId] = { game, state, turn: state.turn ?? null, disconnected: new Map() };
+  boardState[roomId] = { game, state, turn: state.turn ?? null };
   return boardState[roomId];
 }
 
 // --- Reconnect grace ---
 function setGraceTimer(roomId, userId, callback) {
-  const b = boardState[roomId];
-  if (!b) return;
   const timer = setTimeout(callback, GRACE_MS);
-  b.disconnected.set(userId, timer);
+  (graceTimers[roomId] ??= new Map()).set(userId, timer);
 }
 
 function clearGraceTimer(roomId, userId) {
-  const b = boardState[roomId];
-  if (!b) return;
-  clearTimeout(b.disconnected.get(userId));
-  b.disconnected.delete(userId);
+  const m = graceTimers[roomId];
+  if (!m) return;
+  clearTimeout(m.get(userId));
+  m.delete(userId);
+  if (m.size === 0) delete graceTimers[roomId];
 }
 
 function hasGraceTimer(roomId, userId) {
-  return boardState[roomId]?.disconnected.has(userId) ?? false;
+  return graceTimers[roomId]?.has(userId) ?? false;
 }
 
 function allGraceTimers(roomId) {
-  return [...(boardState[roomId]?.disconnected.keys() ?? [])];
+  return [...(graceTimers[roomId]?.keys() ?? [])];
 }
 
 // --- Default scoring (W:3 D:1 L:0) — used if game.score() not provided ---

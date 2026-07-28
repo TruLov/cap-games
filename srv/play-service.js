@@ -40,6 +40,7 @@ class PlayService extends cds.ApplicationService {
         await this.emit('playerReconnected', { room: roomId, player: user });
         await this._sysMsg(roomId, `${user} reconnected.`);
         await this._snapshotTo(roomId, room.game, user, player?.spectator ?? true);
+        await this._rosterBroadcast(roomId);
         LOG.info('RECONNECT', roomId, user);
         return this._role(player);
       }
@@ -52,6 +53,7 @@ class PlayService extends cds.ApplicationService {
           host: existing.isHost, status: room.status,
         });
         await this._snapshotTo(roomId, room.game, user, existing.spectator);
+        await this._rosterBroadcast(roomId);
         return this._role(existing);
       }
 
@@ -74,6 +76,7 @@ class PlayService extends cds.ApplicationService {
       });
       await this._sysMsg(roomId, `${user} joined.`);
       if (room.status === 'playing') await this._snapshotTo(roomId, room.game, user, spectator);
+      await this._rosterBroadcast(roomId);
       LOG.info('JOIN', roomId, user, '→', spectator ? 'spectator' : 'player', isHost ? '(host)' : '');
       return this._role({ spectator });
     });
@@ -196,6 +199,7 @@ class PlayService extends cds.ApplicationService {
         room: roomId, game: newGame,
         name: game.meta.name, minPlayers: game.meta.minPlayers, maxPlayers: game.meta.maxPlayers,
       });
+      await this._rosterBroadcast(roomId);
       await this._sysMsg(roomId, `Host switched the game to ${game.meta.name}.`);
       LOG.info('SWITCH', roomId, '→', newGame, 'by', req.user.id);
     });
@@ -273,27 +277,29 @@ class PlayService extends cds.ApplicationService {
       const user = req.user.id;
       const rooms = await SELECT.from(Rooms)
         .columns('ID','status','game','settings','host')
-        .where({ status: { in: ['playing', 'lobby', 'paused'] } });
+        .where({ status: { in: ['playing', 'lobby', 'paused', 'finished'] } });
 
       for (const room of rooms) {
         const player = await SELECT.one.from(Players)
           .where({ room_ID: room.ID, user });
         if (!player) continue;
 
+        // Grace period in ANY status — a transient drop (network blip, tab
+        // backgrounded) should never silently and permanently remove someone,
+        // whether mid-game or just sitting in the room between games. Only
+        // 'playing' additionally flips the room to 'paused' (mid-match pause
+        // semantics); other statuses hold the player provisionally as-is.
         if (room.status === 'playing') {
-          // grace period — pause
           await UPDATE(Rooms, room.ID).with({ status: 'paused' });
-          eng.setGraceTimer(room.ID, user, () => {
-            this._doLeave(user, room.ID, true).catch(() => {});
-          });
-          await this.emit('playerDisconnected', {
-            room: room.ID, player: user,
-          });
-          await this._sysMsg(room.ID, `${user} disconnected.`);
-          LOG.info('DISCONNECT', room.ID, user, '→ paused (60s grace)');
-        } else {
-          await this._doLeave(user, room.ID);
         }
+        eng.setGraceTimer(room.ID, user, () => {
+          this._doLeave(user, room.ID, true).catch(() => {});
+        });
+        await this.emit('playerDisconnected', {
+          room: room.ID, player: user,
+        });
+        await this._sysMsg(room.ID, `${user} disconnected.`);
+        LOG.info('DISCONNECT', room.ID, user, `→ status=${room.status} (60s grace)`);
       }
     });
 
@@ -395,6 +401,21 @@ class PlayService extends cds.ApplicationService {
     const pub = JSON.stringify(game.publicState(b.state));
     await this.emit('privateState', { room: roomId, data: _sliceFor(game, b.state, user, isSpectator, pub) }, { user: { include: [user] } });
     await this.emit('moved', { room: roomId, data: pub }, { user: { include: [user] } });
+  }
+
+  /**
+   * Full current roster (players + spectators), JSON-encoded — sent to (re)sync
+   * a client's player list, e.g. on join to an existing room or a game switch,
+   * where the client's UI (re)initializes and would otherwise only ever see
+   * *future* joined/playerLeft deltas, missing anyone already present.
+   */
+  async _rosterPayload(roomId) {
+    const players = await SELECT.from('cap.games.Players').where({ room_ID: roomId });
+    return JSON.stringify(players.map(p => ({ user: p.user, spectator: p.spectator, isHost: p.isHost })));
+  }
+
+  async _rosterBroadcast(roomId) {
+    await this.emit('roster', { room: roomId, players: await this._rosterPayload(roomId) });
   }
 
   async _doLeave(user, roomId, fromTimeout = false) {

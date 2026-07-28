@@ -42,7 +42,7 @@ function logout() {
   if (shell.user?.authHeader) {                 // local dev
     document.cookie = 'X-Authorization=; path=/; max-age=0';
     sessionStorage.removeItem('user');
-    if (ws) { ws.close(); ws = null; }
+    if (ws) wsClose();
     shell.user = null;
     shell.mode = 'mocked';
     renderAccount();
@@ -160,13 +160,48 @@ async function odata(method, path, body) {
 }
 
 // ── WebSocket ─────────────────────────────────────────────────
+// Auto-reconnect: a dropped socket (network blip, backgrounded tab, laptop
+// sleep) must not silently strand the player — the server now holds a 60s
+// reconnect grace in ANY room status, but that's useless unless the client
+// actually reopens the socket and re-sends 'join'. `intentionalClose` tells
+// onclose to stay quiet for deliberate closes (leave/logout).
+let reconnectTimer    = null;
+let reconnectAttempts = 0;
+let intentionalClose  = false;
+
 function wsConnect() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}/ws/play`);
+
+  ws.onopen = () => {
+    clearTimeout(reconnectTimer);
+    const wasReconnect = reconnectAttempts > 0;
+    reconnectAttempts = 0;
+    if (shell.room) wsSend('join', { room: shell.room.id });
+    if (wasReconnect) toast('Reconnected');
+  };
+
   ws.onmessage = ({ data }) => {
     const { event, data: payload } = JSON.parse(data);
     if (payload) emitter.emit(event, payload);
   };
+
+  ws.onclose = () => {
+    if (intentionalClose) { intentionalClose = false; return; }
+    if (!shell.room) return;   // not in a room — nothing to resume
+    const delay = Math.min(1000 * 2 ** reconnectAttempts, 8000);
+    reconnectAttempts++;
+    toast('Connection lost — reconnecting…');
+    reconnectTimer = setTimeout(wsConnect, delay);
+  };
+}
+
+function wsClose() {
+  intentionalClose = true;
+  clearTimeout(reconnectTimer);
+  reconnectAttempts = 0;
+  ws?.close();
+  ws = null;
 }
 
 function wsSend(action, data) {
@@ -216,12 +251,11 @@ async function joinRoom(roomId, code, game) {
   const mod = await import(`/games/${game}/index.js`);
   shell.game = mod.default;
 
-  // connect WS if needed
+  // connect WS if needed — wsConnect's onopen sends 'join' once shell.room is
+  // set (it already is, above), so a fresh connection auto-joins; if a socket
+  // is already open, send join directly.
   if (!ws || ws.readyState > WebSocket.OPEN) wsConnect();
-
-  // wait for open, then join
-  const join = () => wsSend('join', { room: roomId });
-  ws.readyState === WebSocket.OPEN ? join() : (ws.onopen = join);
+  else wsSend('join', { room: roomId });
 
   // once joined — platform sets me, then mounts game
   emitter.on('joined', function onFirstJoin(payload) {

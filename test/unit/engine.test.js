@@ -36,6 +36,28 @@ describe('engine', () => {
 
   });
 
+  describe('grace timers (independent of board state)', () => {
+
+    it('can be set/checked/cleared for a room with no board (e.g. lobby status)', () => {
+      const roomId = 'room-no-board';
+      expect(eng.getBoard(roomId)).to.equal(undefined);   // no board exists
+      expect(eng.hasGraceTimer(roomId, 'alice')).to.be.false;
+
+      eng.setGraceTimer(roomId, 'alice', () => {});
+      expect(eng.hasGraceTimer(roomId, 'alice')).to.be.true;
+      expect(eng.allGraceTimers(roomId)).to.deep.equal(['alice']);
+
+      eng.clearGraceTimer(roomId, 'alice');
+      expect(eng.hasGraceTimer(roomId, 'alice')).to.be.false;
+      expect(eng.allGraceTimers(roomId)).to.deep.equal([]);
+    });
+
+    it('clearGraceTimer on an unknown room/user is a no-op', () => {
+      expect(() => eng.clearGraceTimer('nope', 'nobody')).not.to.throw();
+    });
+
+  });
+
   describe('defaultScore', () => {
 
     it('winner gets win/3, loser gets loss/0', () => {

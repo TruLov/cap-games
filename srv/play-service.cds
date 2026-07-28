@@ -32,6 +32,12 @@ service PlayService {
   event roomReset          { @ws.context room: String; }
   event gameSwitched       { @ws.context room: String; game: String; name: String; minPlayers: Integer; maxPlayers: Integer; }
   event roleChanged        { @ws.context room: String; player: String; spectator: Boolean; }
+  // Full current roster (JSON array of { user, spectator, isHost }), sent to
+  // (re)sync a client's player list — on join to an existing room and on
+  // switchGame, when a client's game UI (re)initializes and would otherwise
+  // only ever see *future* joined/playerLeft deltas, missing anyone already
+  // present. Generic platform capability — see shell/players.js.
+  event roster             { @ws.context room: String; players: LargeString; }
   // Per-recipient private state slice (hidden information). Delivered only to a
   // single user via the `user` emit filter. NO @ws.context here on purpose:
   // combining a room context with a user filter would OR them and broadcast to

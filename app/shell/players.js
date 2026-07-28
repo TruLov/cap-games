@@ -52,10 +52,23 @@ export function mountPlayers(el, sdk, initialPlayers = []) {
     render();
   }
 
+  // Full authoritative resync — sent by the server on join/reconnect and on
+  // switchGame. Replaces the local list wholesale so a freshly (re)mounted
+  // game UI (e.g. after a host game switch) never shows a stale roster built
+  // only from `[sdk.me]` + whatever `joined` deltas happened to fire since.
+  function onRoster({ players: json }) {
+    let list;
+    try { list = JSON.parse(json); } catch { return; }
+    players.length = 0;
+    players.push(...list);
+    render();
+  }
+
   sdk.on('joined',       onJoined);
   sdk.on('playerLeft',   onLeft);
   sdk.on('playerKicked', onKicked);
   sdk.on('roleChanged',  onRoleChanged);
+  sdk.on('roster',       onRoster);
 
   render();
 
@@ -64,5 +77,6 @@ export function mountPlayers(el, sdk, initialPlayers = []) {
     sdk.off('playerLeft',   onLeft);
     sdk.off('playerKicked', onKicked);
     sdk.off('roleChanged',  onRoleChanged);
+    sdk.off('roster',       onRoster);
   };
 }
