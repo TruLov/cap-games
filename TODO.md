@@ -1,0 +1,34 @@
+# TODO
+
+- [x] improve UI
+  - [x] Remove X/O from top right shell bar
+- [/] Implement Games
+  - [/] AI DND "Kaffee Kwest" [Kaffee Kwest](./docs/ideas/kaffee-kwest.md)
+    - [ ] Visualisierung von player.md
+    - [ ] initiale player.md über wizard anlegen
+    - [ ] ASCII Art generieren?
+    - [x] Architektur Ordner -> lib/, srv/ app/ db/
+    - [x] Scenarios soll auch eine DB sein?
+    - [ ] deployed errors:    
+      - [ ]  Chronic speichern ```index.js:59  POST https://dev-apps-trial-e66990f5-2fd3-1c71-af77-bc4fa17200eb-def1540c4a0.cfapps.us10-003.hana.ondemand.com/odata/v4/kaffee-kwest/saveProfile 501 (Not Implemented)```
+      - [ ] Abenteuer Starten ```index.js:59  POST https://dev-apps-trial-e66990f5-2fd3-1c71-af77-bc4fa17200eb-def1540c4a0.cfapps.us10-003.hana.ondemand.com/odata/v4/kaffee-kwest/prepare 501 (Not Implemented)odata @ index.js:59panel.querySelector.onclick @ index.js:150index.js:159 Error: {"error":{"message":"The server does not support the functionality required to fulfill the request","code":"501"}}at odata (index.js:64:22)at async panel.querySelector.onclick (index.js:150:39)```
+  - [ ] Piratenkapern
+  - [ ] Marcs Multi titactoe
+  - [x] Rooms auf startpage anzeigen
+  - [x] games in lobby switchen
+  - [x] Better experience for joining games
+    - [x] Add Copy ID Button for joining games
+    - [x] dont use full GUID for joining games, at least not in the frontend. Shorten the join ID to make it "typeable"
+    - [x] Add functionality to share invite link
+  - [x] Gamertag
+  - [x] Light & Dark mode
+  - [x] Geilerer Name + Logo
+  - [x] Logout Fixen
+  - [x] Start Game Button Position
+  - [x] Login Register muss in die Shell
+  - [x] Visibility
+    - [x] Buttons in Lobby
+    - [x] Kaiten Scoreboard
+    - [x] Logout Button
+  - [x] Layout ist off (scrollen)
+  - [x] remove cap-games Choose your player (local dev)
