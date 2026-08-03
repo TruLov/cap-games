@@ -12,6 +12,12 @@
  *          'skull'  — a skull, locked, counts toward the bust
  *          'locked' — a fixed scoring die (the coin/diamond card's 9th die)
  *          'chest'  — stored in the treasure chest; scores even on a bust
+ *
+ * Island of Skulls: 4+ skulls on the *first* roll of a turn send the active
+ * player to the island (phase 'island') instead of busting. There they keep
+ * rerolling the non-skull dice; every new skull docks 100 points from each of
+ * the *other* players, and the active player scores nothing. The island turn
+ * ends the moment a roll adds no new skull.
  */
 
 import { rollFace, scoreDice, skullCount, maxSet } from './dice.js';
@@ -40,6 +46,7 @@ function beginTurn(state, rng) {
     dice: freshDice(card),
     sorceressUsed: false,
     rerollCount: 0,
+    islandSkulls: 0,
     phase: 'awaitRoll',
   };
 }
@@ -55,6 +62,7 @@ export function init(settings = {}, players = [], rng = Math.random) {
     finalRoundActive: false,
     winner: null,
     lastTurn: null,
+    log: [],
   };
   return beginTurn(base, rng);
 }
@@ -84,6 +92,10 @@ export function applyMove(state, move, user, rng = Math.random) {
   if (state.winner) return { error: 'game over' };
   if (user !== state.turn) return { error: 'not your turn' };
 
+  if (state.phase === 'island') {
+    return move?.action === 'roll' ? doIslandRoll(state, rng) : { error: 'keep rolling to leave the island' };
+  }
+
   switch (move?.action) {
     case 'roll':      return doRoll(state, rng);
     case 'reroll':    return doReroll(state, move, rng);
@@ -97,8 +109,38 @@ export function applyMove(state, move, user, rng = Math.random) {
 function doRoll(state, rng) {
   if (state.phase !== 'awaitRoll') return { error: 'already rolled this turn' };
   const active = indicesWithStatus(state.dice, 'active');
+  const before = skullCount(state.dice);
   const dice = rollDice(state.dice, active, rng);
-  return settle({ ...state, dice, phase: 'rolling' }, rng);
+  const rolled = { ...state, dice, phase: 'rolling' };
+  // 9-of-a-kind instant win takes priority over everything.
+  if (maxSet(dice, state.card) >= 9) return finishGame(rolled, state.turn);
+  // Island of Skulls: 4+ skulls on the *first* throw (else fall through to the
+  // normal bust-at-3 in settle). Only the skulls actually rolled are penalised.
+  if (skullCount(dice) >= 4) return enterIsland(rolled, skullCount(dice) - before);
+  return settle(rolled, rng);
+}
+
+// ---- Island of Skulls -----------------------------------------------------
+
+function dockOpponents(scores, players, active, skulls) {
+  const next = { ...scores };
+  for (const u of players) if (u !== active) next[u] = (next[u] ?? 0) - 100 * skulls;
+  return next;
+}
+
+function enterIsland(state, rolledSkulls) {
+  const scores = dockOpponents(state.scores, state.players, state.turn, rolledSkulls);
+  return { state: { ...state, scores, phase: 'island', islandSkulls: rolledSkulls }, end: null };
+}
+
+function doIslandRoll(state, rng) {
+  const active = indicesWithStatus(state.dice, 'active');
+  const before = skullCount(state.dice);
+  const dice = rollDice(state.dice, active, rng);
+  const newSkulls = skullCount(dice) - before;
+  if (newSkulls <= 0) return endIslandTurn({ ...state, dice }, rng);
+  const scores = dockOpponents(state.scores, state.players, state.turn, newSkulls);
+  return { state: { ...state, dice, scores, islandSkulls: state.islandSkulls + newSkulls }, end: null };
 }
 
 function doReroll(state, move, rng) {
@@ -164,21 +206,47 @@ function endTurn(state, busted, rng) {
   const points = turnScore(state, busted);
   const scores = { ...state.scores, [state.turn]: (state.scores[state.turn] ?? 0) + points };
   const lastTurn = { user: state.turn, card: state.card, points, busted };
+  const log = pushLog(state.log, logEntry(state, { points, busted, island: false }));
+  return advanceOrFinish({ ...state, scores, lastTurn, log }, rng);
+}
 
+// Island turns bank 0 for the active player (opponents were already docked
+// during the rolls); the game can still end here if it was the final round.
+function endIslandTurn(state, rng) {
+  const lastTurn = { user: state.turn, card: state.card, points: 0, busted: false, island: true, skulls: state.islandSkulls };
+  const log = pushLog(state.log, logEntry(state, { points: 0, busted: false, island: true, skulls: state.islandSkulls }));
+  return advanceOrFinish({ ...state, lastTurn, log }, rng);
+}
+
+function advanceOrFinish(state, rng) {
   const n = state.players.length;
-  const finalRoundActive = state.finalRoundActive || scores[state.turn] >= state.target;
+  const finalRoundActive = state.finalRoundActive || (state.scores[state.turn] ?? 0) >= state.target;
   const nextIdx = (state.currentIdx + 1) % n;
 
   // The final round completes when play wraps back to the first player.
   if (finalRoundActive && nextIdx === 0) {
-    return finishGame({ ...state, scores, lastTurn }, winnerByScore(scores, state.players));
+    return finishGame({ ...state, finalRoundActive }, winnerByScore(state.scores, state.players));
   }
 
-  const advanced = {
-    ...state, scores, lastTurn, finalRoundActive,
-    currentIdx: nextIdx, turn: state.players[nextIdx],
-  };
+  const advanced = { ...state, finalRoundActive, currentIdx: nextIdx, turn: state.players[nextIdx] };
   return { state: beginTurn(advanced, rng), end: null };
+}
+
+// ---- roll log (per-turn summary, newest first, bounded) -------------------
+
+const LOG_MAX = 20;
+
+function logEntry(state, result) {
+  return {
+    user: state.turn,
+    card: state.card,
+    dice: state.dice.map(d => ({ face: d.face, status: d.status })),
+    ...result,
+  };
+}
+
+function pushLog(log = [], entry) {
+  return [entry, ...log].slice(0, LOG_MAX);
 }
 
 function finishGame(state, winner) {

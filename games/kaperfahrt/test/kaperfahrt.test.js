@@ -36,6 +36,27 @@ function rolling(card, faces, { players = ['a', 'b'], turn = 'a', extra = [] } =
   };
 }
 
+// A fresh "awaitRoll" state with 8 empty dice (plus any extras), ready to roll.
+function awaiting(card, { players = ['a', 'b', 'c'], turn = 'a', extraDice = [] } = {}) {
+  return {
+    players,
+    currentIdx: players.indexOf(turn),
+    turn,
+    scores: Object.fromEntries(players.map(u => [u, 0])),
+    target: 6000,
+    finalRoundActive: false,
+    winner: null,
+    lastTurn: null,
+    log: [],
+    card,
+    dice: [...Array(8).fill(0).map(() => ({ face: null, status: 'active' })), ...extraDice],
+    sorceressUsed: false,
+    rerollCount: 0,
+    islandSkulls: 0,
+    phase: 'awaitRoll',
+  };
+}
+
 const stop = s => applyMove(s, { action: 'stop' }, s.turn);
 
 // ---- scoring --------------------------------------------------------------
@@ -192,6 +213,75 @@ test('score maps the winner to a leaderboard row', () => {
     { user: 'a', result: 'win', points: 3 },
     { user: 'b', result: 'loss', points: 0 },
   ]);
+});
+
+// ---- Island of Skulls -----------------------------------------------------
+
+test('four skulls on the first roll sends you to the Island of Skulls', () => {
+  const s = awaiting({ type: 'sorceress' });
+  const r = applyMove(s, { action: 'roll' }, 'a',
+    faceRng(['skull', 'skull', 'skull', 'skull', 'saber', 'saber', 'saber', 'saber']));
+  assert.equal(r.end, null);
+  assert.equal(r.state.phase, 'island');
+  assert.equal(r.state.islandSkulls, 4);
+  assert.equal(r.state.scores.a, 0);       // active player is unaffected
+  assert.equal(r.state.scores.b, -400);    // 4 skulls × 100 each
+  assert.equal(r.state.scores.c, -400);
+});
+
+test('three skulls on the first roll still busts (no island)', () => {
+  const s = awaiting({ type: 'sorceress' });
+  const r = applyMove(s, { action: 'roll' }, 'a',
+    faceRng(['skull', 'skull', 'skull', 'parrot', 'parrot', 'parrot', 'parrot', 'parrot']));
+  assert.notEqual(r.state.phase, 'island');
+  assert.equal(r.state.lastTurn.busted, true);
+  assert.equal(r.state.turn, 'b');         // turn passed on
+});
+
+test('on the island each new skull docks 100 from every rival; a skull-free roll ends the turn', () => {
+  const island = {
+    ...awaiting({ type: 'sorceress' }),
+    phase: 'island', islandSkulls: 4,
+    scores: { a: 0, b: -400, c: -400 },
+    dice: [
+      ...Array(4).fill(0).map(() => ({ face: 'skull', status: 'skull' })),
+      ...Array(4).fill(0).map(() => ({ face: 'saber', status: 'active' })),
+    ],
+  };
+  // reroll the 4 actives → one more skull: rivals drop another 100
+  const r1 = applyMove(island, { action: 'roll' }, 'a', faceRng(['skull', 'saber', 'saber', 'saber']));
+  assert.equal(r1.end, null);
+  assert.equal(r1.state.phase, 'island');
+  assert.equal(r1.state.islandSkulls, 5);
+  assert.equal(r1.state.scores.b, -500);
+  assert.equal(r1.state.scores.c, -500);
+  // reroll the remaining 3 actives → no new skull → the island turn ends
+  const r2 = applyMove(r1.state, { action: 'roll' }, 'a', faceRng(['saber', 'coin', 'parrot']));
+  assert.equal(r2.end, null);
+  assert.equal(r2.state.scores.a, 0);      // the castaway scores nothing
+  assert.equal(r2.state.turn, 'b');
+  assert.equal(r2.state.lastTurn.island, true);
+  assert.equal(r2.state.lastTurn.skulls, 5);
+});
+
+test('on the island only rolling is allowed', () => {
+  const island = { ...awaiting({ type: 'sorceress' }), phase: 'island' };
+  assert.equal(applyMove(island, { action: 'stop' }, 'a').error, 'keep rolling to leave the island');
+});
+
+// ---- roll log -------------------------------------------------------------
+
+test('each finished turn appends a summary to the log (newest first)', () => {
+  const s = rolling({ type: 'captain' },
+    ['saber', 'saber', 'saber', 'coin', 'parrot', 'monkey', 'parrot', 'monkey']);
+  const r = stop(s);
+  assert.equal(r.state.log.length, 1);
+  const e = r.state.log[0];
+  assert.equal(e.user, 'a');
+  assert.equal(e.points, 400);             // (100 set + 100 coin) × 2 captain
+  assert.equal(e.busted, false);
+  assert.equal(e.dice.length, 8);
+  assert.equal(e.dice[0].face, 'saber');
 });
 
 test('not your turn is rejected', () => {
