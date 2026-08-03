@@ -79,20 +79,19 @@ const STYLE = `
 
   /* ---- dice ---- */
   .kf-dice{display:flex;flex-wrap:wrap;gap:.55rem;margin:.2rem 4px .3rem}
-  .kf-die{position:relative;width:58px;height:58px;box-sizing:border-box;
-    border:3px solid var(--line);border-radius:11px;padding:6px;
-    background:linear-gradient(180deg,#ecf0fb,#c3c9e6);
-    box-shadow:inset 0 0 0 2px rgba(255,255,255,.5), 0 5px 0 #8f96bd, 0 8px 12px rgba(0,0,0,.4);
-    transition:transform .1s ease, box-shadow .1s ease}
+  .kf-die{position:relative;width:60px;height:60px;box-sizing:border-box;
+    border:3px solid var(--line);border-radius:3px;padding:5px;background:#e9edfb;
+    box-shadow:inset 3px 3px 0 rgba(255,255,255,.9), inset -3px -3px 0 #b3bbdd, 0 6px 0 #8f96bd, 0 9px 0 rgba(0,0,0,.35);
+    image-rendering:pixelated;transition:transform .1s ease, box-shadow .1s ease}
   .kf-die .kf-face{display:block;width:100%;height:100%;image-rendering:pixelated}
   .kf-die.can{cursor:pointer}
   .kf-die.can:hover{transform:translateY(-3px)}
   .kf-die.sel{transform:translateY(-11px);
-    box-shadow:inset 0 0 0 2px rgba(255,255,255,.5),0 9px 0 #8f96bd,0 14px 16px rgba(0,0,0,.45),0 0 0 3px var(--gold)}
-  .kf-die.skull{background:linear-gradient(180deg,#f6cfcb,#d98a86);box-shadow:inset 0 0 0 2px rgba(255,255,255,.4),0 5px 0 #a5514c,0 8px 12px rgba(0,0,0,.4)}
-  .kf-die.chest{background:linear-gradient(180deg,#ffe7a6,#e6bd54);box-shadow:inset 0 0 0 2px rgba(255,255,255,.5),0 5px 0 #b0871f,0 8px 12px rgba(0,0,0,.4)}
+    box-shadow:inset 3px 3px 0 rgba(255,255,255,.9),inset -3px -3px 0 #b3bbdd,0 10px 0 #8f96bd,0 13px 0 rgba(0,0,0,.4),0 0 0 3px var(--gold)}
+  .kf-die.skull{background:#f3cbc7;box-shadow:inset 3px 3px 0 rgba(255,255,255,.75),inset -3px -3px 0 #cf8f8a,0 6px 0 #a5514c,0 9px 0 rgba(0,0,0,.35)}
+  .kf-die.chest{background:#ffe6a2;box-shadow:inset 3px 3px 0 rgba(255,255,255,.9),inset -3px -3px 0 #d3ab4e,0 6px 0 #b0871f,0 9px 0 rgba(0,0,0,.35)}
   .kf-die.locked{filter:grayscale(.5) brightness(.85);opacity:.8}
-  .kf-die.empty{background:rgba(255,255,255,.06);border-style:dashed;border-color:var(--key);
+  .kf-die.empty{background:rgba(255,255,255,.06);border-style:dashed;border-color:var(--key);border-radius:3px;
     box-shadow:none}
   .kf-die.empty::after{content:"";position:absolute;inset:0;margin:auto;width:6px;height:6px;
     border-radius:2px;background:var(--key)}
