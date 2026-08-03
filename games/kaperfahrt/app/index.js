@@ -40,7 +40,7 @@ function cardMeta(c) {
 const SEGMENTS = 14; // segmented progress bar cells
 
 const STYLE = `
-  @font-face{font-family:'Pixelify Sans';src:url('./pixelify.woff2') format('woff2');font-weight:400 700;font-display:swap}
+  @font-face{font-family:'Pixelify Sans';src:url('./pixelify.ttf') format('truetype');font-weight:400 700;font-display:swap}
 
   .kf-root{
     --ink:#14152a; --ink2:#20223f; --panel:#2b2d52; --panel2:#343869;

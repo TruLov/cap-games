@@ -70,18 +70,10 @@ buttons, a segmented progress bar per player, and animated "juice" (dice roll,
 floating `+N` / `BUST` score pops, card slam-in, score count-up) that respects
 `prefers-reduced-motion`.
 
-Text uses the rounded-pixel **Pixelify Sans** font when present, and gracefully
-falls back to a bold monospace otherwise. To bundle the font (OFL, redistributable),
-drop its latin `woff2` at `app/pixelify.woff2` — the `@font-face` picks it up
-automatically:
-
-```sh
-# fetch the latin subset from Google Fonts (URL is stable per font version)
-curl -L -o games/kaperfahrt/app/pixelify.woff2 \
-  "$(curl -sL -A 'Mozilla/5.0' \
-     'https://fonts.googleapis.com/css2?family=Pixelify+Sans&display=swap' \
-     | grep -oE 'https://[^)]+\.woff2' | tail -1)"
-```
+Text uses the rounded-pixel **Pixelify Sans** font, bundled as `app/pixelify.ttf`
+(SIL Open Font License — see `app/pixelify-OFL.txt`) and referenced by the
+`@font-face` in `app/index.js`. If the file is ever missing, the UI gracefully
+falls back to a bold monospace (`font-display:swap`).
 
 ## Test
 
