@@ -60,6 +60,29 @@ Moves sent over `ws://…/ws/play` as `move` with a JSON `data` payload:
 {"action":"stop"}
 ```
 
+## Look & feel
+
+The UI (`app/index.js`) is a self-contained **pixel-art / Balatro-style** front end:
+a fixed dark indigo palette (it ignores the shell's light/dark theme so it always
+controls its own contrast), hand-authored 16×16 pixel sprites for the six die faces
+and card icons (`app/sprites.js` — plain SVG, no binary assets), chunky beveled chip
+buttons, a segmented progress bar per player, and animated "juice" (dice roll,
+floating `+N` / `BUST` score pops, card slam-in, score count-up) that respects
+`prefers-reduced-motion`.
+
+Text uses the rounded-pixel **Pixelify Sans** font when present, and gracefully
+falls back to a bold monospace otherwise. To bundle the font (OFL, redistributable),
+drop its latin `woff2` at `app/pixelify.woff2` — the `@font-face` picks it up
+automatically:
+
+```sh
+# fetch the latin subset from Google Fonts (URL is stable per font version)
+curl -L -o games/kaperfahrt/app/pixelify.woff2 \
+  "$(curl -sL -A 'Mozilla/5.0' \
+     'https://fonts.googleapis.com/css2?family=Pixelify+Sans&display=swap' \
+     | grep -oE 'https://[^)]+\.woff2' | tail -1)"
+```
+
 ## Test
 
 ```sh
