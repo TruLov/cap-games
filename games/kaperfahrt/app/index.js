@@ -170,7 +170,7 @@ const STYLE = `
 export default {
   mount(rootEl, sdk) {
     const me = sdk.me.user;
-    const reduce = matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     let st = null;                 // full public game state
     let pendingAnim = [];          // die indices to tumble on the next render
     let rollTimers = [];           // active tumble intervals
@@ -247,9 +247,9 @@ export default {
       const step = t => {
         const k = Math.min(1, (t - start) / dur);
         el.textContent = Math.round(from + (to - from) * k);
-        if (k < 1) requestAnimationFrame(step);
+        if (k < 1) window.requestAnimationFrame(step);
       };
-      requestAnimationFrame(step);
+      window.requestAnimationFrame(step);
     }
 
     function render() {
