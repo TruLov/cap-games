@@ -20,7 +20,7 @@
  * ends the moment a roll adds no new skull.
  */
 
-import { rollFace, scoreDice, skullCount, maxSet } from './dice.js';
+import { rollFace, scoreBreakdown, skullCount, maxSet } from './dice.js';
 import { drawCard } from './deck.js';
 
 const DEFAULT_TARGET = 6000;
@@ -186,26 +186,29 @@ function doChest(state, move) {
 
 // ---- turn resolution ------------------------------------------------------
 
-// Points banked for the just-finished turn (may be negative on a lost battle).
-function turnScore(state, busted) {
+// Points banked for the just-finished turn (may be negative on a lost battle),
+// plus an itemised breakdown for the turn-end summary.
+function scoreTurn(state, busted) {
   const card = state.card;
   const eligible = busted ? state.dice.filter(d => d.status === 'chest') : state.dice;
-  const dicePoints = scoreDice(eligible, card);
+  const base = scoreBreakdown(eligible, card);
 
   if (card.type === 'seabattle') {
     const sabers = eligible.filter(d => d.face === 'saber').length;
-    if (!busted && sabers >= card.need) return dicePoints + card.bonus;
-    return -card.bonus; // battle lost (or busted) → pay the penalty, no dice points
+    if (!busted && sabers >= card.need) {
+      return { points: base.total + card.bonus, lines: [...base.lines, { label: `Sea battle won`, points: card.bonus }] };
+    }
+    return { points: -card.bonus, lines: [{ label: busted ? 'Busted at sea' : 'Sea battle lost', points: -card.bonus }] };
   }
-  if (busted) return dicePoints;              // chest-only (0 if nothing stored)
-  if (card.type === 'captain') return dicePoints * 2;
-  return dicePoints;
+  if (busted) return { points: base.total, lines: base.lines };            // chest-only (0 if nothing stored)
+  if (card.type === 'captain') return { points: base.total * 2, lines: [...base.lines, { label: 'Captain', mult: 2 }] };
+  return { points: base.total, lines: base.lines };
 }
 
 function endTurn(state, busted, rng) {
-  const points = turnScore(state, busted);
+  const { points, lines } = scoreTurn(state, busted);
   const scores = { ...state.scores, [state.turn]: (state.scores[state.turn] ?? 0) + points };
-  const lastTurn = { user: state.turn, card: state.card, points, busted };
+  const lastTurn = { user: state.turn, card: state.card, points, busted, breakdown: lines };
   const log = pushLog(state.log, logEntry(state, { points, busted, island: false }));
   return advanceOrFinish({ ...state, scores, lastTurn, log }, rng);
 }
@@ -213,7 +216,11 @@ function endTurn(state, busted, rng) {
 // Island turns bank 0 for the active player (opponents were already docked
 // during the rolls); the game can still end here if it was the final round.
 function endIslandTurn(state, rng) {
-  const lastTurn = { user: state.turn, card: state.card, points: 0, busted: false, island: true, skulls: state.islandSkulls };
+  const lastTurn = {
+    user: state.turn, card: state.card, points: 0, busted: false,
+    island: true, skulls: state.islandSkulls,
+    breakdown: [{ label: `${state.islandSkulls} skulls`, points: -100 * state.islandSkulls, perRival: true }],
+  };
   const log = pushLog(state.log, logEntry(state, { points: 0, busted: false, island: true, skulls: state.islandSkulls }));
   return advanceOrFinish({ ...state, lastTurn, log }, rng);
 }

@@ -41,26 +41,33 @@ export function maxSet(dice, card) {
 export const skullCount = dice => dice.filter(d => d.face === 'skull').length;
 
 /**
- * Score the given dice. Caller decides *which* dice are eligible (all current
- * dice on a clean stop, or only chest-protected dice on a bust). Skulls among
- * them are ignored for scoring but do block the full-chest bonus.
+ * Itemised score for the given dice. Caller decides *which* dice are eligible
+ * (all current dice on a clean stop, or only chest-protected dice on a bust).
+ * Skulls among them are ignored for scoring but do block the full-chest bonus.
+ * Returns `{ lines: [{ label, points }], total }` — the lines drive the
+ * turn-end summary; `scoreDice` is just the total.
  */
-export function scoreDice(dice, card) {
+export function scoreBreakdown(dice, card) {
   const counts = symbolCounts(dice, card);
-  let points = 0;
+  const lines = [];
 
-  for (const n of Object.values(counts)) {
-    if (n >= 3) points += SET_POINTS[Math.min(n, 8)];
+  for (const [sym, n] of Object.entries(counts)) {
+    if (n >= 3) lines.push({ label: `Set of ${n} ${sym}`, points: SET_POINTS[Math.min(n, 8)] });
   }
-  for (const d of dice) {
-    if (d.face === 'coin' || d.face === 'diamond') points += 100;
-  }
+  const coins = dice.filter(d => d.face === 'coin').length;
+  const diamonds = dice.filter(d => d.face === 'diamond').length;
+  if (coins) lines.push({ label: `${coins} gold coin${coins > 1 ? 's' : ''}`, points: 100 * coins });
+  if (diamonds) lines.push({ label: `${diamonds} diamond${diamonds > 1 ? 's' : ''}`, points: 100 * diamonds });
 
   // Full chest: every die scores (part of a >=3 set, or a coin/diamond) and
   // there are no skulls in the eligible set. Needs the full 8 (or 9) dice.
   const scores = d => d.face === 'coin' || d.face === 'diamond' || counts[keyOf(d.face, card)] >= 3;
   const noSkulls = dice.every(d => d.face && d.face !== 'skull');
-  if (dice.length >= 8 && noSkulls && dice.every(scores)) points += 500;
+  if (dice.length >= 8 && noSkulls && dice.every(scores)) lines.push({ label: 'Full chest', points: 500 });
 
-  return points;
+  return { lines, total: lines.reduce((s, l) => s + l.points, 0) };
+}
+
+export function scoreDice(dice, card) {
+  return scoreBreakdown(dice, card).total;
 }

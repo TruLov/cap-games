@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { FACES, scoreDice } from '../dice.js';
+import { FACES, scoreDice, scoreBreakdown } from '../dice.js';
 import { applyMove, init, score } from '../flow.js';
 
 // ---- scripted RNG ---------------------------------------------------------
@@ -88,6 +88,25 @@ test('animals card merges monkeys and parrots into one symbol', () => {
 test('a skull among the dice blocks the full-chest bonus', () => {
   const dice = [...Array(7).fill('saber'), 'skull'].map(die);
   assert.equal(scoreDice(dice, { type: 'sorceress' }), 2000);   // 7 sabers, no +500
+});
+
+test('scoreBreakdown itemises and totals to scoreDice', () => {
+  const dice = ['coin', 'coin', 'coin', 'diamond', 'parrot'].map(die);
+  const card = { type: 'sorceress' };
+  const bd = scoreBreakdown(dice, card);
+  assert.equal(bd.total, scoreDice(dice, card));   // 100 set + 300 coins + 100 diamond = 500
+  assert.equal(bd.total, 500);
+  assert.ok(bd.lines.length >= 2);
+});
+
+test('lastTurn carries a breakdown that reconciles with the banked points', () => {
+  const s = rolling({ type: 'captain' },
+    ['saber', 'saber', 'saber', 'coin', 'parrot', 'monkey', 'parrot', 'monkey']);
+  const r = stop(s);
+  const bd = r.state.lastTurn.breakdown;
+  assert.ok(Array.isArray(bd) && bd.length);
+  assert.ok(bd.some(l => l.mult === 2));           // Captain ×2 line present
+  assert.equal(r.state.lastTurn.points, 400);      // (100 + 100) × 2
 });
 
 // ---- bust -----------------------------------------------------------------

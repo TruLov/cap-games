@@ -70,7 +70,7 @@ const STYLE = `
     --purple:#8b5cf6; --purple-d:#5a34c0;
     --pix:'Pixelify Sans', ui-monospace, "SFMono-Regular", "Courier New", monospace;
     display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start;
-    padding:16px; border-radius:18px; color:var(--cream);
+    position:relative; padding:16px; border-radius:18px; color:var(--cream);
     font-family:var(--pix);
     background:radial-gradient(120% 90% at 50% -10%, #2b2d59 0%, #1c1d3c 45%, #121328 100%);
     box-shadow:inset 0 0 0 2px #3a3c73, inset 0 0 90px rgba(0,0,0,.55), 0 12px 30px rgba(0,0,0,.4);
@@ -210,8 +210,37 @@ const STYLE = `
   .kf-logres{flex:0 0 auto;font-weight:700;min-width:40px;text-align:right}
   .kf-logres.pos{color:var(--green)} .kf-logres.neg,.kf-logres.isl{color:#ff8a8a} .kf-logres.zero{color:var(--muted)}
 
+  /* ---- saved dice zone (keep mode) ---- */
+  .kf-saved{margin:.4rem 4px .1rem;padding:.45rem .55rem .55rem;border:3px dashed var(--gold-d);border-radius:12px;
+    background:rgba(245,197,66,.09)}
+  .kf-saved[hidden]{display:none}
+  .kf-saved .kf-zlabel{display:block;font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem}
+  .kf-saved .kf-dice{margin:0}
+  .kf-saved .kf-die{box-shadow:inset 3px 3px 0 rgba(255,255,255,.9),inset -3px -3px 0 #b3bbdd,0 6px 0 #8f96bd,0 9px 0 rgba(0,0,0,.35),0 0 0 3px var(--gold)}
+
+  /* ---- turn-end summary overlay ---- */
+  .kf-summary{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+    background:rgba(8,9,20,.82);border-radius:18px;cursor:pointer;animation:kf-fadein .2s ease}
+  .kf-summary[hidden]{display:none}
+  @keyframes kf-fadein{from{opacity:0}to{opacity:1}}
+  .kf-card-panel{min-width:250px;max-width:82%;border:4px solid var(--line);border-radius:16px;padding:18px 22px;
+    text-align:center;background:linear-gradient(180deg,var(--panel2),var(--panel));
+    box-shadow:inset 0 0 0 2px var(--key),0 16px 44px rgba(0,0,0,.55);animation:kf-slam .4s cubic-bezier(.2,1.3,.5,1)}
+  .kf-sum-who{font-size:.72rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px}
+  .kf-sum-card{font-size:1.2rem;font-weight:700;color:var(--accent,#f5c542);margin-bottom:12px;text-shadow:1px 1px 0 var(--line)}
+  .kf-sum-lines{display:flex;flex-direction:column;gap:5px;margin:0 auto 10px;max-width:300px}
+  .kf-sum-row{display:flex;justify-content:space-between;gap:18px;font-size:.9rem;animation:kf-linein .3s ease backwards}
+  .kf-sum-row .lbl{color:var(--cream);opacity:.92}
+  .kf-sum-row .val{font-weight:700;color:var(--green)}
+  .kf-sum-row .val.mult{color:#b79cf0} .kf-sum-row .val.neg{color:var(--red)}
+  @keyframes kf-linein{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+  .kf-sum-total{font-size:2.3rem;font-weight:700;color:var(--gold);text-shadow:3px 3px 0 var(--line);margin-top:4px}
+  .kf-sum-total.neg{color:var(--red)}
+  .kf-sum-hint{font-size:.64rem;color:var(--muted);margin-top:12px;letter-spacing:.08em}
+
   @media (prefers-reduced-motion: reduce){
-    .kf-die.kf-roll,.kf-die.kf-settle,.kf-showcase,.kf-pop,.kf-stage.busting::before,.kf-player.dock{animation:none}
+    .kf-die.kf-roll,.kf-die.kf-settle,.kf-showcase,.kf-pop,.kf-stage.busting::before,.kf-player.dock,
+    .kf-summary,.kf-card-panel,.kf-sum-row{animation:none}
   }
 `;
 
@@ -227,6 +256,7 @@ export default {
     let prevCardKey = null;        // detect a new scene (slam animation)
     let sortMode = false;          // group identical faces in the display
     let keepMode = false;          // selection means "keep" (reroll the rest)
+    let summaryTimer = null;        // turn-end overlay auto-dismiss
 
     rootEl.innerHTML = `<div class="kf-root"><style>${STYLE}</style>
       <div class="kf-stage" id="kf-stage">
@@ -234,6 +264,7 @@ export default {
         <div class="kf-fx" id="kf-fx"></div>
         <div class="kf-status" id="kf-status">Loading…</div>
         <div class="kf-dice" id="kf-dice"></div>
+        <div class="kf-saved" id="kf-savedzone" hidden><span class="kf-zlabel">Saved — kept for banking</span><div class="kf-dice" id="kf-saved"></div></div>
         <div class="kf-toolbar" id="kf-toolbar"></div>
         <div class="kf-controls" id="kf-controls"></div>
         <div class="kf-last" id="kf-last"></div>
@@ -243,6 +274,7 @@ export default {
         <div class="kf-side"><h3>Scoreboard</h3><div id="kf-scores"></div><div id="kf-results"></div></div>
         <div class="kf-log"><h3>Roll log</h3><div id="kf-logrows"></div></div>
       </aside>
+      <div class="kf-summary" id="kf-summary" hidden></div>
     </div>`;
     const $ = id => rootEl.querySelector(id);
 
@@ -336,28 +368,36 @@ export default {
                 ? (st.phase === 'awaitRoll' ? 'Your turn — roll the dice!' : 'Your turn — reroll or bank.')
                 : `Waiting for ${name(st.turn)}…`));
 
-      // dice (display order = sorted or natural; data-i stays the original index)
+      // dice — split into an "in play" zone and, in keep mode, a "saved" zone.
+      // data-i stays the original index so moves are correct under sorting.
+      const savedZone = $('#kf-savedzone');
+      const showSaved = myTurn() && keepMode && st.phase === 'rolling';
+      savedZone.hidden = !showSaved;
+      const isSaved = i => showSaved && selected.has(i) && st.dice[i].status === 'active';
       const order = sortMode
         ? [...st.dice.keys()].sort((a, b) => faceRank(st.dice[a]) - faceRank(st.dice[b]))
         : [...st.dice.keys()];
-      const dEl = $('#kf-dice');
-      dEl.innerHTML = order.map(i => {
+      const tile = i => {
         const d = st.dice[i];
         const cls = ['kf-die'];
         if (d.face == null) cls.push('empty');
         if (d.status === 'skull') cls.push('skull');
         else if (d.status === 'chest') cls.push('chest');
         else if (d.status === 'locked') cls.push('locked');
-        if (selected.has(i)) cls.push(keepMode && d.status === 'active' ? 'kept' : 'sel');
+        if (!keepMode && selected.has(i)) cls.push('sel');
         if (selectable(d)) cls.push('can');
         return `<div class="${cls.join(' ')}" data-i="${i}"><span class="kf-face">${sprite(d.face)}</span></div>`;
-      }).join('');
-      dEl.querySelectorAll('.kf-die.can').forEach(el =>
+      };
+      const dEl = $('#kf-dice');
+      const sEl = $('#kf-saved');
+      dEl.innerHTML = order.filter(i => !isSaved(i)).map(tile).join('');
+      sEl.innerHTML = order.filter(i => isSaved(i)).map(tile).join('');
+      [dEl, sEl].forEach(zone => zone.querySelectorAll('.kf-die.can').forEach(el =>
         el.addEventListener('click', () => {
           const i = +el.dataset.i;
           selected.has(i) ? selected.delete(i) : selected.add(i);
           render();
-        }));
+        })));
       animateDice(dEl);
 
       // toolbar (sort + keep/reroll) — while it's my active-rolling turn
@@ -367,7 +407,7 @@ export default {
           <button class="kf-toggle ${sortMode ? 'on' : ''}" id="kf-sort">Sort ${sortMode ? 'on' : 'off'}</button>
           <button class="kf-toggle ${keepMode ? 'on' : ''}" id="kf-mode">Select → ${keepMode ? 'keep' : 'reroll'}</button>`;
         $('#kf-sort').addEventListener('click', () => { sortMode = !sortMode; render(); });
-        $('#kf-mode').addEventListener('click', () => { keepMode = !keepMode; render(); });
+        $('#kf-mode').addEventListener('click', () => { keepMode = !keepMode; selected.clear(); render(); });
       } else tb.innerHTML = '';
 
       // controls
@@ -460,33 +500,74 @@ export default {
       }).join('') : `<div class="kf-empty">No turns yet.</div>`;
     }
 
+    // ---- turn-end summary overlay ----
+    const fmtSigned = v => `${v < 0 ? '-' : (v > 0 ? '+' : '')}${Math.abs(v)}`;
+    function hideSummary() {
+      const el = $('#kf-summary');
+      if (el) { el.hidden = true; el.innerHTML = ''; }
+      clearTimeout(summaryTimer); summaryTimer = null;
+    }
+    function showSummary(lt) {
+      const el = $('#kf-summary');
+      if (!el) return;
+      clearTimeout(summaryTimer);
+      const accent = lt.island ? ACCENT.island : (ACCENT[lt.card?.type] || '#f5c542');
+      const title = lt.island ? 'Island of Skulls' : cardMeta(lt.card).title;
+      const total = lt.island ? -(lt.skulls || 0) * 100 : lt.points;
+      const head = lt.island ? 'plundered the rivals' : (lt.busted ? 'busted!' : 'banked');
+      const rows = (lt.breakdown || []).map((l, i) => {
+        const val = l.mult ? `×${l.mult}` : fmtSigned(l.points);
+        const cls = l.mult ? 'mult' : (l.points < 0 ? 'neg' : '');
+        const suffix = l.perRival ? ' <span style="opacity:.6">/ rival</span>' : '';
+        return `<div class="kf-sum-row" style="animation-delay:${(0.12 * i + 0.15).toFixed(2)}s">
+          <span class="lbl">${l.label}</span><span class="val ${cls}">${val}${suffix}</span></div>`;
+      }).join('') || `<div class="kf-sum-row"><span class="lbl">No score this turn</span><span class="val">0</span></div>`;
+      el.innerHTML = `<div class="kf-card-panel" style="--accent:${accent}">
+        <div class="kf-sum-who">${sdk.nameOf(lt.user)} · ${head}</div>
+        <div class="kf-sum-card">${title}</div>
+        <div class="kf-sum-lines">${rows}</div>
+        <div class="kf-sum-total ${total < 0 ? 'neg' : ''}" id="kf-sum-total">${fmtSigned(total)}</div>
+        <div class="kf-sum-hint">tap to continue</div>
+      </div>`;
+      el.hidden = false;
+      el.onclick = hideSummary;
+      if (!reduce) {
+        const t = $('#kf-sum-total');
+        const start = performance.now(), dur = 700;
+        const step = now => {
+          const k = Math.min(1, (now - start) / dur);
+          t.textContent = fmtSigned(Math.round(total * k));
+          if (k < 1) window.requestAnimationFrame(step); else t.textContent = fmtSigned(total);
+        };
+        window.requestAnimationFrame(step);
+      }
+      summaryTimer = setTimeout(hideSummary, 3000);
+    }
+
     // ---- events ----
     const apply = s => {
       const prev = st?.dice;
       const prevLt = st?.lastTurn;
       const prevScores = st?.scores;
       const prevPhase = st?.phase;
+      const prevTurn = st?.turn;
       pendingAnim = (s.phase !== 'awaitRoll')
         ? s.dice.map((d, i) => (d.face && (!prev || prev[i]?.face !== d.face)) ? i : -1).filter(i => i >= 0)
         : [];
       st = s;
-      selected.clear();
+      // keep-mode selection survives rerolls (the kept dice); else it's transient
+      if (!keepMode || s.winner || s.phase === 'awaitRoll' || s.turn !== prevTurn) selected.clear();
+      else for (const i of [...selected]) if (s.dice[i]?.status !== 'active') selected.delete(i);
       render();
 
-      // score juice: a freshly banked (non-island) turn spawns +N / −N / BUST
+      // turn-end summary overlay (covers the stage ~3s so everyone sees the math)
       const lt = s.lastTurn;
-      const newLt = lt && !lt.island && (!prevLt || prevLt.user !== lt.user || prevLt.points !== lt.points || prevLt.busted !== lt.busted);
-      if (newLt) {
-        const stage = $('#kf-stage');
-        if (lt.busted) {
-          spawnPopup('BUST 💀', 'bust');
-          if (!reduce && stage) { stage.classList.add('busting'); setTimeout(() => stage.classList.remove('busting'), 520); }
-        } else if (lt.points < 0) spawnPopup(`${lt.points}`, 'neg');
-        else if (lt.points > 0) spawnPopup(`+${lt.points}`);
-      }
+      const ltChanged = !!lt && (!prevLt || prevLt.user !== lt.user || prevLt.points !== lt.points
+        || prevLt.busted !== lt.busted || prevLt.island !== lt.island || prevLt.skulls !== lt.skulls);
+      if (ltChanged) showSummary(lt); else hideSummary();
 
-      // island juice: rivals just lost points → red popup + flash their rows
-      if (prevScores && (s.phase === 'island' || prevPhase === 'island')) {
+      // island juice (mid-turn): rivals just lost points → red popup + flash rows
+      if (prevScores && !ltChanged && (s.phase === 'island' || prevPhase === 'island')) {
         let dock = 0;
         s.players.forEach((u, idx) => {
           const d = (s.scores[u] ?? 0) - (prevScores[u] ?? 0);
@@ -496,7 +577,7 @@ export default {
             if (row && !reduce) { row.classList.add('dock'); setTimeout(() => row.classList.remove('dock'), 620); }
           }
         });
-        if (dock > 0) spawnPopup(`☠ −${dock}`, 'neg');
+        if (dock > 0) spawnPopup(`☠ -${dock}`, 'neg');
       }
     };
     const onStarted   = e => apply(JSON.parse(e.state));
@@ -513,6 +594,7 @@ export default {
 
     return () => {
       stopTumbles();
+      clearTimeout(summaryTimer);
       sdk.off('started',   onStarted);
       sdk.off('moved',     onMoved);
       sdk.off('finished',  onFinished);
