@@ -1,11 +1,13 @@
 /**
- * Flip Fortune — pixel-art sprites.
+ * Flip Fortune — pixel-art sprites (High-Roller Card Room theme).
  *
- * Same hand-authored 16×16-grid technique as Kaperfahrt (see its sprites.js for
- * the full rationale): a row of chars keyed into a palette, merged into <rect>s
- * for a crisp scalable SVG with no binary assets. Icons here are the three
- * action-card glyphs, a card-back pattern for the face-down deck, and a small
- * star used on the Flip 7 / win celebration.
+ * Same hand-authored 16×16-grid technique as Kaperfahrt's sprites.js: a row of
+ * chars keyed into a palette, merged into <rect>s for a crisp scalable SVG
+ * with no binary assets. `deckstack` is a thick angled stack of card edges —
+ * deliberately distinct from an individual card front, so the pile always
+ * reads as "the deck" rather than just another card. `chip` is a single poker
+ * chip (stacked N-high by the scoreboard to show progress toward the target).
+ * The three action-card glyphs and `star` (win screen) round out the set.
  */
 
 function grid(rows, pal) {
@@ -84,25 +86,6 @@ const secondchance = grid([
   '.......BB.......',
 ], { B: '#1e8a5b', G: '#3ecf8e', W: '#e9fff2' });
 
-const cardback = grid([
-  'KKKKKKKKKKKKKKKK',
-  'K..............K',
-  'K.PPPPPPPPPPPP.K',
-  'K.P..........P.K',
-  'K.P.PPPPPPPP.P.K',
-  'K.P.P......P.P.K',
-  'K.P.P.PPPP.P.P.K',
-  'K.P.P.P..P.P.P.K',
-  'K.P.P.P..P.P.P.K',
-  'K.P.P.PPPP.P.P.K',
-  'K.P.P......P.P.K',
-  'K.P.PPPPPPPP.P.K',
-  'K.P..........P.K',
-  'K.PPPPPPPPPPPP.K',
-  'K..............K',
-  'KKKKKKKKKKKKKKKK',
-], { K: '#1c1d3c', P: '#3b3e78' });
-
 const star = grid([
   '.......GG.......',
   '.......GG.......',
@@ -122,4 +105,45 @@ const star = grid([
   '................',
 ], { G: '#f5c542' });
 
-export const SPRITE = { freeze, flipthree, secondchance, cardback, star };
+// The deck — a thick angled stack of fanned card edges, brass-trimmed, on a
+// deep felt shadow. Reads as "a pile", never mistaken for a single card.
+const deckstack = grid([
+  '.....KKKKKKKKKK.',
+  '....KPPPPPPPPKK.',
+  '...KPWWWWWWWWPK.',
+  '..KPWWWWWWWWWPK.',
+  '.KPWWWWWWWWWWPK.',
+  'KPWWWWWWWWWWWPK.',
+  'KPWCCCCCCCCCWPK.',
+  'KPWCDDDDDDDCWPK.',
+  'KPWCDBBBBBDCWPK.',
+  'KPWCDBBBBBDCWPK.',
+  'KPWCDDDDDDDCWPK.',
+  'KPWCCCCCCCCCWPK.',
+  'KPWWWWWWWWWWPK..',
+  'KPPPPPPPPPPPK...',
+  'KKKKKKKKKKKK....',
+  '................',
+], { K: '#1a0810', P: '#5c1f2e', W: '#7a2c3d', C: '#d4a03c', D: '#8a6420', B: '#3a1220' });
+
+// A single poker chip — stacked N-high by the scoreboard.
+const chip = grid([
+  '......BBBB......',
+  '....BBGGGGBB....',
+  '...BGGCCCCGGB...',
+  '..BGCC....CCGB..',
+  '.BGC..GGGG..CGB.',
+  '.BGC.GWWWWG.CGB.',
+  'BGC..GWWWWG..CGB',
+  'BGC..GWWWWG..CGB',
+  '.BGC.GWWWWG.CGB.',
+  '.BGC..GGGG..CGB.',
+  '..BGCC....CCGB..',
+  '...BGGCCCCGGB...',
+  '....BBGGGGBB....',
+  '......BBBB......',
+  '................',
+  '................',
+], { B: '#4a0f1a', G: '#d4a03c', C: '#8a6420', W: '#f4efe1' });
+
+export const SPRITE = { freeze, flipthree, secondchance, star, deckstack, chip };
