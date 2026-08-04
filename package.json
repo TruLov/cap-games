@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "sync:approuter": "node scripts/sync-approuter.mjs",
-    "prestart": "npm run sync:approuter",
-    "predev": "npm run sync:approuter",
+    "prestart": "npm run sync:approuter || true",
+    "predev": "npm run sync:approuter || true",
     "start": "cds-serve",
     "dev": "cds watch --include games",
     "lint": "eslint srv/ app/ games/ scripts/ test/",
