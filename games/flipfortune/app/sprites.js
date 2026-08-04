@@ -105,26 +105,27 @@ const star = grid([
   '................',
 ], { G: '#f5c542' });
 
-// The deck — a thick angled stack of fanned card edges, brass-trimmed, on a
-// deep felt shadow. Reads as "a pile", never mistaken for a single card.
+// The deck — a thick angled stack of fanned card backs, brass-trimmed with a
+// brass diamond motif. Parchment edges read on green felt; always a "pile",
+// never mistaken for a single card front.
 const deckstack = grid([
   '.....KKKKKKKKKK.',
   '....KPPPPPPPPKK.',
   '...KPWWWWWWWWPK.',
   '..KPWWWWWWWWWPK.',
-  '.KPWWWWWWWWWWPK.',
+  '.KPWWWWCWWWWWPK.',
+  'KPWWWWCDCWWWWPK.',
+  'KPWWWCDBDCWWWPK.',
+  'KPWWCDBBBDCWWPK.',
+  'KPWWWCDBDCWWWPK.',
+  'KPWWWWCDCWWWWPK.',
+  'KPWWWWWCWWWWWPK.',
   'KPWWWWWWWWWWWPK.',
-  'KPWCCCCCCCCCWPK.',
-  'KPWCDDDDDDDCWPK.',
-  'KPWCDBBBBBDCWPK.',
-  'KPWCDBBBBBDCWPK.',
-  'KPWCDDDDDDDCWPK.',
-  'KPWCCCCCCCCCWPK.',
   'KPWWWWWWWWWWPK..',
   'KPPPPPPPPPPPK...',
   'KKKKKKKKKKKK....',
   '................',
-], { K: '#1a0810', P: '#5c1f2e', W: '#7a2c3d', C: '#d4a03c', D: '#8a6420', B: '#3a1220' });
+], { K: '#1a0e06', P: '#8a6420', W: '#e9dcc0', C: '#d4a03c', D: '#b5842a', B: '#7a5618' });
 
 // A single poker chip — stacked N-high by the scoreboard.
 const chip = grid([
