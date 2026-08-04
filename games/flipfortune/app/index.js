@@ -108,6 +108,8 @@ const STYLE = `
     transition:border-color .15s ease, box-shadow .15s ease}
   .ff-seat.act{border-color:var(--amber);box-shadow:0 0 0 2px rgba(255,207,122,.5), inset 0 0 22px rgba(255,207,122,.12)}
   .ff-seat.win{border-color:var(--emerald);box-shadow:0 0 0 2px rgba(79,208,138,.55)}
+  .ff-seat.frozen{border-color:var(--cyan);box-shadow:0 0 0 2px rgba(111,215,242,.5), inset 0 0 22px rgba(111,215,242,.16)}
+  .ff-seat.frozen .ff-ava{border-color:var(--cyan)}
   .ff-seat.bust{filter:saturate(.7) brightness(.92)}
   .ff-seat.me{background:linear-gradient(180deg, rgba(20,50,34,.7), rgba(10,30,20,.8))}
 
@@ -163,7 +165,10 @@ const STYLE = `
   .ff-card.dup{animation:ff-dup 1s ease-in-out 2;border-color:var(--crimson) !important;
     box-shadow:0 0 0 2px var(--crimson), 1px 2px 0 rgba(0,0,0,.45)}
   @keyframes ff-dup{0%,100%{filter:none}50%{filter:brightness(.7) saturate(1.7)}}
-  .ff-flying{position:fixed;z-index:60;pointer-events:none;will-change:transform,opacity}
+  .ff-flying{position:fixed;z-index:60;pointer-events:none;will-change:transform,left,top,opacity;
+    box-shadow:0 8px 14px rgba(0,0,0,.45)}
+  .ff-place{animation:ff-place .24s ease-out}
+  @keyframes ff-place{0%{transform:scale(1.16)}55%{transform:scale(.95)}100%{transform:scale(1)}}
 
   /* ---- centre: deck + last flip + round ---- */
   .ff-center{display:flex;align-items:center;justify-content:center;gap:22px;position:relative;z-index:2;
@@ -175,9 +180,9 @@ const STYLE = `
   .ff-deck .ff-card:nth-child(2){transform:translate(-1px,-1px) rotate(-1deg)}
   .ff-deck .ff-card:nth-child(3){transform:translate(3px,1px) rotate(5deg)}
   .ff-deckcount{font-size:.6rem;color:var(--parch-d);letter-spacing:.04em}
-  .ff-lastwrap{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:64px}
-  .ff-lastcard{transform:scale(1.15)}
-  .ff-lastlabel{font-size:.62rem;color:var(--muted);text-align:center;max-width:120px}
+  .ff-lastwrap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:120px;max-width:150px}
+  .ff-lastlabel{font-size:.68rem;color:var(--muted);text-align:center}
+  .ff-lastlabel b{color:var(--cream)}
   .ff-round{display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--amber)}
   .ff-round b{font-size:1.35rem;font-weight:700;text-shadow:1px 1px 0 rgba(0,0,0,.6)}
   .ff-round span{font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--parch-d)}
@@ -258,7 +263,7 @@ const STYLE = `
   .ff-win-icon{width:60px;height:60px;margin:0 auto 6px}
 
   @media (prefers-reduced-motion: reduce){
-    .ff-flying,.ff-card.dup,.ff-summary,.ff-notice,.ff-sum-row,.ff-lpill.fresh{animation:none}
+    .ff-flying,.ff-card.dup,.ff-place,.ff-summary,.ff-notice,.ff-sum-row,.ff-lpill.fresh{animation:none}
   }
 `;
 
@@ -284,7 +289,6 @@ export default {
             <div class="ff-deckcount" id="ff-deckcount"></div>
           </div>
           <div class="ff-lastwrap">
-            <div class="ff-lastcard" id="ff-lastcard"></div>
             <div class="ff-lastlabel" id="ff-lastlabel"></div>
           </div>
           <div class="ff-round"><b id="ff-roundno">1</b><span>Round</span></div>
@@ -304,7 +308,10 @@ export default {
     const myTurn = () => st && st.phase !== 'done' && st.turn === me && !st.pending;
     const send = payload => sdk.send('move', { room: sdk.room.id, data: JSON.stringify(payload) });
 
-    // card flies from the deck to the just-dealt seat slot (FLIP)
+    // Draw-and-place: a card lifts edge-on from the deck (as if drawn), flips
+    // face-up while it rises, then settles into the seat's hand slot with a
+    // little bounce; the real card pops in as the ghost lands. Two eased phases,
+    // no 3D — robust across browsers.
     function flyFromDeck(targetEl) {
       if (reduce || !targetEl) return;
       const deck = $('#ff-deck');
@@ -312,25 +319,46 @@ export default {
       const from = deck.getBoundingClientRect();
       const to = targetEl.getBoundingClientRect();
       if (!to.width) return;
+
+      const fromCx = from.left + from.width / 2;
+      const toCx = to.left + to.width / 2;
+      const midLeft = (fromCx + toCx) / 2 - to.width / 2;
+      const midTop = Math.min(from.top, to.top) - 14;   // arc up over the felt
+
       const ghost = targetEl.cloneNode(true);
       ghost.classList.add('ff-flying');
-      ghost.style.left = `${from.left + from.width / 2 - to.width / 2}px`;
-      ghost.style.top = `${from.top + from.height / 2 - to.height / 2}px`;
+      ghost.style.margin = '0';
       ghost.style.width = `${to.width}px`;
       ghost.style.height = `${to.height}px`;
-      ghost.style.margin = '0';
-      ghost.style.transform = 'scale(.6) rotate(-12deg)';
-      ghost.style.opacity = '0.35';
+      ghost.style.left = `${fromCx - to.width / 2}px`;
+      ghost.style.top = `${from.top + from.height / 2 - to.height / 2}px`;
+      ghost.style.transform = 'scaleX(.06) rotate(-8deg)';   // edge-on: "drawn from the deck"
+      ghost.style.opacity = '.9';
       document.body.appendChild(ghost);
       targetEl.style.visibility = 'hidden';
+
+      // phase 1: rise + flip face-up
       window.requestAnimationFrame(() => {
-        ghost.style.transition = 'left .38s cubic-bezier(.2,.8,.3,1), top .38s cubic-bezier(.2,.8,.3,1), transform .38s cubic-bezier(.2,.8,.3,1), opacity .3s ease';
-        ghost.style.left = `${to.left}px`;
-        ghost.style.top = `${to.top}px`;
-        ghost.style.transform = 'none';
+        ghost.style.transition = 'left .2s ease-out, top .2s ease-out, transform .2s ease-out, opacity .14s ease-out';
+        ghost.style.left = `${midLeft}px`;
+        ghost.style.top = `${midTop}px`;
+        ghost.style.transform = 'scaleX(1) rotate(-2deg)';
         ghost.style.opacity = '1';
       });
-      setTimeout(() => { ghost.remove(); targetEl.style.visibility = ''; }, 420);
+      // phase 2: drop into the hand slot with a settle
+      setTimeout(() => {
+        ghost.style.transition = 'left .24s cubic-bezier(.2,.9,.3,1.15), top .24s cubic-bezier(.2,.9,.3,1.15), transform .24s cubic-bezier(.2,.9,.3,1.15)';
+        ghost.style.left = `${to.left}px`;
+        ghost.style.top = `${to.top}px`;
+        ghost.style.transform = 'scaleX(1) rotate(0)';
+      }, 210);
+      // land: reveal the real card with a pop
+      setTimeout(() => {
+        ghost.remove();
+        targetEl.style.visibility = '';
+        targetEl.classList.add('ff-place');
+        setTimeout(() => targetEl.classList.remove('ff-place'), 240);
+      }, 470);
     }
 
     // one seat (opponent or you)
@@ -356,7 +384,7 @@ export default {
       const chipStack = Array.from({ length: chips }, () => `<span class="ff-chip-ic">${SPRITE.chip}</span>`).join('');
       const secondIc = line.secondChance ? `<span class="ff-2nd">${SPRITE.secondchance}</span>` : '';
 
-      return `<div class="ff-seat ${isTurn ? 'act' : ''} ${isWin ? 'win' : ''} ${line.status === 'busted' ? 'bust' : ''} ${u === me ? 'me' : ''}">
+      return `<div class="ff-seat ${isTurn ? 'act' : ''} ${isWin ? 'win' : ''} ${line.status === 'busted' ? 'bust' : ''} ${line.status === 'frozen' ? 'frozen' : ''} ${u === me ? 'me' : ''}">
         <div class="ff-plate">
           <div class="ff-ava" ${av ? `style="background-image:url('${av}')"` : ''}>${av ? '' : (name[0] || '?').toUpperCase()}</div>
           <div class="ff-nm">${name}${u === me ? ' (you)' : ''}</div>
@@ -387,7 +415,6 @@ export default {
 
       $('#ff-deckcount').textContent = `${st.drawCount ?? 0} left`;
       $('#ff-roundno').textContent = st.round;
-      $('#ff-lastcard').innerHTML = st.lastCard ? `<div class="ff-lastcard-inner">${cardFace(st.lastCard.card)}</div>` : '';
       $('#ff-lastlabel').innerHTML = st.lastCard
         ? `<b>${name(st.lastCard.user)}</b> flipped ${cardLabel(st.lastCard.card)}`
         : 'Awaiting the first flip';
