@@ -1,13 +1,13 @@
 /**
- * Flip Fortune — pixel-art sprites (High-Roller Card Room theme).
+ * Flip Fortune — pixel-art sprites (Last Chance Saloon theme).
  *
  * Same hand-authored 16×16-grid technique as Kaperfahrt's sprites.js: a row of
  * chars keyed into a palette, merged into <rect>s for a crisp scalable SVG
- * with no binary assets. `deckstack` is a thick angled stack of card edges —
- * deliberately distinct from an individual card front, so the pile always
- * reads as "the deck" rather than just another card. `chip` is a single poker
- * chip (stacked N-high by the scoreboard to show progress toward the target).
- * The three action-card glyphs and `star` (win screen) round out the set.
+ * with no binary assets. `chip` is a single poker chip (stacked N-high by the
+ * scoreboard to show progress toward the target). The three action-card glyphs
+ * (`freeze`, `flipthree`, `secondchance`) and `star` (win screen) round out
+ * the set. Number cards and the deck's card-back are drawn in CSS (app/index.js)
+ * so the deck reads as a stack of the very same card shape.
  */
 
 function grid(rows, pal) {
@@ -105,28 +105,6 @@ const star = grid([
   '................',
 ], { G: '#f5c542' });
 
-// The deck — a thick angled stack of fanned card backs, brass-trimmed with a
-// brass diamond motif. Parchment edges read on green felt; always a "pile",
-// never mistaken for a single card front.
-const deckstack = grid([
-  '.....KKKKKKKKKK.',
-  '....KPPPPPPPPKK.',
-  '...KPWWWWWWWWPK.',
-  '..KPWWWWWWWWWPK.',
-  '.KPWWWWCWWWWWPK.',
-  'KPWWWWCDCWWWWPK.',
-  'KPWWWCDBDCWWWPK.',
-  'KPWWCDBBBDCWWPK.',
-  'KPWWWCDBDCWWWPK.',
-  'KPWWWWCDCWWWWPK.',
-  'KPWWWWWCWWWWWPK.',
-  'KPWWWWWWWWWWWPK.',
-  'KPWWWWWWWWWWPK..',
-  'KPPPPPPPPPPPK...',
-  'KKKKKKKKKKKK....',
-  '................',
-], { K: '#1a0e06', P: '#8a6420', W: '#e9dcc0', C: '#d4a03c', D: '#b5842a', B: '#7a5618' });
-
 // A single poker chip — stacked N-high by the scoreboard.
 const chip = grid([
   '......BBBB......',
@@ -147,4 +125,4 @@ const chip = grid([
   '................',
 ], { B: '#4a0f1a', G: '#d4a03c', C: '#8a6420', W: '#f4efe1' });
 
-export const SPRITE = { freeze, flipthree, secondchance, star, deckstack, chip };
+export const SPRITE = { freeze, flipthree, secondchance, star, chip };

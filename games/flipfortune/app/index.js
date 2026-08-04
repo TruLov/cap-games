@@ -20,6 +20,16 @@
 import { SPRITE } from './sprites.js';
 
 const MOD_COLOR = { '+2': '#2f8f5e', '+4': '#2f8f5e', '+6': '#2f8f5e', '+8': '#2f8f5e', '+10': '#2f8f5e', x2: '#a8283a' };
+// Each number value gets its own bright hue (an original pixel take on the
+// real game's colour-per-number look): cream card, that hue as the border /
+// numeral outline / word, and a faint hard-edged "fan" sunburst behind.
+const NUM_COLOR = {
+  0: '#7a8a99', 1: '#2f7dd1', 2: '#3fae57', 3: '#e0473e', 4: '#16a89e',
+  5: '#b657c0', 6: '#d94f9a', 7: '#e07a1f', 8: '#e0a72e', 9: '#6d5ad0',
+  10: '#d83b52', 11: '#39a2e0', 12: '#5aa62f',
+};
+const NUM_WORD = ['ZERO', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN', 'ELEVEN', 'TWELVE'];
+const cardBack = () => `<div class="ff-card back"><span class="ff-fan"></span></div>`;
 const ACTION_META = {
   freeze: { icon: 'freeze', label: 'Freeze', color: '#6fd7f2' },
   flipthree: { icon: 'flipthree', label: 'Flip Three', color: '#d4a03c' },
@@ -34,7 +44,14 @@ const STATUS_META = {
 
 function cardFace(c, extraCls = '') {
   if (!c) return '';
-  if (c.kind === 'number') return `<div class="ff-card num ${extraCls}"><span class="ff-num">${c.value}</span></div>`;
+  if (c.kind === 'number') {
+    const col = NUM_COLOR[c.value] || '#7a8a99';
+    return `<div class="ff-card num ${extraCls}" style="--cv:${col}">
+      <span class="ff-fan"></span>
+      <span class="ff-num">${c.value}</span>
+      <span class="ff-word">${NUM_WORD[c.value] || ''}</span>
+    </div>`;
+  }
   if (c.kind === 'modifier') {
     return `<div class="ff-card mod ${extraCls}" style="--accent:${MOD_COLOR[c.mod]}"><span class="ff-mod">${c.mod === 'x2' ? '×2' : c.mod}</span></div>`;
   }
@@ -106,8 +123,10 @@ const STYLE = `
   .ff-badge.frz{background:var(--cyan);color:#052733}
 
   .ff-hand{display:flex;min-height:40px;align-items:center;padding-left:2px}
-  .ff-hand .ff-card{margin-left:-20px}
+  .ff-hand .ff-card{margin-left:-15px}
   .ff-hand .ff-card:first-child{margin-left:0}
+  .ff-hand .ff-card .ff-word{display:none}   /* overlapped: keep the numeral, drop the label */
+  .ff-hand .ff-card:last-child .ff-word{display:block}
   .ff-hand.empty{color:var(--muted);font-size:.62rem;font-style:italic}
   .ff-2nd{margin-left:4px;width:18px;height:24px;flex:0 0 auto;filter:drop-shadow(0 0 3px rgba(79,208,138,.6))}
 
@@ -123,8 +142,19 @@ const STYLE = `
   .ff-card{width:38px;height:52px;box-sizing:border-box;border:3px solid var(--line);border-radius:5px;
     background:var(--parch);display:flex;align-items:center;justify-content:center;position:relative;flex:0 0 auto;
     box-shadow:inset 2px 2px 0 rgba(255,255,255,.45), inset -2px -2px 0 rgba(0,0,0,.18), 1px 2px 0 rgba(0,0,0,.45)}
-  .ff-card.num{border-color:var(--brass-d)}
-  .ff-card.num .ff-num{font-weight:700;font-size:1.2rem;color:var(--felt-d)}
+  .ff-card.num{border-color:var(--cv);flex-direction:column;gap:0;overflow:hidden;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.5), inset 0 0 0 2px color-mix(in srgb, var(--cv) 35%, transparent), 1px 2px 0 rgba(0,0,0,.45)}
+  .ff-fan{position:absolute;inset:-2px;z-index:0;opacity:.16;pointer-events:none;
+    background:repeating-conic-gradient(from 0deg at 50% 40%, var(--cv) 0 11deg, transparent 11deg 22deg)}
+  .ff-card.num .ff-num{position:relative;z-index:1;font-weight:700;font-size:1.05rem;line-height:.9;color:#fbf3dd;
+    text-shadow:-1px -1px 0 var(--cv),1px -1px 0 var(--cv),-1px 1px 0 var(--cv),1px 1px 0 var(--cv),0 2px 0 var(--cv)}
+  .ff-card.num .ff-word{position:relative;z-index:1;margin-top:2px;font-weight:700;font-size:.34rem;
+    letter-spacing:.06em;color:var(--cv)}
+  .ff-card.back{border-color:var(--brass-d);overflow:hidden;background:var(--parch)}
+  .ff-card.back .ff-fan{--cv:var(--brass);opacity:.32;
+    background:repeating-conic-gradient(from 0deg at 50% 50%, var(--brass) 0 10deg, transparent 10deg 20deg)}
+  .ff-card.back::after{content:"";position:absolute;z-index:1;width:13px;height:13px;
+    background:var(--brass);border:2px solid var(--brass-d);transform:rotate(45deg)}
   .ff-card.mod{background:linear-gradient(180deg,#fff7e6,var(--accent));border-color:var(--accent)}
   .ff-card.mod .ff-mod{font-weight:700;font-size:.78rem;color:#1c1206}
   .ff-card.act{background:#20140a;border-color:var(--accent);
@@ -139,8 +169,11 @@ const STYLE = `
   .ff-center{display:flex;align-items:center;justify-content:center;gap:22px;position:relative;z-index:2;
     margin:12px 0 8px;padding:10px 0;border-top:2px dashed rgba(212,160,60,.25);border-bottom:2px dashed rgba(212,160,60,.25)}
   .ff-deckwrap{display:flex;flex-direction:column;align-items:center;gap:3px}
-  .ff-deck{width:50px;height:50px;filter:drop-shadow(0 4px 0 rgba(0,0,0,.5))}
-  .ff-deck svg{width:100%;height:100%}
+  .ff-deck{position:relative;width:48px;height:60px;flex:0 0 auto}
+  .ff-deck .ff-card{position:absolute;top:4px;left:5px;margin:0}
+  .ff-deck .ff-card:nth-child(1){transform:translate(-5px,-3px) rotate(-6deg)}
+  .ff-deck .ff-card:nth-child(2){transform:translate(-1px,-1px) rotate(-1deg)}
+  .ff-deck .ff-card:nth-child(3){transform:translate(3px,1px) rotate(5deg)}
   .ff-deckcount{font-size:.6rem;color:var(--parch-d);letter-spacing:.04em}
   .ff-lastwrap{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:64px}
   .ff-lastcard{transform:scale(1.15)}
@@ -152,10 +185,12 @@ const STYLE = `
   /* ---- your rail ---- */
   .ff-you-row{display:flex;justify-content:center;position:relative;z-index:2;margin-top:2px}
   .ff-you-row .ff-seat{min-width:230px;max-width:none;flex:0 1 480px}
-  .ff-you-row .ff-hand .ff-card{margin-left:-12px}
-  .ff-you-row .ff-hand{min-height:56px}
-  .ff-you-row .ff-card{width:42px;height:58px}
-  .ff-you-row .ff-card.num .ff-num{font-size:1.35rem}
+  .ff-you-row .ff-hand .ff-card{margin-left:-10px}
+  .ff-you-row .ff-hand .ff-card .ff-word{display:block}
+  .ff-you-row .ff-hand{min-height:60px}
+  .ff-you-row .ff-card{width:44px;height:60px}
+  .ff-you-row .ff-card.num .ff-num{font-size:1.4rem}
+  .ff-you-row .ff-card.num .ff-word{font-size:.38rem}
 
   /* ---- action bar (Flip / Stay / picker) ---- */
   .ff-actionbar{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:12px}
@@ -213,6 +248,7 @@ const STYLE = `
   .ff-sum-cards{display:flex;gap:2px;flex:1;min-width:0;flex-wrap:wrap}
   .ff-sum-cards .ff-card{width:24px;height:33px}
   .ff-sum-cards .ff-card.num .ff-num{font-size:.8rem}
+  .ff-sum-cards .ff-card .ff-word{display:none}
   .ff-sum-cards .ff-icon{width:14px;height:14px}
   .ff-sum-pts{flex:0 0 auto;font-weight:700;min-width:56px;text-align:right;color:#2f6a44}
   .ff-sum-pts.bust{color:var(--crimson-d)}
@@ -244,7 +280,7 @@ export default {
         <div class="ff-opp-row" id="ff-opps"></div>
         <div class="ff-center">
           <div class="ff-deckwrap">
-            <div class="ff-deck" id="ff-deck">${SPRITE.deckstack}</div>
+            <div class="ff-deck" id="ff-deck">${cardBack()}${cardBack()}${cardBack()}</div>
             <div class="ff-deckcount" id="ff-deckcount"></div>
           </div>
           <div class="ff-lastwrap">
