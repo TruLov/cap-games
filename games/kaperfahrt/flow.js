@@ -208,7 +208,8 @@ function scoreTurn(state, busted) {
 function endTurn(state, busted, rng) {
   const { points, lines } = scoreTurn(state, busted);
   const scores = { ...state.scores, [state.turn]: (state.scores[state.turn] ?? 0) + points };
-  const lastTurn = { user: state.turn, card: state.card, points, busted, breakdown: lines };
+  const dice = state.dice.map(d => ({ face: d.face, status: d.status }));
+  const lastTurn = { user: state.turn, card: state.card, points, busted, breakdown: lines, dice };
   const log = pushLog(state.log, logEntry(state, { points, busted, island: false }));
   return advanceOrFinish({ ...state, scores, lastTurn, log }, rng);
 }
@@ -220,6 +221,7 @@ function endIslandTurn(state, rng) {
     user: state.turn, card: state.card, points: 0, busted: false,
     island: true, skulls: state.islandSkulls,
     breakdown: [{ label: `${state.islandSkulls} skulls`, points: -100 * state.islandSkulls, perRival: true }],
+    dice: state.dice.map(d => ({ face: d.face, status: d.status })),
   };
   const log = pushLog(state.log, logEntry(state, { points: 0, busted: false, island: true, skulls: state.islandSkulls }));
   return advanceOrFinish({ ...state, lastTurn, log }, rng);

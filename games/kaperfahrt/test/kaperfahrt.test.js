@@ -121,6 +121,9 @@ test('third skull busts the turn: 0 points, play passes on', () => {
   assert.equal(r.state.lastTurn.points, 0);
   assert.equal(r.state.scores.a, 0);
   assert.equal(r.state.turn, 'b');
+  // the busted roll is captured so the summary can show what was rolled
+  assert.equal(r.state.lastTurn.dice.length, 8);
+  assert.equal(r.state.lastTurn.dice.filter(d => d.face === 'skull').length, 4);
 });
 
 // ---- sea battle -----------------------------------------------------------

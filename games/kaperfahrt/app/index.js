@@ -233,7 +233,11 @@ const STYLE = `
     text-align:center;background:linear-gradient(180deg,var(--panel2),var(--panel));
     box-shadow:inset 0 0 0 2px var(--key),0 16px 44px rgba(0,0,0,.55);animation:kf-slam .4s cubic-bezier(.2,1.3,.5,1)}
   .kf-sum-who{font-size:.72rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px}
-  .kf-sum-card{font-size:1.2rem;font-weight:700;color:var(--accent,#f5c542);margin-bottom:12px;text-shadow:1px 1px 0 var(--line)}
+  .kf-sum-card{font-size:1.2rem;font-weight:700;color:var(--accent,#f5c542);margin-bottom:10px;text-shadow:1px 1px 0 var(--line)}
+  .kf-sum-dice{display:flex;justify-content:center;flex-wrap:wrap;gap:5px;margin:2px auto 12px;max-width:320px}
+  .kf-sum-die{width:30px;height:30px;box-sizing:border-box;padding:3px;image-rendering:pixelated;
+    background:#e9edfb;border:2px solid var(--line);border-radius:4px}
+  .kf-sum-die.sk{background:#f3cbc7} .kf-sum-die.ch{background:#ffe6a2} .kf-sum-die.lk{filter:grayscale(.5);opacity:.8}
   .kf-sum-lines{display:flex;flex-direction:column;gap:5px;margin:0 auto 10px;max-width:300px}
   .kf-sum-row{display:flex;justify-content:space-between;gap:18px;font-size:.9rem;animation:kf-linein .3s ease backwards}
   .kf-sum-row .lbl{color:var(--cream);opacity:.92}
@@ -298,12 +302,17 @@ export default {
     // Saved shelf) instead of popping. `before` maps data-i → previous rect.
     function flipDice(before) {
       if (reduce || !before.size) return;
+      const raised = new Set();
       rootEl.querySelectorAll('.kf-die[data-i]').forEach(el => {
         const b = before.get(el.dataset.i);
         if (!b) return;
         const n = el.getBoundingClientRect();
         const dx = b.left - n.left, dy = b.top - n.top;
         if (!dx && !dy) return;
+        // Lift the moving die's zone above its sibling zone so the die slides in
+        // FRONT of the treasure shelf (the zones are separate stacking contexts).
+        const zone = el.parentElement;
+        if (zone && !raised.has(zone)) { zone.style.zIndex = '6'; raised.add(zone); }
         el.style.transition = 'none';
         el.style.transform = `translate(${dx}px, ${dy}px)`;
         el.style.zIndex = '3';
@@ -315,6 +324,7 @@ export default {
           }, { once: true });
         });
       });
+      if (raised.size) setTimeout(() => raised.forEach(z => { z.style.zIndex = ''; }), 380);
     }
 
     // Dice roll: hard-stepped sprite cycling + a squash/stretch bounce, settling
@@ -575,9 +585,14 @@ export default {
         return `<div class="kf-sum-row" style="animation-delay:${(0.12 * i + 0.15).toFixed(2)}s">
           <span class="lbl">${l.label}</span><span class="val ${cls}">${val}${suffix}</span></div>`;
       }).join('') || `<div class="kf-sum-row"><span class="lbl">No score this turn</span><span class="val">0</span></div>`;
+      const diceHtml = (lt.dice || []).map(d => {
+        const cls = d.status === 'skull' ? ' sk' : (d.status === 'chest' ? ' ch' : (d.status === 'locked' ? ' lk' : ''));
+        return `<span class="kf-sum-die${cls}">${sprite(d.face)}</span>`;
+      }).join('');
       el.innerHTML = `<div class="kf-card-panel" style="--accent:${accent}">
         <div class="kf-sum-who">${sdk.nameOf(lt.user)} · ${head}</div>
         <div class="kf-sum-card">${title}</div>
+        ${diceHtml ? `<div class="kf-sum-dice">${diceHtml}</div>` : ''}
         <div class="kf-sum-lines">${rows}</div>
         <div class="kf-sum-total ${total < 0 ? 'neg' : ''}" id="kf-sum-total">${fmtSigned(total)}</div>
         <div class="kf-sum-hint">tap to continue</div>
