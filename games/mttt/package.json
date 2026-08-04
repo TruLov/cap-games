@@ -1,0 +1,14 @@
+{
+  "name": "@cap-games/mttt",
+  "version": "1.0.0",
+  "description": "Ultimate Tic-Tac-Toe game plugin for cap-games platform",
+  "type": "module",
+  "main": "index.js",
+  "cds": {
+    "requires": {
+      "mttt": {
+        "model": "@cap-games/mttt/srv/extend.cds"
+      }
+    }
+  }
+}

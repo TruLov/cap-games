@@ -23,6 +23,7 @@
     "@cap-games/kaffee-kwest": "*",
     "@cap-games/kaiten": "*",
     "@cap-games/kaperfahrt": "*",
+    "@cap-games/mttt": "*",
     "@cap-games/tictactoe": "*",
     "@cap-js-community/websocket": "^1",
     "@cap-js/postgres": "^3",
