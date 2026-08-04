@@ -585,7 +585,7 @@ export default {
         return `<div class="kf-sum-row" style="animation-delay:${(0.12 * i + 0.15).toFixed(2)}s">
           <span class="lbl">${l.label}</span><span class="val ${cls}">${val}${suffix}</span></div>`;
       }).join('') || `<div class="kf-sum-row"><span class="lbl">No score this turn</span><span class="val">0</span></div>`;
-      const diceHtml = (lt.dice || []).map(d => {
+      const diceHtml = [...(lt.dice || [])].sort((a, b) => faceRank(a) - faceRank(b)).map(d => {
         const cls = d.status === 'skull' ? ' sk' : (d.status === 'chest' ? ' ch' : (d.status === 'locked' ? ' lk' : ''));
         return `<span class="kf-sum-die${cls}">${sprite(d.face)}</span>`;
       }).join('');
