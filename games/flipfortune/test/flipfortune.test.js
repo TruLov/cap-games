@@ -113,6 +113,29 @@ test('Flip Three stops early if the target busts', () => {
   assert.equal(r2.state.lines.b.status, 'busted');
 });
 
+test('an action flipped during Flip Three counts as one of the three flips', () => {
+  // b is forced to flip 3: freeze, then two numbers. The freeze must consume a
+  // flip, so b ends with exactly two number cards (not three).
+  const s = make({ players: ['a', 'b', 'c'], next: [act('flipthree'), act('freeze'), num(4), num(5)] });
+  const r1 = hit(s, 'a');
+  const r2 = resolve(r1.state, 'b', 'a');   // b flips freeze → pending (b decides)
+  assert.equal(r2.state.pending.type, 'freeze');
+  assert.equal(r2.state.pending.by, 'b');
+  const r3 = resolve(r2.state, 'c', 'b');   // b freezes c → b's 2 remaining flips: 4, 5
+  assert.deepEqual(r3.state.lines.b.numbers, [4, 5]);
+  assert.equal(r3.state.lines.c.status, 'frozen');
+});
+
+test('resolved Freeze / Flip Three cards go to the discard pile (deck is conserved)', () => {
+  const s = make({ players: ['a', 'b'], next: [act('freeze')] });
+  const before = s.drawPile.length + s.discardPile.length;
+  const r1 = hit(s, 'a');
+  const r2 = resolve(r1.state, 'b', 'a');
+  const after = r2.state.drawPile.length + r2.state.discardPile.length;
+  assert.equal(after, before);              // the freeze card is still in circulation
+  assert.ok(r2.state.discardPile.some(c => c.kind === 'action' && c.action === 'freeze'));
+});
+
 // ---- Flip 7 ---------------------------------------------------------------
 
 test('a seventh unique number is a Flip 7: round ends and scores +15', () => {

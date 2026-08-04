@@ -102,10 +102,12 @@ function doResolve(state, user, move, rng) {
   if (p.type === 'freeze') {
     if (!isActive(state, target)) return revert(state, 'invalid target', p);
     state.lines[target].status = 'frozen';
+    state.discardPile.push(p.card);                  // spent action card → discard
     return state.forced ? processAuto(state, rng) : advanceTurn(state, flipperIdx, rng);
   }
   if (p.type === 'flipthree') {
     if (!isActive(state, target)) return revert(state, 'invalid target', p);
+    state.discardPile.push(p.card);                  // spent action card → discard
     startForced(state, idxOf(state, target), flipperIdx);
     return processAuto(state, rng);
   }
@@ -161,7 +163,7 @@ function flipOnto(state, user, rng) {
       else if (eligibleForGive(state, user).length) state.pending = { type: 'givesecond', by: user, card };
       else state.discardPile.push(card);
     } else {
-      state.pending = { type: card.action, by: user };  // 'freeze' | 'flipthree'
+      state.pending = { type: card.action, by: user, card };  // 'freeze' | 'flipthree'
     }
   }
 }
@@ -183,13 +185,13 @@ function startForced(state, targetIdx, flipperIdx) {
 // work is done, resume normal play from resumeIdx.
 function processAuto(state, rng) {
   for (;;) {
-    while (!state.pending && state.forced && state.forced.remaining > 0) {
+    while (state.forced && state.forced.remaining > 0) {
       const u = state.players[state.forced.idx];
       flipOnto(state, u, rng);
-      if (state.pending) return ok(state);
+      state.forced.remaining--;                       // every draw counts as one flip
+      if (state.pending) return ok(state);            // (incl. a nested action card)
       const line = state.lines[u];
-      if (line.status === 'busted' || line.flip7) { state.forced.remaining = 0; break; }
-      state.forced.remaining--;
+      if (line.status === 'busted' || line.flip7) state.forced.remaining = 0;
     }
     if (state.pending) return ok(state);
     if (state.forced && state.forcedStack.length) {   // unwind a suspended context
@@ -214,7 +216,7 @@ function advanceTurn(state, fromIdx, rng) {
   return ok(state);
 }
 
-function endRound(state, rng) {
+function endRound(state, _rng) {
   const summary = state.players.map(u => {
     const line = state.lines[u];
     const r = scoreRound(line);
