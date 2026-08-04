@@ -7,12 +7,25 @@
 
 const REPO_URL = 'https://github.com/mschleeweiss/mttt';
 
+/* Self-contained Tokyo-neon skin, independent of the shell's gunmetal
+   theme — this board is meant to read like a night-market arcade cabinet,
+   so it hardcodes its own cyan/magenta/violet palette rather than
+   inheriting the shell's var(--accent) etc. */
 const STYLE = `
-  .mt-credit { font-size: .75rem; color: var(--muted); margin-top: .75rem; }
-  .mt-credit a { color: inherit; }
+  .mt-root {
+    --mt-cyan: #00f0ff; --mt-cyan-soft: rgba(0,240,255,.25);
+    --mt-pink: #ff2fd8; --mt-pink-soft: rgba(255,47,216,.25);
+    --mt-violet: #8b2fff; --mt-violet-soft: rgba(139,47,255,.22);
+    --mt-void: #07030f;
+  }
+  .mt-credit { font-family: var(--font-mono); font-size: .72rem; color: #9a8fc2; margin-top: .75rem; letter-spacing: .02em; }
+  .mt-credit a { color: var(--mt-cyan); }
   .mt-teams { display: flex; gap: 1rem; margin: .75rem 0; }
-  .mt-team { flex: 1; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .6rem; }
-  .mt-team h4 { margin: 0 0 .4rem; }
+  .mt-team { flex: 1; border: 1px solid rgba(139,47,255,.35); border-radius: var(--radius-sm); padding: .6rem;
+             background: linear-gradient(160deg, rgba(139,47,255,.08), rgba(7,3,15,.4)); }
+  .mt-team h4 { margin: 0 0 .4rem; font-family: var(--font-mono); font-size: .78rem;
+                text-transform: uppercase; letter-spacing: .1em; color: var(--mt-cyan);
+                text-shadow: 0 0 6px var(--mt-cyan-soft); }
   .mt-team ul { list-style: none; margin: 0 0 .5rem; padding: 0; font-size: .85rem; }
   /* aspect-ratio lives ONLY on the outermost grid — its height is then
      immediately derivable from its own width, so nothing below needs a
@@ -28,19 +41,37 @@ const STYLE = `
      max-width alone, which still leans on stretch to fill up to it)
      sidesteps that: the browser can compute it directly from CSS. */
   .mt-outer { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
-              gap: 6px; width: min(420px, 100%); aspect-ratio: 1; margin: 0 auto; }
+              gap: 8px; width: min(420px, 100%); aspect-ratio: 1; margin: 0 auto;
+              padding: 8px; border-radius: var(--radius);
+              background: var(--mt-void);
+              border: 1px solid var(--mt-violet-soft);
+              box-shadow: 0 0 30px var(--mt-violet-soft), inset 0 0 20px rgba(139,47,255,.08); }
   .mt-inner { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
               gap: 2px; padding: 4px;
-              border: 2px solid var(--border); border-radius: var(--radius-sm); }
-  .mt-inner.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
-  .mt-inner.preview-target { border-color: var(--success); box-shadow: 0 0 0 2px var(--success-soft); }
-  .mt-inner.won-X, .mt-inner.won-O { opacity: .55; }
-  .mt-inner.won-draw { opacity: .35; }
-  .mt-cell { font-size: 1rem; font-weight: 700; padding: 0;
-             background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+              background: rgba(139,47,255,.05);
+              border: 1px solid rgba(139,47,255,.3); border-radius: var(--radius-sm);
+              transition: border-color var(--transition), box-shadow var(--transition), opacity var(--transition); }
+  .mt-inner.active { border-color: var(--mt-cyan); box-shadow: 0 0 14px var(--mt-cyan-soft), inset 0 0 10px var(--mt-cyan-soft);
+                      animation: mt-pulse 1.6s ease-in-out infinite; }
+  .mt-inner.preview-target { border-color: var(--mt-pink); box-shadow: 0 0 14px var(--mt-pink-soft), inset 0 0 10px var(--mt-pink-soft); }
+  .mt-inner.won-X, .mt-inner.won-O { opacity: .45; animation: none; }
+  .mt-inner.won-draw { opacity: .25; animation: none; }
+  @keyframes mt-pulse {
+    0%, 100% { box-shadow: 0 0 10px var(--mt-cyan-soft), inset 0 0 6px var(--mt-cyan-soft); }
+    50%      { box-shadow: 0 0 20px var(--mt-cyan-soft), inset 0 0 14px var(--mt-cyan-soft); }
+  }
+  .mt-cell { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; padding: 0;
+             background: rgba(255,255,255,.02); color: var(--mt-cyan); border: 1px solid rgba(139,47,255,.25);
+             border-radius: 2px; clip-path: none;
+             transition: background var(--transition), border-color var(--transition); }
+  .mt-cell::before, .mt-cell::after { content: none; }
+  .mt-cell.mt-mark-X { color: var(--mt-cyan); text-shadow: 0 0 8px var(--mt-cyan), 0 0 16px var(--mt-cyan-soft); }
+  .mt-cell.mt-mark-O { color: var(--mt-pink); text-shadow: 0 0 8px var(--mt-pink), 0 0 16px var(--mt-pink-soft); }
+  .mt-cell:not(:disabled):hover { background: rgba(0,240,255,.08); border-color: var(--mt-cyan); }
   .mt-cell:disabled { cursor: default; }
   .mt-board-winner { position: relative; }
-  .mt-status { margin-bottom: .5rem; }
+  .mt-status { margin-bottom: .5rem; font-family: var(--font-mono); letter-spacing: .02em; color: #d8cfff; }
+  .mt-status #mt-clock { color: var(--mt-pink); text-shadow: 0 0 8px var(--mt-pink-soft); }
 `;
 
 function markOfUser(teams, user) {
@@ -108,6 +139,7 @@ export default {
   renderSettings(el, sdk) {
     let teams = { X: [], O: [] };
 
+    el.classList.add('mt-root');
     el.innerHTML = `
       <style>${STYLE}</style>
       <p class="sh-small">Pick a team — you can switch until the host starts.</p>
@@ -145,6 +177,7 @@ export default {
 
   // ---- gameplay (mounted only once the match is starting/active) --------
   mount(rootEl, sdk) {
+    rootEl.classList.add('mt-root');
     rootEl.innerHTML = `
       <style>${STYLE}</style>
       <div class="mt-status" id="mt-status"><span id="mt-status-text"></span><span id="mt-clock"></span></div>
@@ -191,7 +224,7 @@ export default {
               const idx = board * 9 + i;
               const mark = cells[idx];
               const open = !mark && !bWin && isActive && myTurn;
-              return `<button class="mt-cell" data-cell="${idx}" ${open ? '' : 'disabled'}>${mark ?? ''}</button>`;
+              return `<button class="mt-cell${mark ? ` mt-mark-${mark}` : ''}" data-cell="${idx}" ${open ? '' : 'disabled'}>${mark ?? ''}</button>`;
             }).join('')}
           </div>`;
       }).join('');
