@@ -171,9 +171,11 @@ button.sh-ghost {
   font-weight: 800; font-size: 1.45rem; letter-spacing: -.01em;
   display: inline-flex; align-items: center; gap: .45rem;
   background: none; border: none; padding: 0;
+  border-radius: 0; box-shadow: none;
   font-family: inherit; cursor: pointer;
   transition: filter var(--transition);
 }
+.sh-logo:hover { box-shadow: none; }
 .sh-logo-icon {
   color: var(--accent-2);
   font-size: .82em;
