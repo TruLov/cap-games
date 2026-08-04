@@ -1,7 +1,7 @@
 /**
- * Kaperfahrt — Game UI (Balatro-style pixel look).
+ * Kaperfahrt - Game UI (Balatro-style pixel look).
  *
- * mount(rootEl, sdk) — called once the match is starting/active. Left "stage"
+ * mount(rootEl, sdk) - called once the match is starting/active. Left "stage"
  *   holds the dice, controls and a per-card themed background; the right "rail"
  *   stacks a big card showcase, the scoreboard, and a scrollable roll log.
  *
@@ -15,8 +15,8 @@
  * All game state is public. Two viewer-local conveniences never touch state:
  *   - sort mode reorders the dice *display* only (tiles keep their original
  *     data-i so moves stay correct);
- *   - keep mode flips what a selection means — reroll the selected dice, or keep
- *     them and reroll the rest — translating to the same `reroll` move.
+ *   - keep mode flips what a selection means - reroll the selected dice, or keep
+ *     them and reroll the rest - translating to the same `reroll` move.
  */
 
 import { SPRITE } from './sprites.js';
@@ -24,7 +24,7 @@ import { SPRITE } from './sprites.js';
 const FACE_KEYS = ['parrot', 'monkey', 'saber', 'coin', 'diamond', 'skull'];
 
 const CARD = {
-  sorceress: { icon: 'sorceress', title: 'Sorceress', text: 'Once this turn, reroll any dice — even a skull.' },
+  sorceress: { icon: 'sorceress', title: 'Sorceress', text: 'Once this turn, reroll any dice - even a skull.' },
   captain:   { icon: 'captain',   title: 'Captain',   text: 'Your final score this turn is doubled.' },
   seabattle: { icon: 'seabattle', title: 'Sea battle' },
   chest:     { icon: 'chest',     title: 'Treasure chest', text: 'Dice you store survive a bust.' },
@@ -41,7 +41,7 @@ const ACCENT = {
 function cardMeta(c) {
   if (!c) return { icon: '', title: '', text: '' };
   const base = CARD[c.type] ?? { icon: '', title: c.type, text: '' };
-  if (c.type === 'seabattle') return { ...base, text: `Get at least ${c.need} sabers for +${c.bonus} — or lose ${c.bonus}.` };
+  if (c.type === 'seabattle') return { ...base, text: `Get at least ${c.need} sabers for +${c.bonus} - or lose ${c.bonus}.` };
   if (c.type === 'curse') return { ...base, text: `You start the turn with ${c.skulls} skull${c.skulls > 1 ? 's' : ''}.` };
   return base;
 }
@@ -50,7 +50,7 @@ function cardMeta(c) {
 function scene(st) {
   if (st.phase === 'island') return {
     icon: 'skull', title: 'Island of Skulls', bg: 'kf-bg-island', accent: ACCENT.island, tag: 'stranded',
-    text: 'Every skull you roll costs each rival 100 points. Keep rolling until a throw adds no new skull — you score nothing.',
+    text: 'Every skull you roll costs each rival 100 points. Keep rolling until a throw adds no new skull - you score nothing.',
   };
   const cm = cardMeta(st.card);
   const type = st.card?.type;
@@ -78,7 +78,7 @@ const STYLE = `
 
   /* ---- play stage + themed background ---- */
   .kf-stage{position:relative;flex:1 1 360px;min-width:300px;overflow:hidden;
-    border-radius:14px;padding:10px 8px 4px;--tint:99,102,180;transition:background .45s ease;
+    border-radius:14px;padding:14px 12px 12px;--tint:99,102,180;transition:background .45s ease;
     background:
       radial-gradient(130% 120% at 50% 0%, rgba(var(--tint),.32), rgba(0,0,0,0) 62%),
       radial-gradient(120% 95% at 50% -10%, #23264a 0%, #17182f 48%, #101124 100%);}
@@ -117,7 +117,7 @@ const STYLE = `
   @keyframes kf-pop{0%{transform:translateY(2px) scale(.7)}55%{transform:translateY(-2px) scale(1.18)}100%{transform:scale(1)}}
 
   /* ---- toolbar (viewer-local toggles) ---- */
-  .kf-toolbar{display:flex;gap:8px;margin:.55rem 4px 0;flex-wrap:wrap}
+  .kf-toolbar{display:flex;gap:10px;margin:.85rem 4px .1rem;flex-wrap:wrap}
   .kf-toggle{font-family:var(--pix);font-size:.76rem;font-weight:700;color:var(--cream);
     background:var(--panel2);border:2px solid var(--line);border-radius:8px;padding:.32rem .7rem;cursor:pointer;
     box-shadow:0 3px 0 var(--line);transition:transform .08s ease,box-shadow .08s ease}
@@ -125,9 +125,9 @@ const STYLE = `
   .kf-toggle:active{transform:translateY(3px);box-shadow:0 0 0 var(--line)}
 
   /* ---- controls ---- */
-  .kf-controls{display:flex;flex-wrap:wrap;gap:.5rem;margin:.6rem 4px .3rem}
+  .kf-controls{display:flex;flex-wrap:wrap;gap:.6rem;margin:.95rem 4px .4rem}
   .kf-btn{font-family:var(--pix);font-weight:700;font-size:.95rem;letter-spacing:.02em;
-    color:var(--cream);border:3px solid var(--line);border-radius:9px;padding:.45rem .9rem;
+    color:var(--cream);border:3px solid var(--line);border-radius:9px;padding:.5rem 1.05rem;
     cursor:pointer;background:var(--blue);
     box-shadow:inset 0 2px 0 rgba(255,255,255,.25), 0 4px 0 var(--blue-d);
     transition:transform .08s ease, box-shadow .08s ease}
@@ -204,19 +204,25 @@ const STYLE = `
   .kf-log .kf-empty{font-size:.72rem;color:var(--muted);text-align:center;padding:.4rem 0}
   .kf-logrow{display:flex;align-items:center;gap:6px;padding:5px 3px;border-bottom:1px solid rgba(255,255,255,.06);font-size:.72rem}
   .kf-logrow:last-child{border-bottom:none}
+  .kf-logrow.flash{animation:kf-logflash .8s ease}
+  @keyframes kf-logflash{0%{background:rgba(245,197,66,.55)}100%{background:transparent}}
   .kf-lognm{flex:0 0 auto;width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
   .kf-logdice{display:flex;gap:1px;flex:1;min-width:0;overflow:hidden}
   .kf-logdice span{width:14px;height:14px;flex:0 0 auto;image-rendering:pixelated}
   .kf-logres{flex:0 0 auto;font-weight:700;min-width:40px;text-align:right}
   .kf-logres.pos{color:var(--green)} .kf-logres.neg,.kf-logres.isl{color:#ff8a8a} .kf-logres.zero{color:var(--muted)}
 
-  /* ---- saved dice zone (keep mode) ---- */
-  .kf-saved{margin:.4rem 4px .1rem;padding:.45rem .55rem .55rem;border:3px dashed var(--gold-d);border-radius:12px;
-    background:rgba(245,197,66,.09)}
+  /* ---- saved dice zone (keep mode): a treasure shelf ---- */
+  .kf-saved{margin:.9rem 4px .35rem;padding:.7rem .85rem .9rem;border-radius:16px;min-height:96px;
+    border:3px solid var(--line);
+    background:linear-gradient(180deg,#33291a,#22190f);
+    box-shadow:inset 0 0 0 2px rgba(245,197,66,.22), inset 0 7px 18px rgba(0,0,0,.5)}
   .kf-saved[hidden]{display:none}
-  .kf-saved .kf-zlabel{display:block;font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem}
-  .kf-saved .kf-dice{margin:0}
-  .kf-saved .kf-die{box-shadow:inset 3px 3px 0 rgba(255,255,255,.9),inset -3px -3px 0 #b3bbdd,0 6px 0 #8f96bd,0 9px 0 rgba(0,0,0,.35),0 0 0 3px var(--gold)}
+  .kf-saved .kf-zlabel{display:flex;align-items:center;gap:7px;font-size:.68rem;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--gold);margin-bottom:.6rem;text-shadow:1px 1px 0 rgba(0,0,0,.5)}
+  .kf-saved .kf-coin{width:16px;height:16px;display:inline-block;image-rendering:pixelated}
+  .kf-saved .kf-dice{margin:0;gap:.65rem}
+  .kf-saved .kf-die{box-shadow:inset 3px 3px 0 rgba(255,255,255,.9),inset -3px -3px 0 #b3bbdd,0 6px 0 #8f96bd,0 9px 0 rgba(0,0,0,.4),0 0 0 3px var(--gold)}
 
   /* ---- turn-end summary overlay ---- */
   .kf-summary{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
@@ -264,7 +270,7 @@ export default {
         <div class="kf-fx" id="kf-fx"></div>
         <div class="kf-status" id="kf-status">Loading…</div>
         <div class="kf-dice" id="kf-dice"></div>
-        <div class="kf-saved" id="kf-savedzone" hidden><span class="kf-zlabel">Saved — kept for banking</span><div class="kf-dice" id="kf-saved"></div></div>
+        <div class="kf-saved" id="kf-savedzone" hidden><span class="kf-zlabel"><span class="kf-coin">${SPRITE.coin}</span>Saved treasure - kept to bank</span><div class="kf-dice" id="kf-saved"></div></div>
         <div class="kf-toolbar" id="kf-toolbar"></div>
         <div class="kf-controls" id="kf-controls"></div>
         <div class="kf-last" id="kf-last"></div>
@@ -287,6 +293,29 @@ export default {
     const activeIndices = () => st.dice.map((d, i) => (d.status === 'active' ? i : -1)).filter(i => i >= 0);
 
     function stopTumbles() { rollTimers.forEach(clearInterval); rollTimers = []; }
+
+    // FLIP: dice slide from their old position to the new one (e.g. into the
+    // Saved shelf) instead of popping. `before` maps data-i → previous rect.
+    function flipDice(before) {
+      if (reduce || !before.size) return;
+      rootEl.querySelectorAll('.kf-die[data-i]').forEach(el => {
+        const b = before.get(el.dataset.i);
+        if (!b) return;
+        const n = el.getBoundingClientRect();
+        const dx = b.left - n.left, dy = b.top - n.top;
+        if (!dx && !dy) return;
+        el.style.transition = 'none';
+        el.style.transform = `translate(${dx}px, ${dy}px)`;
+        el.style.zIndex = '3';
+        window.requestAnimationFrame(() => {
+          el.style.transition = 'transform .32s cubic-bezier(.2,.85,.3,1)';
+          el.style.transform = '';
+          el.addEventListener('transitionend', () => {
+            el.style.transition = ''; el.style.transform = ''; el.style.zIndex = '';
+          }, { once: true });
+        });
+      });
+    }
 
     // Dice roll: hard-stepped sprite cycling + a squash/stretch bounce, settling
     // on a pop. Only dice flagged in pendingAnim (their face changed) animate.
@@ -361,14 +390,14 @@ export default {
       renderScene();
 
       $('#kf-status').textContent = st.winner
-        ? (st.winner === 'draw' ? 'Game over — a draw!' : `${name(st.winner)} wins!`)
+        ? (st.winner === 'draw' ? 'Game over - a draw!' : `${name(st.winner)} wins!`)
         : (st.phase === 'island'
-            ? (myTurn() ? '☠ Island of Skulls — keep rolling!' : `☠ ${name(st.turn)} is stranded on the island…`)
+            ? (myTurn() ? '☠ Island of Skulls - keep rolling!' : `☠ ${name(st.turn)} is stranded on the island…`)
             : (myTurn()
-                ? (st.phase === 'awaitRoll' ? 'Your turn — roll the dice!' : 'Your turn — reroll or bank.')
+                ? (st.phase === 'awaitRoll' ? 'Your turn - roll the dice!' : 'Your turn - reroll or bank.')
                 : `Waiting for ${name(st.turn)}…`));
 
-      // dice — split into an "in play" zone and, in keep mode, a "saved" zone.
+      // dice - split into an "in play" zone and, in keep mode, a "saved" zone.
       // data-i stays the original index so moves are correct under sorting.
       const savedZone = $('#kf-savedzone');
       const showSaved = myTurn() && keepMode && st.phase === 'rolling';
@@ -390,6 +419,8 @@ export default {
       };
       const dEl = $('#kf-dice');
       const sEl = $('#kf-saved');
+      const beforeRects = new Map();
+      rootEl.querySelectorAll('.kf-die[data-i]').forEach(el => beforeRects.set(el.dataset.i, el.getBoundingClientRect()));
       dEl.innerHTML = order.filter(i => !isSaved(i)).map(tile).join('');
       sEl.innerHTML = order.filter(i => isSaved(i)).map(tile).join('');
       [dEl, sEl].forEach(zone => zone.querySelectorAll('.kf-die.can').forEach(el =>
@@ -398,9 +429,10 @@ export default {
           selected.has(i) ? selected.delete(i) : selected.add(i);
           render();
         })));
+      flipDice(beforeRects);
       animateDice(dEl);
 
-      // toolbar (sort + keep/reroll) — while it's my active-rolling turn
+      // toolbar (sort + keep/reroll) - while it's my active-rolling turn
       const tb = $('#kf-toolbar');
       if (myTurn() && st.phase === 'rolling') {
         tb.innerHTML = `
@@ -441,8 +473,8 @@ export default {
       const lt = st.lastTurn;
       $('#kf-last').textContent = lt
         ? (lt.island
-            ? `Last: ${name(lt.user)} — Island of Skulls — rivals lost ${lt.skulls * 100}`
-            : `Last: ${name(lt.user)} — ${cardMeta(lt.card).title} — ${lt.busted ? 'busted' : `+${lt.points} pts`}`)
+            ? `Last: ${name(lt.user)} - Island of Skulls - rivals lost ${lt.skulls * 100}`
+            : `Last: ${name(lt.user)} - ${cardMeta(lt.card).title} - ${lt.busted ? 'busted' : `+${lt.points} pts`}`)
         : '';
 
       renderScoreboard(name);
@@ -502,15 +534,36 @@ export default {
 
     // ---- turn-end summary overlay ----
     const fmtSigned = v => `${v < 0 ? '-' : (v > 0 ? '+' : '')}${Math.abs(v)}`;
-    function hideSummary() {
+    function hideSummary(toLog) {
       const el = $('#kf-summary');
-      if (el) { el.hidden = true; el.innerHTML = ''; }
+      if (!el) return;
       clearTimeout(summaryTimer); summaryTimer = null;
+      const panel = el.querySelector('.kf-card-panel');
+      const log = rootEl.querySelector('.kf-log');
+      const done = () => { el.hidden = true; el.innerHTML = ''; el.style.background = ''; el.style.transition = ''; el.onclick = null; };
+      if (reduce || !toLog || !panel || !log) { done(); return; }
+      // fly the summary panel down into the roll log, then flash the new entry
+      const p = panel.getBoundingClientRect(), l = log.getBoundingClientRect();
+      const dx = (l.left + l.width / 2) - (p.left + p.width / 2);
+      const dy = (l.top + 22) - (p.top + p.height / 2);
+      panel.style.transition = 'transform .55s cubic-bezier(.5,0,.75,.4), opacity .55s ease';
+      panel.style.transformOrigin = 'center';
+      panel.style.transform = `translate(${dx}px, ${dy}px) scale(.1)`;
+      panel.style.opacity = '0';
+      el.style.transition = 'background .55s ease';
+      el.style.background = 'rgba(8,9,20,0)';
+      el.onclick = null;
+      setTimeout(() => {
+        done();
+        const first = rootEl.querySelector('.kf-logrow');
+        if (first) { first.classList.add('flash'); setTimeout(() => first.classList.remove('flash'), 800); }
+      }, 560);
     }
     function showSummary(lt) {
       const el = $('#kf-summary');
       if (!el) return;
       clearTimeout(summaryTimer);
+      el.style.background = ''; el.style.transition = '';   // clear any prior fly-out styles
       const accent = lt.island ? ACCENT.island : (ACCENT[lt.card?.type] || '#f5c542');
       const title = lt.island ? 'Island of Skulls' : cardMeta(lt.card).title;
       const total = lt.island ? -(lt.skulls || 0) * 100 : lt.points;
@@ -530,7 +583,7 @@ export default {
         <div class="kf-sum-hint">tap to continue</div>
       </div>`;
       el.hidden = false;
-      el.onclick = hideSummary;
+      el.onclick = () => hideSummary(true);
       if (!reduce) {
         const t = $('#kf-sum-total');
         const start = performance.now(), dur = 700;
@@ -541,7 +594,7 @@ export default {
         };
         window.requestAnimationFrame(step);
       }
-      summaryTimer = setTimeout(hideSummary, 3000);
+      summaryTimer = setTimeout(() => hideSummary(true), 5000);
     }
 
     // ---- events ----
