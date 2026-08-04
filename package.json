@@ -19,6 +19,7 @@
     "app/router"
   ],
   "dependencies": {
+    "@cap-games/flipfortune": "*",
     "@cap-games/kaffee-kwest": "*",
     "@cap-games/kaiten": "*",
     "@cap-games/kaperfahrt": "*",
