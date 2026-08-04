@@ -1,30 +1,37 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 /* ── Design tokens ─────────────────────────────────────────
-   Dark is the default palette; Phase 2 adds a light set under
-   :root[data-theme="light"] with the exact same variable names, so every
-   rule below is theme-agnostic by construction — nothing here should ever
-   hardcode a color that should flip with the theme. */
+   Liquid-glass system: a colorful blurred gradient field sits fixed behind
+   everything (body::before), and UI surfaces are translucent + blurred
+   (backdrop-filter) so that field shows through. Dark is the default
+   palette; :root[data-theme="light"] flips to the same variable names with
+   a lighter field + white-glass surfaces, so every rule below stays
+   theme-agnostic by construction — nothing here should hardcode a color
+   that should flip with the theme. */
 :root {
-  --bg:           #0b0d13;
-  --bg-elevated:  #11141c;
-  --surface:      #1a1f2b;
-  --surface-hover:#222838;
-  --border:       #2c3444;
-  --border-strong:#3a4356;
-  --text:         #e8ecf4;
-  --muted:        #93a0b8;
-  --accent:       #4f7cff;
-  --accent-hover: #6e91ff;
-  --accent-soft:  rgba(79,124,255,.15);
-  --danger:       #f0576a;
-  --danger-soft:  rgba(240,87,106,.15);
-  --success:      #2fd480;
-  --success-soft: rgba(47,212,128,.15);
+  --bg:           #0a0a14;
+  --bg-elevated:  rgba(24, 26, 42, .55);
+  --surface:      rgba(255, 255, 255, .06);
+  --surface-hover:rgba(255, 255, 255, .11);
+  --border:       rgba(255, 255, 255, .14);
+  --border-strong:rgba(255, 255, 255, .28);
+  --text:         #f2f4fb;
+  --muted:        #a3aac4;
+  --accent:       #7c8cff;
+  --accent-hover: #99a6ff;
+  --accent-soft:  rgba(124,140,255,.18);
+  --accent-2:     #ff7ce0;
+  --danger:       #ff6b81;
+  --danger-soft:  rgba(255,107,129,.16);
+  --success:      #3ee6a8;
+  --success-soft: rgba(62,230,168,.16);
 
-  --radius-sm: 6px;
-  --radius:    10px;
-  --radius-lg: 16px;
+  --glass-blur:   18px;
+  --glass-sheen:  rgba(255,255,255,.16);
+
+  --radius-sm: 10px;
+  --radius:    16px;
+  --radius-lg: 24px;
 
   --space-1: .35rem;
   --space-2: .6rem;
@@ -32,12 +39,17 @@
   --space-4: 1.5rem;
   --space-5: 2.25rem;
 
-  --shadow-sm: 0 1px 2px rgba(0,0,0,.35);
-  --shadow-md: 0 4px 16px rgba(0,0,0,.35);
-  --shadow-lg: 0 12px 40px rgba(0,0,0,.45);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.25);
+  --shadow-md: 0 8px 30px rgba(0,0,0,.35);
+  --shadow-lg: 0 20px 60px rgba(0,0,0,.5);
 
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --transition: .15s ease;
+  --transition: .18s ease;
+
+  --field-1: #3a2ee0;
+  --field-2: #e0299e;
+  --field-3: #17c9c0;
+  --field-4: #05061a;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -45,29 +57,37 @@
   * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
-/* Light theme — same variable names, flipped palette. Applied via
-   [data-theme="light"] on <html>, set before first paint (inline script in
-   index.html/login.html/logout.html <head>) to avoid a flash of the wrong
-   theme. Toggled + persisted from the header account menu (platform.js). */
+/* Light theme — same variable names, flipped to white-glass over a
+   pastel gradient field. Applied via [data-theme="light"] on <html>, set
+   before first paint (inline script in index.html/login.html/logout.html
+   <head>) to avoid a flash of the wrong theme. Toggled + persisted from
+   the header account menu (platform.js). */
 :root[data-theme="light"] {
-  --bg:           #f4f6fb;
-  --bg-elevated:  #ffffff;
-  --surface:      #ffffff;
-  --surface-hover:#eef1f8;
-  --border:       #dde2ee;
-  --border-strong:#c7cee0;
-  --text:         #1b2030;
-  --muted:        #6b7690;
-  --accent:       #3b63e0;
-  --accent-hover: #2f52c4;
-  --accent-soft:  rgba(59,99,224,.12);
-  --danger:       #d8384f;
-  --danger-soft:  rgba(216,56,79,.12);
-  --success:      #1f9c5f;
-  --success-soft: rgba(31,156,95,.12);
-  --shadow-sm: 0 1px 2px rgba(20,25,40,.08);
-  --shadow-md: 0 4px 16px rgba(20,25,40,.10);
-  --shadow-lg: 0 12px 40px rgba(20,25,40,.16);
+  --bg:           #eef1fb;
+  --bg-elevated:  rgba(255, 255, 255, .6);
+  --surface:      rgba(255, 255, 255, .55);
+  --surface-hover:rgba(255, 255, 255, .8);
+  --border:       rgba(20, 25, 50, .1);
+  --border-strong:rgba(20, 25, 50, .2);
+  --text:         #171a2e;
+  --muted:        #5c6383;
+  --accent:       #5a5ff0;
+  --accent-hover: #4548d6;
+  --accent-soft:  rgba(90,95,240,.14);
+  --accent-2:     #d926b0;
+  --danger:       #e0435c;
+  --danger-soft:  rgba(224,67,92,.13);
+  --success:      #0fa878;
+  --success-soft: rgba(15,168,120,.13);
+  --glass-sheen:  rgba(255,255,255,.55);
+  --shadow-sm: 0 1px 2px rgba(30,35,70,.06);
+  --shadow-md: 0 8px 30px rgba(30,35,70,.10);
+  --shadow-lg: 0 20px 60px rgba(30,35,70,.16);
+
+  --field-1: #a6b1ff;
+  --field-2: #ffb0e6;
+  --field-3: #9bf0e6;
+  --field-4: #f4f6fb;
 }
 
 html, body { height: 100%; }
@@ -81,11 +101,58 @@ body {
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   transition: background-color var(--transition), color var(--transition);
+  position: relative;
+}
+
+/* ── Liquid background field ────────────────────────────────
+   Fixed, blurred, slowly-drifting color blobs behind every view. This is
+   what backdrop-filter on the glass surfaces above actually blurs — a flat
+   background wouldn't read as "glass". Kept on a pseudo-element (not a DOM
+   node) so it never interferes with layout or hit-testing. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -10%;
+  z-index: -1;
+  background:
+    radial-gradient(38% 32% at 15% 20%, color-mix(in srgb, var(--field-1) 75%, transparent), transparent 70%),
+    radial-gradient(42% 38% at 85% 15%, color-mix(in srgb, var(--field-2) 65%, transparent), transparent 70%),
+    radial-gradient(45% 40% at 75% 85%, color-mix(in srgb, var(--field-3) 60%, transparent), transparent 70%),
+    radial-gradient(50% 50% at 20% 90%, color-mix(in srgb, var(--field-1) 45%, transparent), transparent 70%),
+    var(--field-4);
+  filter: blur(60px) saturate(130%);
+  animation: field-drift 24s ease-in-out infinite alternate;
+  transition: background-color var(--transition);
+}
+@keyframes field-drift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(-2%, 2%, 0) scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body::before { animation: none; }
 }
 
 ::selection { background: var(--accent-soft); color: var(--text); }
 
 a { color: var(--accent); }
+
+/* ── Glass surface mixin (applied via class on cards/panels/menus) ──── */
+.sh-header,
+.sh-account-menu,
+.sh-list li,
+.sh-toast,
+.sh-chat-messages,
+.sh-user-btn,
+.sh-player,
+.sh-avatar-preview,
+.gm-aside,
+input, select,
+button.sh-ghost {
+  background: var(--surface);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  border: 1px solid var(--border);
+}
 
 /* ── Shell Header ───────────────────────────────────────── */
 .sh-header {
@@ -94,21 +161,35 @@ a { color: var(--accent); }
   justify-content: space-between;
   padding: var(--space-2) var(--space-4);
   background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
+  border-width: 0 0 1px 0;
+  box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-sheen);
   flex-shrink: 0;
+  position: relative;
+  z-index: 10;
 }
 .sh-logo  {
-  font-weight: 700; font-size: 1.4rem; letter-spacing: .01em;
-  display: inline-flex; align-items: center; gap: .4rem;
-  background: none; border: none; padding: 0; color: inherit;
+  font-weight: 800; font-size: 1.45rem; letter-spacing: -.01em;
+  display: inline-flex; align-items: center; gap: .45rem;
+  background: none; border: none; padding: 0;
+  border-radius: 0; box-shadow: none;
   font-family: inherit; cursor: pointer;
+  transition: filter var(--transition);
 }
-.sh-logo:hover { color: var(--accent); }
+.sh-logo:hover { box-shadow: none; }
+.sh-logo-icon {
+  color: var(--accent-2);
+  font-size: .82em;
+  filter: drop-shadow(0 0 8px var(--accent-soft));
+}
+.sh-logo-text {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.sh-logo:hover .sh-logo-icon { filter: drop-shadow(0 0 14px var(--accent-soft)); }
 .sh-nav   { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .sh-toast {
-  background: var(--surface); border: 1px solid var(--border);
   border-radius: 999px; padding: .3rem .8rem; font-size: .82rem;
+  box-shadow: var(--shadow-sm);
 }
 
 /* ── Account control (header, top-right) ─────────────────── */
@@ -119,24 +200,24 @@ a { color: var(--accent); }
   font-weight: 700; font-size: .78rem; letter-spacing: .5px;
   display: inline-flex; align-items: center; justify-content: center;
   overflow: hidden;
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 .sh-account-btn.sh-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
 /* Edit-profile avatar preview */
 .sh-avatar-preview {
   width: 96px; height: 96px; border-radius: 50%; flex-shrink: 0;
-  background: var(--surface); border: 1px solid var(--border);
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 1.4rem; overflow: hidden;
+  box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-sheen);
 }
 .sh-avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
 
 .sh-account-menu {
   position: absolute; right: 0; top: calc(100% + .5rem);
-  background: var(--bg-elevated); border: 1px solid var(--border);
   border-radius: var(--radius); padding: .4rem; min-width: 170px; z-index: 20;
   display: flex; flex-direction: column; gap: .1rem;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 var(--glass-sheen);
 }
 .sh-account-menu[hidden] { display: none; }
 .sh-account-name {
@@ -147,11 +228,12 @@ a { color: var(--accent); }
   background: transparent; color: var(--text); text-align: left;
   border-radius: var(--radius-sm); padding: .5rem .65rem; font-size: .9rem;
   transition: background var(--transition);
+  box-shadow: none;
 }
 .sh-menu-item:hover { background: var(--surface-hover); }
 
 /* ── Views ──────────────────────────────────────────────── */
-.sh-view  { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-5) var(--space-4); max-width: 900px; width: 100%; }
+.sh-view  { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-5) var(--space-4); max-width: 900px; width: 100%; margin: 0 auto; }
 .sh-center { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); text-align: center; }
 /* [hidden] is only a UA-stylesheet rule — author rules like .sh-center/#view-room
    that set `display` beat it on origin, not specificity. Force it explicitly. */
@@ -161,7 +243,7 @@ a { color: var(--accent); }
    controls or the mounted game); the persistent room chrome — players, chat,
    and the .gm-layout/.gm-aside split — lives once in index.html, owned by
    platform.js, never duplicated per game. */
-#view-room:not([hidden])  { max-width: 100%; padding: 0; display: flex; flex-direction: column; min-height: 0; }
+#view-room:not([hidden])  { max-width: 100%; padding: 0; display: flex; flex-direction: column; min-height: 0; margin: 0; }
 #room-match-controls:empty { display: none; }
 #room-match-controls { padding: var(--space-3) var(--space-4) 0; }
 #game-root  { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -171,7 +253,9 @@ a { color: var(--accent); }
 .gm-main   { flex: 1; min-width: 0; min-height: 0; overflow-y: auto;
              display: flex; flex-direction: column; gap: var(--space-3); }
 .gm-aside  { width: 280px; flex-shrink: 0; min-height: 0; overflow-y: auto;
-             display: flex; flex-direction: column; gap: var(--space-3); }
+             display: flex; flex-direction: column; gap: var(--space-3);
+             padding: var(--space-3); border-radius: var(--radius-lg);
+             box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-sheen); }
 @media (max-width: 760px) {
   body { overflow: auto; }
   .sh-view, #game-root, .gm-layout { overflow: visible; min-height: auto; }
@@ -179,48 +263,62 @@ a { color: var(--accent); }
   .gm-aside  { width: 100%; }
 }
 
-h1 { font-size: 2.1rem; letter-spacing: -.01em; }
-h2 { font-size: 1.4rem; margin-bottom: var(--space-3); }
-h3 { font-size: .85rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: var(--space-4) 0 var(--space-2); }
+h1 {
+  font-size: 2.3rem; letter-spacing: -.02em; font-weight: 800;
+  background: linear-gradient(135deg, var(--text), var(--accent-2) 140%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+h2 { font-size: 1.4rem; margin-bottom: var(--space-3); font-weight: 700; }
+h3 { font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: var(--space-4) 0 var(--space-2); }
 
 /* ── Buttons ────────────────────────────────────────────── */
 button {
   cursor: pointer;
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
   color: #fff;
   border: none;
-  border-radius: var(--radius-sm);
-  padding: .55rem 1.1rem;
+  border-radius: 999px;
+  padding: .6rem 1.3rem;
   font-size: .95rem;
   font-family: inherit;
   font-weight: 600;
-  transition: background var(--transition), transform var(--transition), filter var(--transition);
+  box-shadow: 0 4px 18px var(--accent-soft), inset 0 1px 0 rgba(255,255,255,.35);
+  transition: background var(--transition), transform var(--transition), filter var(--transition), box-shadow var(--transition);
 }
-button:hover     { background: var(--accent-hover); }
-button:active    { transform: translateY(1px); }
-button:disabled  { background: var(--border); color: var(--muted); cursor: default; transform: none; }
+button:hover     { filter: brightness(1.08); box-shadow: 0 6px 24px var(--accent-soft), inset 0 1px 0 rgba(255,255,255,.35); }
+button:active    { transform: translateY(1px) scale(.98); }
+button:disabled  { background: var(--border); color: var(--muted); cursor: default; transform: none; box-shadow: none; }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-button.sh-small  { font-size: .8rem; padding: .32rem .7rem; }
-button.danger    { background: var(--danger); }
-button.danger:hover { background: #f47686; }
-button.sh-ghost  { background: transparent; border: 1px solid var(--border); color: var(--text); }
+/* .sh-small doubles as a plain-text utility class (muted metadata like "3
+   players") AND gets slapped on real buttons (Join, Kick, ...). Both share
+   the class selector's specificity, so button.sh-small must restate color
+   itself or the utility's muted gray silently wins over the button's white
+   text — that's the "unreadable" bug. .sh-ghost/.danger still override this
+   correctly since they're declared after and set color explicitly. */
+button.sh-small  { font-size: .8rem; padding: .35rem .85rem; color: #fff; }
+button.danger    { background: linear-gradient(135deg, var(--danger), #ff9a6b); box-shadow: 0 4px 18px var(--danger-soft), inset 0 1px 0 rgba(255,255,255,.35); }
+button.danger:hover { filter: brightness(1.08); }
+button.sh-ghost  {
+  background: var(--surface); color: var(--text);
+  box-shadow: inset 0 1px 0 var(--glass-sheen);
+  border-radius: var(--radius-sm);
+}
 button.sh-ghost:hover { background: var(--surface-hover); }
 #sh-theme-toggle,
-.sh-icon-btn { display: inline-flex; align-items: center; justify-content: center; padding: .4rem; }
+.sh-icon-btn { display: inline-flex; align-items: center; justify-content: center; padding: .45rem; border-radius: 999px; }
 
 /* ── Inputs ─────────────────────────────────────────────── */
 input, select {
-  background: var(--surface);
-  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text);
-  padding: .55rem .8rem;
+  padding: .6rem .85rem;
   font-size: .95rem;
   font-family: inherit;
   flex: 1;
-  transition: border-color var(--transition);
+  box-shadow: inset 0 1px 0 var(--glass-sheen);
+  transition: border-color var(--transition), box-shadow var(--transition);
 }
-input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), inset 0 1px 0 var(--glass-sheen); }
 
 /* ── Utilities ──────────────────────────────────────────── */
 .sh-row   { display: flex; gap: var(--space-2); align-items: center; }
@@ -229,16 +327,16 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 .sh-list  { list-style: none; display: flex; flex-direction: column; gap: var(--space-2); }
 .sh-list li {
   display: flex; align-items: center; gap: var(--space-3);
-  background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: var(--space-3);
-  box-shadow: var(--shadow-sm); transition: border-color var(--transition);
+  box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-sheen);
+  transition: border-color var(--transition), transform var(--transition), background var(--transition);
 }
-.sh-list li:hover { border-color: var(--border-strong); }
+.sh-list li:hover { border-color: var(--border-strong); background: var(--surface-hover); transform: translateY(-1px); }
 .sh-list li button { margin-left: auto; flex-shrink: 0; }
 
 .sh-user-btn  {
-  background: var(--surface); border: 1px solid var(--border);
   color: var(--text); border-radius: var(--radius); padding: .7rem 1.3rem;
+  box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-sheen);
 }
 .sh-user-btn:hover { background: var(--surface-hover); }
 a.sh-user-btn { text-decoration: none; display: inline-block; }
@@ -253,8 +351,8 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 /* Players */
 .sh-players  { list-style: none; display: flex; flex-direction: column; gap: var(--space-1); }
 .sh-player   { display: flex; align-items: center; gap: var(--space-2);
-               background: var(--surface); border: 1px solid var(--border);
-               border-radius: var(--radius-sm); padding: .4rem .75rem; }
+               border-radius: var(--radius-sm); padding: .4rem .75rem;
+               box-shadow: inset 0 1px 0 var(--glass-sheen); }
 .sh-player.me { border-color: var(--accent); background: var(--accent-soft); }
 .sh-sym      { background: var(--border); border-radius: var(--radius-sm); padding: .1rem .4rem;
                font-weight: bold; font-size: .85rem;
@@ -266,14 +364,15 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 /* Host controls */
 .sh-host-controls { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
 .sh-switch-game    { width: 100%; margin-top: .4rem; }
-.sh-switch-game select { background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius-sm); padding: .4rem .5rem; }
+.sh-switch-game select { border-radius: var(--radius-sm); padding: .4rem .5rem; }
 
 /* Chat */
 .sh-chat        { display: flex; flex-direction: column; height: 100%; }
 .sh-chat-messages {
-  flex: 1; overflow-y: auto; background: var(--surface); border: 1px solid var(--border);
+  flex: 1; overflow-y: auto;
   border-radius: var(--radius); padding: var(--space-3); display: flex;
   flex-direction: column; gap: .3rem;
+  box-shadow: inset 0 1px 0 var(--glass-sheen);
 }
 .sh-chat-msg    { font-size: .9rem; color: var(--text); }
 .sh-chat-msg strong { color: var(--accent-hover); }
@@ -288,6 +387,7 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 .ttt-cell {
   aspect-ratio: 1; font-size: 2rem; font-weight: bold;
   border-radius: var(--radius-sm); background: var(--surface);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
   border: 2px solid var(--border); color: var(--text);
   transition: background var(--transition);
 }
