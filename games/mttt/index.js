@@ -28,16 +28,17 @@
  * `init`/`applyMove`/`score` are pure, per the platform's game contract —
  * no CAP imports. `extendService` is the documented exception (it needs DB
  * access for the pre-start picks), same as srv/play-service.js. The blitz
- * timer additionally imports `getBoard` from srv/engine.js directly and
- * mutates the shared board-state reference in place — a deliberate,
- * first-of-its-kind exception (no other game reaches into engine.js): a
- * real, server-enforced per-move timeout has no way around touching the
- * same board-state source of truth a real move does, and no part of the
- * documented game contract exposes that otherwise.
+ * timer additionally uses `getBoard` (handed in as extendService's second
+ * arg — engine.js lives outside every `@cap-games/*` package, so a relative
+ * import would break once this package is packed for deploy) to mutate the
+ * shared board-state reference in place — a deliberate, first-of-its-kind
+ * exception (no other game reaches into engine.js): a real, server-enforced
+ * per-move timeout has no way around touching the same board-state source
+ * of truth a real move does, and no part of the documented game contract
+ * exposes that otherwise.
  */
 
 import cds from '@sap/cds';
-import { getBoard } from '../../srv/engine.js';
 
 const WIN_LINES = [
   [0,1,2],[3,4,5],[6,7,8],
@@ -197,7 +198,7 @@ export default {
   // Self-service team picking + host-only blitz config, pre-start, plus the
   // blitz per-move timer itself (see srv/extend.cds for the WS actions/
   // event this registers handlers for).
-  extendService(srv) {
+  extendService(srv, { getBoard }) {
     const { Rooms, Players } = cds.entities('cap.games');
 
     const loadSettings = async (roomId) => {

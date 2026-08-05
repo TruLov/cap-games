@@ -23,7 +23,10 @@ const GAME_SCOPE = '@cap-games/';
  *   init(settings, players)          → state   (players: ordered [{ user, isHost }])
  *   applyMove(state, move, user)     → { state, end } | { error }
  *   score?(end, players)             → [{ user, result, points? }]  (end.winner = user|'draw')
- *   extendService?(srv)              → void  (optional extra actions/events)
+ *   extendService?(srv, { getBoard }) → void  (optional extra actions/events;
+ *     getBoard(roomId) is engine.js's transient-board-state accessor, handed
+ *     in because engine.js lives outside every `@cap-games/*` package — a
+ *     game plugin can't reach it via relative import once packed for deploy)
  *   publicState?/privateState?(state, user) → hidden-information projection
  */
 

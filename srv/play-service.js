@@ -320,7 +320,12 @@ class PlayService extends cds.ApplicationService {
       await reg.loadAll();
       for (const [id, game] of Object.entries(reg.all())) {
         if (typeof game.extendService === 'function') {
-          game.extendService(this);
+          // getBoard passed alongside srv: engine.js lives in the root
+          // project, not a `@cap-games/*` package, so a game plugin can't
+          // reach it via a relative import once packed into node_modules
+          // for deployment (see games/mttt/index.js for the one game that
+          // needs it, for its per-move blitz timer).
+          game.extendService(this, { getBoard: eng.getBoard });
           LOG.info(`extended PlayService with game: ${id}`);
         }
       }
