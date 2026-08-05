@@ -13,6 +13,29 @@ const WIN_LINES = [
   [0,4,8],[2,4,6],
 ];
 
+// Self-contained board styling — borrows the shell's design tokens
+// (var(--accent) etc., still available as inherited custom properties)
+// rather than a from-scratch palette, but owns its own rules so it isn't
+// relying on the shared stylesheet.
+const STYLE = `
+  .ttt-board {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 6px; max-width: 300px;
+  }
+  .ttt-cell {
+    aspect-ratio: 1; font-size: 2rem; font-weight: bold;
+    border-radius: var(--radius-sm); background: var(--surface);
+    backdrop-filter: blur(var(--glass-blur)) saturate(120%);
+    border: 2px solid var(--border); color: var(--text);
+    transition: background var(--transition);
+  }
+  .ttt-cell.open       { border-color: var(--accent); }
+  .ttt-cell.open:hover { background: var(--surface-hover); }
+  .ttt-cell.win        { border-color: var(--success); background: var(--success-soft); color: var(--success); }
+  .ttt-status { font-size: 1rem; color: var(--muted); min-height: 1.4rem; }
+  .ttt-board-wrap { flex: 1; }
+`;
+
 function winLine(board) {
   return WIN_LINES.find(
     l => board[l[0]] && board[l[0]] === board[l[1]] && board[l[1]] === board[l[2]]
@@ -50,6 +73,7 @@ function renderBoard(state, boardEl, sdk) {
 export default {
   mount(rootEl, sdk) {
     rootEl.innerHTML = `
+      <style>${STYLE}</style>
       <div class="ttt-status" id="ttt-status"></div>
       <div class="ttt-board-wrap" id="ttt-board"></div>
     `;

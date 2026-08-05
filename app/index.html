@@ -103,13 +103,15 @@
        'lobby'), the platform's own waiting-room controls render there. ── -->
   <main id="view-room" class="sh-view" hidden>
     <div id="room-match-controls"></div>
-    <div class="gm-layout">
+    <div class="gm-layout" id="room-layout">
       <div class="gm-main" id="game-root"></div>
-      <aside class="gm-aside">
+      <aside class="gm-roster">
         <h3>Players</h3>
         <div id="room-players"></div>
-        <h3 style="margin-top:1rem">Chat</h3>
-        <div id="room-chat" style="height:300px"></div>
+      </aside>
+      <aside class="gm-chat">
+        <h3>Chat</h3>
+        <div id="room-chat"></div>
       </aside>
     </div>
   </main>

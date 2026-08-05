@@ -242,7 +242,12 @@ async function ensureProfiles(users) {
   try {
     const data = await serviceCall('profile', 'POST', 'profilesOf', { users: missing });
     for (const p of data.value ?? []) profiles.set(p.user, { gamertag: p.gamertag, hasAvatar: p.hasAvatar });
-  } catch { /* keep the empty placeholders — falls back to raw id/initials */ }
+  } catch (e) {
+    // keep the empty placeholders — falls back to raw id/initials — but
+    // don't swallow the error silently, or a real backend failure (e.g. a
+    // missing Profiles table) looks identical to "nobody set a gamertag".
+    console.error('profilesOf failed:', e);
+  }
   emitter.emit('profilesUpdated', {});
 }
 
@@ -347,35 +352,59 @@ function onSelfKicked({ player }) {
 // ── Errors — surfaced generically so games don't each need their own handler
 function onGameError({ message }) { if (message) toast(message); }
 
-// ── Match controls (Rematch / Back to room) — host-only, shown whenever the
-// room is 'finished'; generic across every game, so no game needs its own.
-function renderMatchControls(show) {
+// ── Match controls — host-only, generic across every game, so no game
+// needs its own. 'active': a single "Abort match" button, shown once a
+// match has started (backToRoom is legal from 'playing'/'paused' too, not
+// just 'finished' — srv/engine.js's TRANSITIONS table). 'finished':
+// Rematch / Back to room. Falsy: empty (room reset, game switch).
+function renderMatchControls(mode) {
   const el = $('room-match-controls');
-  if (!show || !shell.me?.isHost) { el.innerHTML = ''; return; }
-  el.innerHTML = `
-    <div class="sh-host-controls">
-      <button id="sh-btn-rematch">Rematch</button>
-      <button id="sh-btn-backroom">Back to room</button>
-    </div>`;
-  el.querySelector('#sh-btn-rematch').onclick  = () => sdk_send('rematch');
-  el.querySelector('#sh-btn-backroom').onclick = () => sdk_send('backToRoom');
+  if (!mode || !shell.me?.isHost) { el.innerHTML = ''; return; }
+  el.innerHTML = mode === 'finished'
+    ? `<div class="sh-host-controls">
+         <button id="sh-btn-rematch">Rematch</button>
+         <button id="sh-btn-backroom">Back to room</button>
+       </div>`
+    : `<div class="sh-host-controls">
+         <button id="sh-btn-abort" class="sh-ghost">Abort match</button>
+       </div>`;
+  el.querySelector('#sh-btn-rematch')?.addEventListener('click', () => sdk_send('rematch'));
+  el.querySelector('#sh-btn-backroom')?.addEventListener('click', () => sdk_send('backToRoom'));
+  el.querySelector('#sh-btn-abort')?.addEventListener('click',    () => sdk_send('backToRoom'));
   function sdk_send(action) { wsSend(action, { room: shell.room.id }); }
 }
-function onFinishedControls()  { renderMatchControls(true); }
+function onFinishedControls()  { renderMatchControls('finished'); }
 function onClearedControls()   { renderMatchControls(false); }
 
 // ── Waiting-room ↔ match transitions — the core state machine. A game
 // module is mounted ONLY once a match is actually starting/active; before
 // that (status 'lobby') the platform's own waiting room owns #game-root.
+// A game's optional `meta.layout` ({ areas, columns, rows } — raw
+// grid-template-* values) repositions/resizes the roster/chat panels
+// around its board. #room-players/#room-chat are never touched here —
+// only .gm-layout's grid placement changes — so mountPlayers/mountChat's
+// state (chat scrollback, roster list) survives untouched.
+function applyRoomLayout() {
+  const el = $('room-layout');
+  const layout = shell.gameModule?.meta?.layout;
+  el.dataset.game = shell.room?.game ?? '';
+  const setVar = (name, value) => value ? el.style.setProperty(name, value) : el.style.removeProperty(name);
+  setVar('--gm-areas', layout?.areas);
+  setVar('--gm-cols',  layout?.columns);
+  setVar('--gm-rows',  layout?.rows);
+}
+
 function mountGame() {
   const el = $('game-root');
   el.innerHTML = '';
+  el.classList.add('gm-game-active');   // opt this game's DOM out of shell chrome styling — see style.css
   shell.matchUnmount = shell.gameModule.mount(el, shell.sdk) ?? null;
 }
 
 async function showWaitingRoom() {
   const el = $('game-root');
   el.innerHTML = '';
+  el.classList.remove('gm-game-active');
   shell.waitingUnmount = await mountWaitingRoom(el, shell.sdk, shell.gameModule) ?? null;
 }
 
@@ -388,7 +417,7 @@ function onStartedTopLevel(payload) {
     // replay it now so the game's own onStarted sees its first state.
     emitter.emit('started', payload);
   }
-  onClearedControls();
+  renderMatchControls('active');
 }
 function onRoomResetTopLevel() {
   if (shell.matchUnmount) { shell.matchUnmount(); shell.matchUnmount = null; }
@@ -402,6 +431,7 @@ async function onGameSwitchedTopLevel({ game }) {
   shell.waitingUnmount?.(); shell.waitingUnmount = null;
   const mod = await import(`/games/${game}/index.js`);
   shell.gameModule = mod.default;
+  applyRoomLayout();
   await showWaitingRoom();
   toast('Host switched the game');
 }
@@ -425,6 +455,7 @@ async function joinRoom(roomId, code, game) {
   // load game UI module
   const mod = await import(`/games/${game}/index.js`);
   shell.gameModule = mod.default;
+  applyRoomLayout();
 
   // connect WS if needed — wsConnect's onopen sends 'join' once shell.room is
   // set (it already is, above), so a fresh connection auto-joins; if a socket
@@ -471,7 +502,7 @@ async function joinRoom(roomId, code, game) {
     emitter.on('gameSwitched', onGameSwitchedTopLevel);
 
     if (payload.status === 'lobby') showWaitingRoom();
-    else { mountGame(); if (payload.status === 'finished') onFinishedControls(); }
+    else { mountGame(); renderMatchControls(payload.status === 'finished' ? 'finished' : 'active'); }
   });
 }
 

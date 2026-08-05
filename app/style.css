@@ -270,20 +270,67 @@ button.sh-ghost {
 #room-match-controls { padding: var(--space-3) var(--space-4) 0; }
 #game-root  { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
-/* ── Room layout (main content + players/chat aside) — see index.html ──── */
-.gm-layout { flex: 1; min-height: 0; display: flex; gap: var(--space-4); padding: var(--space-4); }
-.gm-main   { flex: 1; min-width: 0; min-height: 0; overflow-y: auto;
+/* ── Room layout (game + roster + chat) — see index.html ──────────────
+   A CSS grid with named areas so a game can reposition/resize roster and
+   chat around its own board without the platform touching how they're
+   rendered (mountPlayers/mountChat in platform.js own #room-players/
+   #room-chat exactly as before — only their grid placement changes).
+   Default matches the previous fixed layout: game left, players/chat
+   stacked in a right-hand column. A game overrides the --gm-* custom
+   properties via platform.js's applyRoomLayout() (driven by its own
+   meta.layout) to move/resize the areas; unset, these defaults apply. */
+.gm-layout {
+  --gm-areas:  "game roster" "game chat";
+  --gm-cols:   1fr 280px;
+  --gm-rows:   auto 1fr;
+  flex: 1; min-height: 0; display: grid;
+  grid-template-areas: var(--gm-areas);
+  grid-template-columns: var(--gm-cols);
+  grid-template-rows: var(--gm-rows);
+  gap: var(--space-4); padding: var(--space-4);
+}
+.gm-main   { grid-area: game; min-width: 0; min-height: 0; overflow-y: auto;
              display: flex; flex-direction: column; gap: var(--space-3); }
-.gm-aside  { width: 280px; flex-shrink: 0; min-height: 0; overflow-y: auto;
+.gm-roster,
+.gm-chat   { min-width: 0; min-height: 0; overflow-y: auto;
              display: flex; flex-direction: column; gap: var(--space-3);
              padding: var(--space-3); border-radius: var(--radius-lg);
              box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-sheen); }
+.gm-roster { grid-area: roster; }
+/* Chat scrolls internally (.sh-chat-messages) rather than as a whole aside,
+   so #room-chat needs a definite flexed height for .sh-chat's height:100%
+   to resolve against — previously an inline height:300px on #room-chat did
+   this job; the grid row now supplies the height instead. */
+.gm-chat   { grid-area: chat; overflow: hidden; }
+/* flex-direction: column (not the row default) — #room-chat has one block
+   child (.sh-chat); a row context would make that child a shrinkable-width
+   flex item too (needing its own min-width:0), column avoids that: the
+   child's width just comes from the normal cross-axis stretch. */
+.gm-chat > #room-chat { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 @media (max-width: 760px) {
   body { overflow: auto; }
   .sh-view, #game-root, .gm-layout { overflow: visible; min-height: auto; }
-  .gm-layout { flex-direction: column; }
-  .gm-aside  { width: 100%; }
+  .gm-layout { grid-template-areas: "game" "roster" "chat"; grid-template-columns: 1fr; grid-template-rows: auto auto auto; }
 }
+
+/* ── Game-owned surface ─────────────────────────────────────
+   Everything a game module (or its renderSettings panel) renders opts out
+   of the shell's metal treatment — a game supplies its own look via its
+   own <style> block (see games/mttt/app/index.js, games/kaiten/app/index.js,
+   etc.), same document/no iframe so it'd otherwise inherit the unscoped
+   button/input/heading rules above. Scoped to .gm-game-active (set by
+   platform.js's mountGame()/showWaitingRoom() only while an actual game
+   module is mounted, i.e. NOT during the platform's own waiting-room
+   chrome) and to #sh-settings-slot (a game's renderSettings panel, which
+   can render during the waiting room, before that class is set).
+   Wrapped entirely in :where() (zero specificity) so it's a pure fallback
+   — any class a game's own <style> block declares (e.g. .ttt-cell) wins
+   outright, rather than fighting the #game-root id's specificity. */
+:where(#game-root.gm-game-active, #sh-settings-slot) :where(button, input, select, h1, h2) {
+  all: revert;
+  font: inherit;
+}
+:where(#game-root.gm-game-active, #sh-settings-slot) :where(button) { cursor: pointer; }
 
 h1 {
   font-family: var(--font-mono);
@@ -460,7 +507,11 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 
 /* Players */
 .sh-players  { list-style: none; display: flex; flex-direction: column; gap: var(--space-1); }
-.sh-player   { display: flex; align-items: center; gap: var(--space-2);
+/* wrap: the role/kick buttons are wide (clip-path notches + "→ spectator"
+   label) — in a 280px column they don't fit next to a gamertag on one
+   line, and without wrap the name (min-width:0 above) gets squeezed down
+   to an unreadable single character per line instead. */
+.sh-player   { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-2);
                border-radius: var(--radius-sm); padding: .4rem .75rem;
                box-shadow: inset 0 1px 0 var(--glass-sheen); }
 .sh-player.me { border-color: var(--accent); background: var(--accent-soft); }
@@ -469,7 +520,7 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
                width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center;
                overflow: hidden; }
 .sh-sym img  { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-sm); }
-.sh-name     { flex: 1; }
+.sh-name     { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 
 /* Host controls */
 .sh-host-controls { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
@@ -484,27 +535,11 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
   flex-direction: column; gap: .3rem;
   box-shadow: inset 0 1px 0 var(--glass-sheen);
 }
-.sh-chat-msg    { font-size: .9rem; color: var(--text); }
+.sh-chat-msg    { font-size: .9rem; color: var(--text); overflow-wrap: anywhere; }
 .sh-chat-msg strong { color: var(--accent-hover); }
 .sh-chat-sys    { color: var(--muted); font-style: italic; font-size: .82rem; }
-.sh-chat-input  { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
-
-/* TicTacToe board (game-owned, placed here for global access) */
-.ttt-board {
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 6px; max-width: 300px;
-}
-.ttt-cell {
-  aspect-ratio: 1; font-size: 2rem; font-weight: bold;
-  border-radius: var(--radius-sm); background: var(--surface);
-  backdrop-filter: blur(var(--glass-blur)) saturate(120%);
-  border: 2px solid var(--border); color: var(--text);
-  transition: background var(--transition);
-}
-.ttt-cell.open       { border-color: var(--accent); }
-.ttt-cell.open:hover { background: var(--surface-hover); }
-.ttt-cell.win        { border-color: var(--success); background: var(--success-soft); color: var(--success); }
-
-/* TicTacToe game layout (uses shared .gm-layout/.gm-main/.gm-aside) */
-.ttt-status { font-size: 1rem; color: var(--muted); min-height: 1.4rem; }
-.ttt-board-wrap { flex: 1; }
+/* min-width: 0 on both the row and the input — flex items default to a
+   content-based min width, so without it #sh-chat-text refuses to shrink
+   below its intrinsic size and the row overflows the 280px chat column. */
+.sh-chat-input  { display: flex; gap: var(--space-2); margin-top: var(--space-2); min-width: 0; }
+#sh-chat-text   { min-width: 0; }

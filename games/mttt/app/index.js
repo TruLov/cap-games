@@ -46,7 +46,7 @@ const STYLE = `
               background: var(--mt-void);
               border: 1px solid var(--mt-violet-soft);
               box-shadow: 0 0 30px var(--mt-violet-soft), inset 0 0 20px rgba(139,47,255,.08); }
-  .mt-inner { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+  .mt-inner { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
               gap: 2px; padding: 4px;
               background: rgba(139,47,255,.05);
               border: 1px solid rgba(139,47,255,.3); border-radius: var(--radius-sm);
@@ -54,8 +54,15 @@ const STYLE = `
   .mt-inner.active { border-color: var(--mt-cyan); box-shadow: 0 0 14px var(--mt-cyan-soft), inset 0 0 10px var(--mt-cyan-soft);
                       animation: mt-pulse 1.6s ease-in-out infinite; }
   .mt-inner.preview-target { border-color: var(--mt-pink); box-shadow: 0 0 14px var(--mt-pink-soft), inset 0 0 10px var(--mt-pink-soft); }
-  .mt-inner.won-X, .mt-inner.won-O { opacity: .45; animation: none; }
+  .mt-inner.won-X, .mt-inner.won-O { opacity: .55; animation: none; }
   .mt-inner.won-draw { opacity: .25; animation: none; }
+  /* Big mark layered over a won sub-board — the grid of small cell marks
+     stays visible underneath (dimmed via won-X/won-O above). */
+  .mt-board-mark { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+                    font-family: var(--font-mono); font-weight: 900; font-size: 3.2rem; line-height: 1;
+                    pointer-events: none; }
+  .mt-board-mark-X { color: var(--mt-cyan); text-shadow: 0 0 14px var(--mt-cyan), 0 0 30px var(--mt-cyan-soft); }
+  .mt-board-mark-O { color: var(--mt-pink); text-shadow: 0 0 14px var(--mt-pink), 0 0 30px var(--mt-pink-soft); }
   @keyframes mt-pulse {
     0%, 100% { box-shadow: 0 0 10px var(--mt-cyan-soft), inset 0 0 6px var(--mt-cyan-soft); }
     50%      { box-shadow: 0 0 20px var(--mt-cyan-soft), inset 0 0 14px var(--mt-cyan-soft); }
@@ -69,9 +76,18 @@ const STYLE = `
   .mt-cell.mt-mark-O { color: var(--mt-pink); text-shadow: 0 0 8px var(--mt-pink), 0 0 16px var(--mt-pink-soft); }
   .mt-cell:not(:disabled):hover { background: rgba(0,240,255,.08); border-color: var(--mt-cyan); }
   .mt-cell:disabled { cursor: default; }
-  .mt-board-winner { position: relative; }
   .mt-status { margin-bottom: .5rem; font-family: var(--font-mono); letter-spacing: .02em; color: #d8cfff; }
   .mt-status #mt-clock { color: var(--mt-pink); text-shadow: 0 0 8px var(--mt-pink-soft); }
+
+  /* Match-over screen — winner banner + final team rosters, shown under
+     the board once state.winner is set (started/moved/finished/rematched
+     all funnel through renderBoard → renderResults). */
+  .mt-results { margin-top: 1rem; }
+  .mt-banner  { font-family: var(--font-mono); font-size: 1.3rem; font-weight: 700;
+                letter-spacing: .03em; color: var(--mt-cyan);
+                text-shadow: 0 0 10px var(--mt-cyan-soft); margin-bottom: .5rem; }
+  .mt-team.mt-team-winner { border-color: var(--mt-cyan); box-shadow: 0 0 16px var(--mt-cyan-soft); }
+  .mt-team.mt-team-winner h4 { color: var(--mt-pink); text-shadow: 0 0 6px var(--mt-pink-soft); }
 `;
 
 function markOfUser(teams, user) {
@@ -182,9 +198,11 @@ export default {
       <style>${STYLE}</style>
       <div class="mt-status" id="mt-status"><span id="mt-status-text"></span><span id="mt-clock"></span></div>
       <div class="mt-outer" id="mt-outer"></div>
+      <div class="mt-results" id="mt-results"></div>
     `;
-    const statusEl = rootEl.querySelector('#mt-status-text');
-    const outerEl  = rootEl.querySelector('#mt-outer');
+    const statusEl  = rootEl.querySelector('#mt-status-text');
+    const outerEl   = rootEl.querySelector('#mt-outer');
+    const resultsEl = rootEl.querySelector('#mt-results');
 
     function setStatus(msg) { statusEl.textContent = msg; }
 
@@ -220,6 +238,7 @@ export default {
         const isActive = !winner && (activeBoard == null || activeBoard === board) && bWin == null;
         return `
           <div class="mt-inner${isActive ? ' active' : ''}${bWin ? ` won-${bWin}` : ''}" data-board="${board}">
+            ${bWin === 'X' || bWin === 'O' ? `<span class="mt-board-mark mt-board-mark-${bWin}">${bWin}</span>` : ''}
             ${Array.from({ length: 9 }, (_, i) => {
               const idx = board * 9 + i;
               const mark = cells[idx];
@@ -252,10 +271,27 @@ export default {
         });
       });
 
+      const winMsg = winner ? (winner === 'draw' ? `Draw!${winFlavor()}` : `Team ${winner} wins!${winFlavor()}`) : '';
       if (!myMark) setStatus('Spectating');
-      else if (winner) setStatus(winner === 'draw' ? `Draw!${winFlavor()}` : `Team ${winner} wins!${winFlavor()}`);
+      else if (winner) setStatus(winMsg);
       else setStatus(`Turn: ${sdk.nameOf(turn)} (Team ${markOfUser(teams, turn)})${myTurn ? ' — your move' : ''}`);
       armClock(state);
+      renderResults(winner, teams, winMsg);
+    }
+
+    // Match-over screen — winner banner + final team rosters. Cleared
+    // automatically on a fresh match/rematch (winner is null again).
+    function renderResults(winner, teams, winMsg) {
+      if (!winner) { resultsEl.innerHTML = ''; return; }
+      const listOf = mark => (teams[mark] ?? [])
+        .map(u => `<li>${sdk.nameOf(u)}${u === sdk.me.user ? ' (you)' : ''}</li>`).join('')
+        || '<li class="sh-small">empty</li>';
+      resultsEl.innerHTML = `
+        <div class="mt-banner">${winMsg}</div>
+        <div class="mt-teams">
+          <div class="mt-team${winner === 'X' ? ' mt-team-winner' : ''}"><h4>Team X</h4><ul>${listOf('X')}</ul></div>
+          <div class="mt-team${winner === 'O' ? ' mt-team-winner' : ''}"><h4>Team O</h4><ul>${listOf('O')}</ul></div>
+        </div>`;
     }
 
     function onStarted({ state }) { renderBoard(JSON.parse(state)); }
