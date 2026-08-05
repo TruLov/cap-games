@@ -4,16 +4,6 @@ version: 1.0.0
 description: "Gambito — browser mini games with CAP backend"
 parameters:
   enable-parallel-deployments: true
-  # AI Core is external to this landscape (different global account) — no
-  # cap-games-aicore service binding here. Set all three via an .mtaext
-  # overlay at deploy time (`cf deploy ... -e config.mtaext`), never inline.
-  aicore-deployment-id: ""
-  # Set to "true" only if aicore-deployment-id points at a reasoning-family
-  # model (gpt-5*, o1*, o3*, o4*, ...) — see srv/ai/aicore.js.
-  aicore-reasoning-model: ""
-  # Full AI-Core service-key JSON (secret) — same shape as .env.example's
-  # AICORE_SERVICE_KEY. The SAP AI SDK reads it from the env var natively.
-  aicore-service-key: ""
 build-parameters:
   before-all:
     - builder: custom
@@ -47,13 +37,6 @@ modules:
         properties:
           srv-url: ${default-url}
           srv-cert-url: '${protocol}://${default-host}.cert.${default-domain}'
-    properties:
-      # AI Core is an external/cross-account service — no VCAP binding, so
-      # the SDK's env-var credential path is used instead. AICORE_SERVICE_KEY
-      # comes from an .mtaext overlay at deploy time, never committed here.
-      AICORE_DEPLOYMENT_ID: "${aicore-deployment-id}"
-      AICORE_REASONING_MODEL: "${aicore-reasoning-model}"
-      AICORE_SERVICE_KEY: "${aicore-service-key}"
     requires:
       - name: cap-games-ias
         parameters:

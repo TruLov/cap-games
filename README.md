@@ -3,7 +3,7 @@
 Multiplayer browser game platform on SAP BTP — built with CAP Node.js.
 Games are plugin packages. Add a game: 4 files, one dependency line, done.
 
-**Included:** TicTacToe, Kaiten, Kaffee-Kwest
+**Included:** TicTacToe, Kaiten
 
 ---
 
@@ -19,11 +19,10 @@ flowchart TB
         Play["PlayService<br/>WebSocket /ws/play<br/>join · play · chat · host controls"]
         Registry["registry.js<br/>discoverGames() — scans @cap-games/* deps"]
         Engine["engine.js<br/>transient board state · reconnect grace · scoring"]
-        Ai["AiService<br/>backend by profile: mock / aicore"]
     end
 
     DB[("db/schema.cds<br/>Rooms · Players · Matches · Leaderboard")]
-    Games["games/*<br/>tictactoe · kaiten · kaffee-kwest"]
+    Games["games/*<br/>tictactoe · kaiten"]
 
     Browser --> Approuter
     Approuter --> Lobby
@@ -33,7 +32,6 @@ flowchart TB
     Play --> Registry
     Play --> DB
     Registry --> Games
-    Games -. optional .-> Ai
 ```
 
 Room isolation via `@ws.context` — plugin broadcasts events only to clients in the same room.
@@ -41,9 +39,7 @@ Persistent state: Rooms, Players, Matches, Leaderboard in SQLite (dev) / Postgre
 Transient: live board state, chat (not persisted — intentional).
 
 Games are zero-config: `registry.js` discovers any `@cap-games/*` npm dependency
-as a game automatically (see "Adding a new game" below). `AiService` is
-optional platform infrastructure — any game can connect to it for LLM calls
-without knowing which backend answers.
+as a game automatically (see "Adding a new game" below).
 
 ---
 
@@ -194,17 +190,10 @@ export default {
 The platform provides: lobby, host, join, kick, settings, chat, reconnect, status machine, leaderboard — automatically. Your game only implements the rules and the board UI.
 
 **Optional — own persistence/service:** a game can bring its own CDS model
-(entities + OData service) with one more line in its `cds` section — see
-`games/kaffee-kwest/` as reference:
+(entities + OData service) with one more line in its `cds` section:
 ```json
 "requires": { "mygame": { "model": "@cap-games/mygame/srv/service.cds" } }
 ```
-
-**Optional — AI Service:** the platform exposes `AiService`
-(`cds.connect.to('AiService')`) for any game that wants LLM calls — the
-backend is picked by profile (`mock` locally, `aicore` in hybrid/production),
-no per-game config needed. See `docs/architecture/kaffee-kwest.md` for the
-worked example.
 
 ---
 
@@ -223,12 +212,6 @@ DEBUG=websocket cds watch            # WS transport: connect/disconnect
 mbt build
 cf deploy mta_archives/cap-games_1.0.0.mtar -e trial.mtaext
 ```
-
-AI Core is external/cross-account — no `aicore` service instance is
-provisioned here. `trial.mtaext` (copy from `trial.mtaext.example`, gitignored,
-never commit the filled-in version) supplies `AICORE_DEPLOYMENT_ID`,
-`AICORE_REASONING_MODEL`, and `AICORE_SERVICE_KEY` as plain env vars instead
-— the SAP AI SDK reads them natively, same as local dev.
 
 Creates:
 - `cap-games-srv` — CAP server

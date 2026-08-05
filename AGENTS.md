@@ -18,7 +18,6 @@ flowchart TB
         Play["PlayService<br/>/ws/play<br/>join · play · chat · host controls (realtime)"]
         Engine["engine.js<br/>transient board state + grace timers"]
         Registry["registry.js<br/>discoverGames() scans @cap-games/* deps<br/>→ loaded game plugins"]
-        Ai["AiService<br/>backend by profile: mock / aicore"]
     end
 
     Browser -- "HTTPS (REST)" --> Approuter
@@ -27,7 +26,6 @@ flowchart TB
     Approuter --> Play
     Play --> Engine
     Play --> Registry
-    Registry -. optional .-> Ai
 ```
 
 **Two protocols, one reason:** Room setup (browse catalogue, create room) uses standard OData/REST — no WebSocket needed. Gameplay and chat use WebSocket for bidirectional realtime events.
@@ -44,7 +42,6 @@ flowchart TB
 | `srv/engine.js` | Transient board state, reconnect grace timers, default scoring |
 | `srv/registry.js` | `discoverGames()` — scans root `package.json` for `@cap-games/*` deps, loads each as a game |
 | `srv/server.js` | Custom bootstrap — serves each game's `ui/` at `/games/<id>` |
-| `srv/ai-service.cds/.js` | Platform `AiService` — backend (`mock`/`aicore`) picked by profile, connected to via `cds.connect.to('AiService')` |
 | `app/` | Shell: login, lobby, header/nav. Static files served by CAP. |
 | `app/sdk.js` | SDK factory — `makeSdk()` + `makeEmitter()` |
 | `app/shell/` | Importable UI components: `chat.js`, `players.js`, `host.js` |
@@ -133,10 +130,9 @@ A game may bring its own CDS model — entities and an own (OData) service,
 
 CAP includes every `requires.*.model` in the effective model: entities are
 deployed (SQLite/Postgres) alongside the platform schema, the service is served
-with its sibling `service.js` impl. Reference: `games/kaffee-kwest/`
-(scenarios, player chronicles + `KaffeeKwestService` at `/odata/v4/kaffee-kwest`).
-Keep async work (AI calls, cross-room persistence) in such a service —
-never in `applyMove`, which stays pure and synchronous.
+with its sibling `service.js` impl. Keep async work (cross-room persistence,
+external calls) in such a service — never in `applyMove`, which stays pure
+and synchronous.
 
 ### UI Architecture: Shell + SDK + Game
 
@@ -326,6 +322,6 @@ Activate: add `"@cap-games/mygame": "*"` to root `package.json` dependencies, th
 ## TODO
 
 - Team-play support (multiple players per side)
-- Refactor games' inline CSS (tictactoe/kaiten/kaffee-kwest) onto the shared
+- Refactor games' inline CSS (tictactoe/kaiten) onto the shared
   `var(--...)` design tokens so the light/dark theme toggle reaches game
   boards too — currently shell-only, games keep their own hardcoded palettes

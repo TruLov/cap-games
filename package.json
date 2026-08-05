@@ -20,14 +20,12 @@
   ],
   "dependencies": {
     "@cap-games/flipfortune": "*",
-    "@cap-games/kaffee-kwest": "*",
     "@cap-games/kaiten": "*",
     "@cap-games/kaperfahrt": "*",
     "@cap-games/mttt": "*",
     "@cap-games/tictactoe": "*",
     "@cap-js-community/websocket": "^1",
     "@cap-js/postgres": "^3",
-    "@sap-ai-sdk/foundation-models": "^2",
     "@sap/cds": "^10",
     "express": "^4"
   },
@@ -39,12 +37,6 @@
   },
   "cds": {
     "requires": {
-      "ai": {
-        "kind": "mock",
-        "resourceGroup": "default",
-        "[hybrid]": { "kind": "aicore" },
-        "[production]": { "kind": "aicore" }
-      },
       "auth": {
         "kind": "mocked",
         "[production]": { "kind": "ias" }

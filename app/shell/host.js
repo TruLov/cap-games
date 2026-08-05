@@ -9,9 +9,8 @@
  *     panel takes over the Start trigger itself — e.g. to send `configure`
  *     first, sometimes asynchronously)
  *   - calling the optional `game.renderSettings(el, sdk)` hook for EVERYONE
- *     (not just the host) — some games have per-player pre-start setup (e.g.
- *     Kaffee-Kwest's archetype/chronicle editor); the game decides internally
- *     what a non-host sees there (or nothing at all)
+ *     (not just the host) — some games have per-player pre-start setup; the
+ *     game decides internally what a non-host sees there (or nothing at all)
  *   - the plain "waiting for host" message when a game has no settings panel
  *     at all and you're not the host
  *
