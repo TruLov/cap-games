@@ -188,28 +188,19 @@ button.sh-ghost {
   position: relative;
   z-index: 10;
 }
-/* Stenciled rank-insignia mark, not a button-plate: bold tracked wordmark
-   over a thin accent stripe, like a stamped unit callsign rather than UI
-   chrome. */
+/* Header wordmark — a procedurally sprayed-on-metal "GAMBITO" tag
+   (app/brand-logo.js draws it into #sh-logo-canvas on load), not text.
+   The button itself is just a reset container sized to the canvas. */
 .sh-logo  {
-  font-family: var(--font-mono); font-weight: 800; font-size: 1.15rem; letter-spacing: .1em;
-  text-transform: uppercase;
-  display: inline-flex; align-items: center; gap: .5rem;
-  background: none; border: none; padding: 0 0 .25rem;
-  border-bottom: 2px solid var(--accent);
+  display: inline-flex; align-items: center;
+  background: none; border: none; padding: 0;
   border-radius: 0; box-shadow: none; clip-path: none;
   cursor: pointer;
-  transition: filter var(--transition), border-color var(--transition);
+  transition: filter var(--transition);
 }
 .sh-logo::before, .sh-logo::after { content: none; }
-.sh-logo:hover { filter: brightness(1.15); }
-.sh-logo-icon {
-  color: var(--accent);
-  font-size: 1.05em;
-  text-shadow: 0 0 6px var(--accent-soft);
-}
-.sh-logo-text { color: var(--text); }
-.sh-logo:hover .sh-logo-icon { text-shadow: 0 0 9px var(--accent-soft), 0 1px 0 rgba(0,0,0,.8); }
+.sh-logo:hover { filter: brightness(1.2); }
+#sh-logo-canvas { display: block; height: 32px; width: auto; }
 .sh-nav   { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .sh-toast {
   border-radius: 999px; padding: .3rem .8rem; font-size: .82rem;
@@ -255,7 +246,7 @@ button.sh-ghost {
   border-bottom: 1px solid rgba(255,255,255,.1); margin-bottom: .25rem; word-break: break-all;
 }
 .sh-menu-item {
-  background: transparent; color: #ece8e0; text-align: left;
+  background: transparent; color: #ece8e0; text-align: left; text-shadow: none;
   border-radius: var(--radius-sm); padding: .5rem .65rem; font-size: .9rem;
   transition: background var(--transition);
   box-shadow: none; clip-path: none;
@@ -301,13 +292,59 @@ h1 {
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 0 10px var(--accent-soft));
 }
+/* Landing hero — same sprayed-metal plate as the concept sketch: a
+   rusted, riveted card the wordmark canvas sits on, tilted like it's
+   bolted up slightly crooked. Fixed dark artwork, not theme-tokenized —
+   see brand-logo.js header comment. */
+.sh-hero-logo {
+  background: none; -webkit-background-clip: initial; background-clip: initial;
+  color: initial; filter: none; margin: 0 0 var(--space-2);
+}
+.sh-hero-plate {
+  position: relative;
+  display: block;
+  width: min(480px, 90vw);
+  aspect-ratio: 1400 / 480;
+  margin: 0 auto;
+  border-radius: 12px;
+  transform: rotate(-1.1deg);
+  box-shadow: 0 20px 46px rgba(0,0,0,.5), 0 2px 0 rgba(255,255,255,.03),
+              inset 0 2px 0 rgba(255,255,255,.09), inset 0 -3px 10px rgba(0,0,0,.6),
+              inset 0 0 0 1px rgba(0,0,0,.5);
+  overflow: hidden;
+  animation: sh-hero-flicker 7s ease-in-out infinite;
+}
+.sh-hero-plate canvas { display: block; width: 100%; height: 100%; }
+.sh-hero-rivet {
+  position: absolute; width: 13px; height: 13px; border-radius: 50%;
+  background:
+    linear-gradient(90deg, transparent calc(50% - 1px), rgba(0,0,0,.85) calc(50% - 1px), rgba(0,0,0,.85) calc(50% + 1px), transparent calc(50% + 1px)),
+    radial-gradient(circle at 35% 35%, #d8d2c4, #2a241c 78%);
+  box-shadow: 0 1px 2px rgba(0,0,0,.7), inset 0 0 2px rgba(0,0,0,.6);
+}
+.sh-hero-rivet.tl { top: 12px; left: 12px; transform: rotate(12deg); }
+.sh-hero-rivet.tr { top: 12px; right: 12px; transform: rotate(-30deg); }
+.sh-hero-rivet.bl { bottom: 12px; left: 12px; transform: rotate(-8deg); }
+.sh-hero-rivet.br { bottom: 12px; right: 12px; transform: rotate(50deg); }
+@keyframes sh-hero-flicker {
+  0%, 100% { filter: brightness(1); } 42% { filter: brightness(1); }
+  43% { filter: brightness(.93); } 44% { filter: brightness(1.04); }
+  45% { filter: brightness(1); } 78% { filter: brightness(1); }
+  79% { filter: brightness(.96); } 80% { filter: brightness(1); }
+}
+@media (prefers-reduced-motion: reduce) { .sh-hero-plate { animation: none; } }
 h2 { font-family: var(--font-mono); font-size: 1.25rem; letter-spacing: .03em; margin-bottom: var(--space-3); font-weight: 700; }
 h3 { font-family: var(--font-mono); font-size: .8rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin: var(--space-4) 0 var(--space-2); }
 h3::before { content: "// "; color: var(--accent); opacity: .7; }
 
 /* ── Buttons ────────────────────────────────────────────── */
-/* Riveted-plate finish: two bolt heads punched into the surviving square
-   corners (the other two are chamfered off by clip-path below). */
+/* Riveted-plate finish: two flathead (Schlitzschraube) screws punched into
+   the surviving square corners (the other two are chamfered off by
+   clip-path below) — the slot is a thin dark line layered over the
+   metallic radial gradient, painted first so it sits on top. Generous
+   horizontal padding keeps label text clear of both screws; the text
+   itself gets a light-below/dark-above shadow so it reads as debossed
+   into the plate rather than flat print. */
 button {
   cursor: pointer;
   position: relative;
@@ -315,10 +352,11 @@ button {
     radial-gradient(140% 200% at 15% 0%, rgba(255,255,255,.16), transparent 55%),
     linear-gradient(135deg, var(--accent), var(--accent-2));
   color: var(--on-accent);
+  text-shadow: 0 1px 0 rgba(255,255,255,.3), 0 -1px 0 rgba(0,0,0,.35);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-  padding: .6rem 1.3rem;
+  padding: .65rem 1.75rem;
   font-size: .9rem;
   font-family: var(--font-mono);
   font-weight: 600;
@@ -327,12 +365,14 @@ button {
   transition: background var(--transition), transform var(--transition), filter var(--transition), box-shadow var(--transition);
 }
 button::before, button::after {
-  content: ""; position: absolute; width: 8px; height: 8px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, rgba(255,255,255,.95), rgba(0,0,0,.75) 75%);
+  content: ""; position: absolute; width: 6px; height: 6px; border-radius: 50%;
+  background:
+    linear-gradient(90deg, transparent calc(50% - .6px), rgba(0,0,0,.85) calc(50% - .6px), rgba(0,0,0,.85) calc(50% + .6px), transparent calc(50% + .6px)),
+    radial-gradient(circle at 35% 35%, rgba(255,255,255,.95), rgba(0,0,0,.75) 75%);
   box-shadow: 0 0 1px rgba(0,0,0,.8), inset 0 0 1px rgba(0,0,0,.5);
 }
-button::before { top: 4px; right: 6px; }
-button::after  { bottom: 4px; left: 6px; }
+button::before { top: 5px; right: 7px; }
+button::after  { bottom: 5px; left: 7px; }
 button:hover     { filter: brightness(1.15); box-shadow: 0 0 24px var(--accent-soft), inset 0 1px 0 rgba(255,255,255,.25); }
 button:active    { transform: translateY(1px) scale(.98); }
 button:disabled  { background: var(--border); color: var(--muted); cursor: default; transform: none; box-shadow: none; }
@@ -344,8 +384,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
    itself or the utility's muted gray silently wins over the button's dark-on-neon
    text — that's the "unreadable" bug. .sh-ghost/.danger still override this
    correctly since they're declared after and set color explicitly. */
-button.sh-small  { font-size: .78rem; padding: .35rem .85rem; color: var(--on-accent); }
-button.sh-small::before, button.sh-small::after { width: 5px; height: 5px; }
+button.sh-small  { font-size: .78rem; padding: .4rem 1.1rem; color: var(--on-accent); }
+button.sh-small::before, button.sh-small::after { width: 4px; height: 4px; }
 button.danger    {
   background:
     radial-gradient(140% 200% at 15% 0%, rgba(255,255,255,.16), transparent 55%),
@@ -354,7 +394,7 @@ button.danger    {
 }
 button.danger:hover { filter: brightness(1.15); }
 button.sh-ghost  {
-  background: var(--surface); color: var(--text);
+  background: var(--surface); color: var(--text); text-shadow: none;
   box-shadow: inset 0 1px 0 var(--glass-sheen);
   border-radius: var(--radius-sm);
 }

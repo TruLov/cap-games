@@ -17,6 +17,7 @@ import { makeSdk, makeEmitter } from './sdk.js';
 import { mountPlayers } from './shell/players.js';
 import { mountChat } from './shell/chat.js';
 import { mountWaitingRoom } from './shell/host.js';
+import { renderBrandMark } from './brand-logo.js';
 
 // ── State ────────────────────────────────────────────────────
 const shell = {
@@ -695,6 +696,14 @@ $('profile-save-btn').onclick = async () => {
   }
 };
 $('profile-back-btn').onclick = () => showView('lobby');
+
+renderBrandMark($('sh-logo-canvas'), {
+  fontPx: 108, dripCount: 3, pivotXRatio: 0.03, pivotYRatio: 0.02, seed: 4242,
+});
+renderBrandMark($('landing-logo-canvas'), {
+  withPlate: true, fontPx: 260, dripCount: 6, pivotXRatio: 0.025, pivotYRatio: 0.03,
+  tagline: 'MULTIPLAYER ARCADE', seed: 1337,
+});
 
 async function boot() {
   // In local dev, restore a previously-picked mock user so whoami passes.
