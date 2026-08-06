@@ -68,6 +68,17 @@ test('flipping a duplicate number busts the turn', () => {
   assert.equal(r3.state.lines.a.status, 'busted');
 });
 
+test('the busting card stays on the line (not discarded) until round end', () => {
+  const s = make({ players: ['a', 'b'], next: [num(5), num(9), num(5)] });
+  const r1 = hit(s, 'a');
+  const r2 = hit(r1.state, 'b');
+  const r3 = hit(r2.state, 'a');     // a: duplicate 5 → bust
+  const line = r3.state.lines.a;
+  assert.equal(line.cards.length, 2);                 // both 5s — the round summary needs both
+  assert.deepEqual(line.cards.map(c => c.value), [5, 5]);
+  assert.ok(!r3.state.discardPile.some(c => c.kind === 'number' && c.value === 5));
+});
+
 test('a Second Chance cancels a bust and is consumed', () => {
   const s = make({
     players: ['a', 'b'],
@@ -161,6 +172,17 @@ test('staying banks points and the round ends when everyone is out', () => {
   assert.equal(r4.state.scores.a, 6);
   assert.equal(r4.state.scores.b, 4);
   assert.equal(r4.state.round, 2);
+});
+
+test('a busted line\'s round summary includes the busting card', () => {
+  const s = make({ players: ['a', 'b'], next: [num(5), num(9), num(5), num(4)] });
+  const r1 = hit(s, 'a');            // a: 5
+  const r2 = hit(r1.state, 'b');     // b: 9
+  const r3 = hit(r2.state, 'a');     // a: duplicate 5 → bust
+  const r4 = stay(r3.state, 'b');    // b stays → round ends
+  const summaryA = r4.state.roundSummary.find(x => x.user === 'a');
+  assert.equal(summaryA.busted, true);
+  assert.deepEqual(summaryA.cards.map(c => c.value), [5, 5]);
 });
 
 test('you cannot stay on an empty line', () => {

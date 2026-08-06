@@ -148,8 +148,8 @@ function flipOnto(state, user, rng) {
         state.discardPile.push(card, { kind: 'action', action: 'secondchance' });
       } else {
         line.status = 'busted';
-        state.discardPile.push(card);
-      }
+        line.cards.push(card);   // keep the busting card visible (live board + round summary);
+      }                          // endRound() discards the whole line's cards at round end
     } else {
       line.numbers.push(card.value);
       line.cards.push(card);

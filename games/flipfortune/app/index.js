@@ -370,15 +370,16 @@ export default {
       const isWin = st.winner && st.winner !== 'draw' && u === st.winner;
       const av = sdk.avatarUrl(u);
 
-      // duplicate that just busted this line → show it (and its twin) in red
+      // the busting card is the last one in line.cards (flow.js keeps it there,
+      // it isn't discarded until round end) — mark it and its earlier twin red
       const bustedNow = line.status === 'busted' && st.lastCard?.user === u && st.lastCard.card.kind === 'number';
-      const dupValue = bustedNow ? st.lastCard.card.value : null;
+      const bustIdx = bustedNow ? line.cards.length - 1 : -1;
       let dupMarked = false;
-      const cardsHtml = line.cards.map(c => {
-        const isTwin = dupValue != null && !dupMarked && c.kind === 'number' && c.value === dupValue;
+      const cardsHtml = line.cards.map((c, i) => {
+        const isTwin = i !== bustIdx && bustedNow && !dupMarked && c.kind === 'number' && c.value === st.lastCard.card.value;
         if (isTwin) dupMarked = true;
-        return cardFace(c, isTwin ? 'dup' : '');
-      }).join('') + (bustedNow ? cardFace(st.lastCard.card, 'dup') : '');
+        return cardFace(c, (isTwin || i === bustIdx) ? 'dup' : '');
+      }).join('');
 
       const chips = Math.max(0, Math.min(6, Math.round(((st.scores[u] ?? 0) / st.target) * 6)));
       const chipStack = Array.from({ length: chips }, () => `<span class="ff-chip-ic">${SPRITE.chip}</span>`).join('');
@@ -490,7 +491,15 @@ export default {
       const el = $('#ff-summary');
       clearTimeout(summaryTimer);
       const rows = [...summary].sort((a, b) => b.points - a.points).map((s, i) => {
-        const cards = s.cards.map(c => cardFace(c)).join('');
+        // busted line: last card is the one that busted them — mark it and its
+        // earlier twin red, same treatment as the live board (see seatHtml)
+        const bustIdx = s.busted ? s.cards.length - 1 : -1;
+        let dupMarked = false;
+        const cards = s.cards.map((c, ci) => {
+          const isTwin = ci !== bustIdx && bustIdx >= 0 && !dupMarked && c.kind === 'number' && c.value === s.cards[bustIdx]?.value;
+          if (isTwin) dupMarked = true;
+          return cardFace(c, (isTwin || ci === bustIdx) ? 'dup' : '');
+        }).join('');
         const cls = s.busted ? 'bust' : (s.flip7 ? 'f7' : '');
         const label = s.busted ? 'BUST · 0' : `${s.flip7 ? 'FLIP 7 · ' : ''}+${s.points}`;
         return `<div class="ff-sum-row" style="animation-delay:${(0.08 * i).toFixed(2)}s">
