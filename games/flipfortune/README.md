@@ -46,7 +46,7 @@ modifiers (+2…+10) → +15 if it was a Flip 7.** A busted line scores 0.
 
 ## Interface
 
-Pure game logic (`index.js` → `flow.js` / `deck.js` / `scoring.js`), no CAP
+Pure game logic (`game.js` → `flow.js` / `deck.js` / `scoring.js`), no CAP
 imports, per the platform's [Game Interface Contract](../../AGENTS.md). The
 only hidden information is the *order* of the draw pile — every flipped card
 is public — so `publicState`/`privateState` simply expose `drawCount`/

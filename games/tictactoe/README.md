@@ -7,7 +7,7 @@ by following that pattern: a minimal, fully playable game with no platform
 wiring code of its own.
 
 Tic-tac-toe is also the one place in the platform where players get marks:
-`index.js`'s `init(settings, players)` assigns `X` to the first joiner and `O`
+`game.js`'s `init(settings, players)` assigns `X` to the first joiner and `O`
 to the second, itself — the platform assigns no symbols to any game, it only
 ever hands games an ordered `players` roster of `{ user, isHost }`.
 
@@ -61,7 +61,7 @@ websocat -t -H="Cookie: X-Authorization=Basic Ym9iOmJvYg==" ws://localhost:4004/
 **After game (host only):**
 ```
 {"event":"rematch","data":{"room":"<roomId>"}}
-{"event":"backToLobby","data":{"room":"<roomId>"}}
+{"event":"backToRoom","data":{"room":"<roomId>"}}
 ```
 
 See the root [README.md](../../README.md) for the full WebSocket Actions/Events

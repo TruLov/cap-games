@@ -3,7 +3,7 @@
 Multiplayer browser game platform on SAP BTP — built with CAP Node.js.
 Games are plugin packages. Add a game: 4 files, one dependency line, done.
 
-**Included:** TicTacToe, Kaiten
+**Included:** TicTacToe, Ultimate Tic-Tac-Toe (teams + blitz), Kaiten, Kaperfahrt, Flip Fortune
 
 ---
 
@@ -17,12 +17,12 @@ flowchart TB
     subgraph CAP["CAP Server (app/)"]
         Lobby["LobbyService<br/>OData /odata/v4/lobby<br/>browse games · create rooms · leaderboard"]
         Play["PlayService<br/>WebSocket /ws/play<br/>join · play · chat · host controls"]
-        Registry["registry.js<br/>discoverGames() — scans @cap-games/* deps"]
+        Registry["registry.js<br/>cds.games — games self-register via cds-plugin.js"]
         Engine["engine.js<br/>transient board state · reconnect grace · scoring"]
     end
 
     DB[("db/schema.cds<br/>Rooms · Players · Matches · Leaderboard")]
-    Games["games/*<br/>tictactoe · kaiten"]
+    Games["games/*<br/>tictactoe · mttt · kaiten · kaperfahrt · flipfortune"]
 
     Browser --> Approuter
     Approuter --> Lobby
@@ -38,8 +38,9 @@ Room isolation via `@ws.context` — plugin broadcasts events only to clients in
 Persistent state: Rooms, Players, Matches, Leaderboard in SQLite (dev) / Postgres (prod).
 Transient: live board state, chat (not persisted — intentional).
 
-Games are zero-config: `registry.js` discovers any `@cap-games/*` npm dependency
-as a game automatically (see "Adding a new game" below).
+Games are CAP plugins: each ships a `cds-plugin.js` that self-registers it onto
+`cds.games` at boot — no platform code or config to touch (see "Adding a new
+game" below).
 
 ---
 
@@ -93,7 +94,7 @@ Auth header: `Authorization: Basic <base64(user:user)>` (dev mocked)
 | `start(room)` | host | lobby | → playing |
 | `move(room, data)` | current turn (`user` id) | playing | Game move (JSON string, game-specific) |
 | `rematch(room)` | host | finished | → playing, keep players |
-| `backToLobby(room)` | host | any | → lobby, all notified |
+| `backToRoom(room)` | host | finished/playing/paused | → lobby (waiting room), all notified |
 | `kick(room, user)` | host | any | Remove player/spectator |
 | `leave(room)` | anyone | any | Leave voluntarily |
 | `chat(room, text)` | anyone | any | Broadcast chat message (transient) |
@@ -108,7 +109,7 @@ Auth header: `Authorization: Basic <base64(user:user)>` (dev mocked)
 | `moved` | `{ room, data }` — JSON game state |
 | `finished` | `{ room, winner, state }` — `winner` is a `user` id or `'draw'` |
 | `rematched` | `{ room, firstTurn }` |
-| `lobbyReset` | `{ room }` |
+| `roomReset` | `{ room }` |
 | `playerLeft` | `{ room, player, newHost }` |
 | `playerKicked` | `{ room, player }` |
 | `playerDisconnected` | `{ room, player }` |
@@ -131,26 +132,29 @@ Room auto-deleted when all players gone.
 
 ## Adding a new game (Plugin)
 
-Copy `games/tictactoe/` as a starting point. Four files — no wiring code:
+Copy `games/tictactoe/` as a starting point. Four files, no platform code to touch.
+The full hook contract lives in [AGENTS.md](AGENTS.md#game-interface-contract) —
+this is the shape:
 
-**1. `games/mygame/package.json`** — declares the game (CAP merges the `cds` section)
+**1. `games/mygame/package.json`**
 ```json
-{
-  "name": "@cap-games/mygame", "version": "1.0.0", "type": "module", "main": "index.js"
-}
+{ "name": "@cap-games/mygame", "version": "1.0.0", "type": "module" }
 ```
-The name is all it takes: every `@cap-games/*` dependency is discovered as a game
-by convention (id = the name after the scope) — **no `cds.games` config needed**.
 
-**2. `games/mygame/cds-plugin.js`** — empty marker file (CAP loads packages that
-have one). The platform serves the game's `app/` at `/games/mygame` automatically
-(override the UI folder with a `cds.games.mygame.ui` entry if needed).
-
-**3. `games/mygame/index.js`** — backend logic. Players are identified by their
-`user` id — the platform assigns no symbols; a game that wants marks (e.g.
-tic-tac-toe's X/O) derives them itself from the `players` roster in `init`.
+**2. `games/mygame/cds-plugin.js`** — the game's CAP hook: imports the pure
+module and self-registers it onto `cds.games` (CAP runs this at boot).
 ```js
-module.exports = {
+import cds from '@sap/cds';
+import game from './game.js';
+((cds.games ??= {}).mygame = { mod: game, dir: import.meta.url });
+```
+The platform then serves the game's `app/` at `/games/mygame` automatically.
+
+**3. `games/mygame/game.js`** — pure backend logic, no CAP imports. Players are
+identified by their `user` id (the platform assigns no symbols; derive marks
+like X/O yourself from the `players` roster in `init`).
+```js
+export default {
   meta: { name: 'My Game', minPlayers: 2, maxPlayers: 4 },
   settingsSchema: { /* optional */ },
 
@@ -164,8 +168,8 @@ module.exports = {
     // return { state: newState, end: null }
     // return { state: newState, end: { winner: user|'draw' } }
   },
-  score(end, players) { /* optional */ },
-  extendService(srv)  { /* optional */ },
+  // optional: score / pointsOf / publicState+privateState / onTick / extendService
+  // — see AGENTS.md
 };
 ```
 
@@ -174,25 +178,21 @@ module.exports = {
 export default {
   mount(rootEl, sdk) {
     // Build your complete game UI into rootEl.
-    // sdk.on('started'/'moved'/'finished', handler) — listen to server events
-    // sdk.send('move', payload) — send moves
-    // optional: import shell components
-    //   import { mountChat }    from '/shell/chat.js'
-    //   import { mountPlayers } from '/shell/players.js'
-    //   import { mountHostControls } from '/shell/host.js'
+    // sdk.onState((state) => redraw(state))  — state lifecycle, pre-parsed
+    // sdk.send('move', payload)              — send moves
     return () => { /* cleanup */ };
   }
 };
 ```
 
-**Activate:** add `"@cap-games/mygame": "*"` to root `package.json` dependencies, then `npm install`. That dependency *is* the registration — the platform discovers it automatically.
+**Activate:** add `"@cap-games/mygame": "*"` to root `package.json` dependencies, then `npm install`.
 
 The platform provides: lobby, host, join, kick, settings, chat, reconnect, status machine, leaderboard — automatically. Your game only implements the rules and the board UI.
 
 **Optional — own persistence/service:** a game can bring its own CDS model
-(entities + OData service) with one more line in its `cds` section:
+(entities + OData service) with a `cds` section in its `package.json`:
 ```json
-"requires": { "mygame": { "model": "@cap-games/mygame/srv/service.cds" } }
+"cds": { "requires": { "mygame": { "model": "@cap-games/mygame/srv/service.cds" } } }
 ```
 
 ---
@@ -255,4 +255,4 @@ WebSocket (websocat): use `Cookie: X-Authorization=Basic ...` header.
 
 ## TODO (later)
 
-- Team-play support (multiple players per side)
+- Adopt gamertags/avatars (`sdk.nameOf`/`sdk.avatarUrl`) inside game boards, not just the shell

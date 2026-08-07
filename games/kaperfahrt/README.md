@@ -47,7 +47,7 @@ deliberate simplification for a digital game.
 
 ## Interface
 
-Pure game logic (`index.js` → `flow.js` / `dice.js` / `deck.js`), no CAP imports,
+Pure game logic (`game.js` → `flow.js` / `dice.js` / `deck.js`), no CAP imports,
 per the platform's [Game Interface Contract](../../AGENTS.md). All state is public
 (dice and cards are open), so there is no `publicState`/`privateState` projection.
 Moves sent over `ws://…/ws/play` as `move` with a JSON `data` payload:

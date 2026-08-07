@@ -17,7 +17,7 @@ flowchart TB
         Lobby["LobbyService<br/>/odata/v4/lobby<br/>browse games · create rooms · leaderboard"]
         Play["PlayService<br/>/ws/play<br/>join · play · chat · host controls (realtime)"]
         Engine["engine.js<br/>transient board state + grace timers"]
-        Registry["registry.js<br/>discoverGames() scans @cap-games/* deps<br/>→ loaded game plugins"]
+        Registry["registry.js<br/>thin view over cds.games<br/>(games self-register via cds-plugin.js)"]
     end
 
     Browser -- "HTTPS (REST)" --> Approuter
@@ -39,13 +39,13 @@ flowchart TB
 | `db/schema.cds` | Persistent entities: Rooms, Players, Matches, Leaderboard |
 | `srv/lobby-service.cds/.js` | OData service — game catalogue, rooms, leaderboard, createRoom |
 | `srv/play-service.cds/.js` | WebSocket service — all realtime actions + events |
-| `srv/engine.js` | Transient board state, reconnect grace timers, default scoring |
-| `srv/registry.js` | `discoverGames()` — scans root `package.json` for `@cap-games/*` deps, loads each as a game |
-| `srv/server.js` | Custom bootstrap — serves each game's `ui/` at `/games/<id>` |
+| `srv/engine.js` | Transient board state, reconnect grace timers, default scoring, server-tick driver support |
+| `srv/registry.js` | Thin helpers over the `cds.games` facade registry (`get`/`entry`/`all`/`ids`/`validate`) — games self-register, nothing is scanned |
+| `srv/server.js` | Custom bootstrap — serves each game's `app/` at `/games/<id>` from its registered dir |
 | `app/` | Shell: login, lobby, header/nav. Static files served by CAP. |
-| `app/sdk.js` | SDK factory — `makeSdk()` + `makeEmitter()` |
+| `app/sdk.js` | SDK factory — `makeSdk()` (incl. `onState`/`onError`) + `makeEmitter()` |
 | `app/shell/` | Importable UI components: `chat.js`, `players.js`, `host.js` |
-| `games/<name>/` | Game plugin packages (npm workspaces) |
+| `games/<name>/` | Game plugin packages (npm workspaces) — `game.js` (pure) + `cds-plugin.js` + `app/` |
 
 ---
 
@@ -94,30 +94,40 @@ While a room is in status `lobby` (waiting room), the host may also:
 
 ## Extension Concept: Game Plugins
 
-Games register **declaratively** — the same pattern official CAP plugins
-(@cap-js/sqlite, @cap-js/ai, …) use: all wiring lives in the plugin's
-`package.json` `cds` section; `cds-plugin.js` is an **empty marker file**
-(CAP only merges the `cds` section of packages that have one).
+Each game is a CAP plugin: it ships a `cds-plugin.js`, which CAP's plugin loader
+auto-executes during `cds.plugins` (before serving) — the game's hook into the
+platform. That file imports the game's pure `game.js` and **self-registers** it
+onto `cds.games`:
 
-```
-npm install
-      │
-      ▼
-Games are discovered by convention: every @cap-games/* dependency is a game
-(id = name after the scope). No "cds.games" config needed.
-      │
-      ├─ srv/server.js (bootstrap): serves @cap-games/<id>/app at /games/<id>
-      └─ srv/registry.js (served):  discoverGames() → imports each → validates contract
-             │
-             ├─ LobbyService: exposes game in /Games catalogue
-             └─ PlayService:  dispatches move → game.applyMove()
-                              calls game.score() on finished
-                              calls game.extendService() on served
+```js
+// games/<id>/cds-plugin.js — the only CAP-touching file in a game
+import cds from '@sap/cds';
+import game from './game.js';
+((cds.games ??= {}).<id> = { mod: game, dir: import.meta.url });
 ```
 
-No change to platform code. No registry file to edit. Install → works.
-(Programmatic registration of a ready module object in `cds.env.games`
-still works for backwards compatibility.)
+`cds.games` (a plain object keyed by game id) is the whole registry;
+`srv/registry.js` is just typed helpers over it (`get`/`all`/`ids`/`entry`/
+`validate`). **Why the `@sap/cds` facade and not an import of registry.js?** A
+packed game can't reach platform files by relative path once deployed — the
+`cds` singleton is the one channel every `@cap-games/*` package shares in both
+dev and deploy. This is also why `engine.js` is never imported by a game.
+
+```
+npm install  →  cds.plugins runs every @cap-games/* cds-plugin.js  →  cds.games populated
+      │
+      ├─ srv/server.js (bootstrap): serves <game.dir>/app at /games/<id>
+      └─ srv/play-service.js (served): validates each game's contract,
+             calls game.extendService(srv) if present
+                   │
+                   ├─ LobbyService: exposes game in /Games catalogue
+                   └─ PlayService:  move → game.applyMove(); on finished →
+                                    game.score() / defaultScore(+pointsOf);
+                                    each tick → game.onTick() (if meta.tick)
+```
+
+No change to platform code, no registry file to edit. Tests register the same
+way: `(cds.games ??= {}).mygame = { mod }`.
 
 ### Optional: plugin-owned persistence + service
 
@@ -159,7 +169,7 @@ sdk.players — live roster, canonical,          ├─ called ONLY once the mat
                                                     reconnecting into one)
                                                 ├─ renders gameplay ONLY — board,
                                                 │  hand, log, whatever your game needs
-                                                ├─ sdk.on('moved', redraw)
+                                                ├─ sdk.onState(redraw)
                                                 ├─ sdk.send('move', payload)
                                                 └─ torn down on backToRoom/switchGame
 ```
@@ -173,8 +183,15 @@ sdk = {
                            // platform keeps this current for the room's whole
                            // lifetime; read it directly, never track your own copy
   send(action, data),      // any WS action → PlayService (not just 'move')
-  on(event, fn),           // subscribe to any server event
-  off(event, fn),          // unsubscribe (call in unmount cleanup)
+  onState(cb),             // PREFERRED: subscribe to the state lifecycle
+                           // (started/moved/finished/rematched/privateState)
+                           // with the state pre-parsed — cb(state, event, raw).
+                           // Absorbs the state-vs-data field split; returns an
+                           // unsubscribe fn to call in cleanup.
+  onError(cb),             // subscribe to `gameError` — cb({ message }); returns
+                           // an unsubscribe fn.
+  on(event, fn),           // low-level: subscribe to any server event by name
+  off(event, fn),          // (use for non-state events, e.g. playerDisconnected)
   toast(msg),              // brief status in shell header
   leave(),                 // leave room
   nameOf(user),            // gamertag for a user id (falls back to the id
@@ -221,8 +238,9 @@ follow-up once the shell version is exercised live.
 - Player vs spectator is a platform concern (`Players.spectator` flag); the game
   only ever receives players in its roster and via `applyMove`.
 
+The pure `game.js` (no CAP imports) default-exports:
 ```js
-module.exports = {
+export default {
   // Required
   meta: { name, minPlayers, maxPlayers },
   settingsSchema: { key: { type, values?, default } },
@@ -230,14 +248,24 @@ module.exports = {
                                   // → { turn: players[0].user, /* your state */ }
   applyMove(state, move, user)    // → { state, end: null } | { state, end: { winner } } | { error }
 
-  // Optional
+  // Optional — scoring
   score(end, players)             // → [{ user, result: 'win'|'loss'|'draw', points }]
                                   //   omit to use platform default: W:3 D:1 L:0
-  extendService(srv)              // → register extra actions/events on PlayService
+  pointsOf(end, user)             // → number; keep the default W/D/L result but
+                                  //   attach your own points (ignored if score() given)
 
   // Optional — hidden information (secret hands, face-down cards, roles)
   publicState(state)              // → redacted state broadcast to everyone in the room
   privateState(state, user)       // → per-player slice, delivered ONLY to that user
+
+  // Optional — server-driven turns (e.g. a per-move timer). Requires
+  // meta.tick = { everyMs }; the platform calls it on that interval while
+  // playing and broadcasts any returned state like a real move.
+  onTick(state, elapsedMs)        // → { state, end?, sys? } | null
+
+  // Optional — extra WS actions/events; lives in a separate CAP-touching file
+  // (see games/mttt/extend.js) so game.js itself stays CAP-free.
+  extendService(srv)              // wired onto cds.games in cds-plugin.js
 };
 ```
 
@@ -278,19 +306,23 @@ This is a generic platform capability; game logic stays in `games/<name>/`.
 
 ### Adding a Game (4 files)
 
-Use `games/tictactoe/` as reference — copy and adapt. `games/kaiten/` shows a
-game that also uses `renderSettings` for pre-start configuration.
+Use `games/tictactoe/` as reference — copy and adapt. `games/kaiten/` adds
+`renderSettings` (pre-start config) and hidden-info projection; `games/mttt/`
+adds `extendService` + `onTick`.
 
 ```
 games/mygame/
-  package.json     { "name": "@cap-games/mygame", "type": "module", "main": "index.js" }
-                   // no "cds.games" needed — discovered as a game by its @cap-games/* name
-  cds-plugin.js    empty marker file — makes CAP load the package
-  index.js         backend — exports the interface above
+  package.json     { "name": "@cap-games/mygame", "type": "module" }   // no "main"
+  game.js          backend — pure module, default-exports the interface above (no CAP imports)
+  cds-plugin.js    self-registers game.js onto cds.games (the 3-line snippet above)
   app/index.js     frontend — exports default { mount(rootEl, sdk), renderSettings? }
 ```
 
-**`app/index.js`** is served automatically at `/games/<name>/index.js` by the platform (`srv/server.js`, UI folder defaults to `app`). The platform shell (`app/platform.js`) dynamically imports it and calls `mount()` only once the match is actually starting/active.
+**`app/index.js`** is served automatically at `/games/<name>/index.js` by the platform (`srv/server.js` serves the registered dir's `app/`). The platform shell (`app/platform.js`) dynamically imports it and calls `mount()` only once the match is actually starting/active.
+
+Games with a CAP-touching `extendService` or their own CDS model add an
+`extend.js` and/or `srv/*.cds` (declared via `package.json` `cds.requires.*.model`)
+— `cds-plugin.js` composes those onto the pure module at registration (see mttt).
 
 Activate: add `"@cap-games/mygame": "*"` to root `package.json` dependencies, then `npm install`.
 
@@ -316,12 +348,11 @@ Activate: add `"@cap-games/mygame": "*"` to root `package.json` dependencies, th
 - **CAP 10** — handlers use `class extends cds.ApplicationService { async init() }`
 - **CQL global API** — `SELECT/INSERT/UPDATE/DELETE` used directly (no `cds.db.run`)
 - **No state in service closures** — board state lives in `engine.js` module-level Map, never in handler closures
-- **Games are pure logic** — no CAP imports, no DB access; only `init`/`applyMove`/`score`
+- **`game.js` is pure logic** — no CAP imports, no DB access, unit-tested directly. CAP-touching bits (self-registration, `extendService`) live only in `cds-plugin.js` / `extend.js`
 - **Never modify `srv/` for a new game** — only `games/<name>/` and a dependency line
 
 ## TODO
 
-- Team-play support (multiple players per side)
 - Refactor games' inline CSS (tictactoe/kaiten) onto the shared
   `var(--...)` design tokens so the light/dark theme toggle reaches game
   boards too — currently shell-only, games keep their own hardcoded palettes
