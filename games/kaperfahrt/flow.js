@@ -7,11 +7,20 @@
  * in a treasure chest). First player to reach the target triggers a final round
  * so everyone has had an equal number of turns; highest total then wins.
  *
- * Die shape: { face, status }
+ * Die shape: { face, status, bench }
  *   status 'active' — rollable/rerollable, not a skull
  *          'skull'  — a skull, locked, counts toward the bust
  *          'locked' — a fixed scoring die (the coin/diamond card's 9th die)
  *          'chest'  — stored in the treasure chest; scores even on a bust
+ *   bench — UI-only "set aside" flag, meaningful only while status is
+ *          'active'; locked/chest dice are always benched by virtue of their
+ *          status. Advisory: reroll/sorceress/chest still validate by status
+ *          alone, so a stale bench flag can never soft-lock a move.
+ *
+ * `state.justRolled` (die indices) and `lastTurn.rolled` are UI-only hints:
+ * exactly the indices the *last* roll/reroll/sorceress move actually rolled,
+ * so the client always tumbles the right dice even when a reroll lands on
+ * the same face it started on (a face diff can't tell "rolled" from "not").
  *
  * Island of Skulls: 4+ skulls on the *first* roll of a turn send the active
  * player to the island (phase 'island') instead of busting. There they keep
@@ -31,10 +40,12 @@ function freshDice(card) {
   const dice = [];
   const preSkulls = card.type === 'curse' ? card.skulls : 0;
   for (let i = 0; i < 8; i++) {
-    dice.push(i < preSkulls ? { face: 'skull', status: 'skull' } : { face: null, status: 'active' });
+    dice.push(i < preSkulls
+      ? { face: 'skull', status: 'skull', bench: false }
+      : { face: null, status: 'active', bench: false });
   }
-  if (card.type === 'coin') dice.push({ face: 'coin', status: 'locked' });
-  if (card.type === 'diamond') dice.push({ face: 'diamond', status: 'locked' });
+  if (card.type === 'coin') dice.push({ face: 'coin', status: 'locked', bench: false });
+  if (card.type === 'diamond') dice.push({ face: 'diamond', status: 'locked', bench: false });
   return dice;
 }
 
@@ -48,6 +59,7 @@ function beginTurn(state, rng) {
     rerollCount: 0,
     islandSkulls: 0,
     phase: 'awaitRoll',
+    justRolled: [],   // UI hint only: die indices the *last* move actually rolled
   };
 }
 
@@ -75,6 +87,7 @@ function rollDice(dice, indices, rng) {
     const face = rollFace(rng);
     next[i].face = face;
     next[i].status = face === 'skull' ? 'skull' : 'active';
+    next[i].bench = false;
   }
   return next;
 }
@@ -101,9 +114,27 @@ export function applyMove(state, move, user, rng = Math.random) {
     case 'reroll':    return doReroll(state, move, rng);
     case 'sorceress': return doSorceress(state, move, rng);
     case 'chest':     return doChest(state, move);
+    case 'bench':     return doBench(state, move);
     case 'stop':      return endTurn(state, false, rng);
     default:          return { error: `unknown action: ${move?.action}` };
   }
+}
+
+// Toggle whether one or more active dice sit in the "bench" (set aside, out
+// of the next reroll). Purely organisational - never scores, never logs, and
+// never gates any other move - so it's safe to spam and safe for a stale
+// client's bench state to be out of sync.
+function doBench(state, move) {
+  if (state.phase !== 'rolling') return { error: 'roll first' };
+  const idx = move.dice;
+  if (!Array.isArray(idx) || !idx.length) return { error: 'choose dice to bench' };
+  const dice = state.dice.map(d => ({ ...d }));
+  for (const i of idx) {
+    if (!validIndex(dice, i)) return { error: 'invalid die index' };
+    if (dice[i].status !== 'active') return { error: 'can only bench active dice' };
+    dice[i].bench = !dice[i].bench;
+  }
+  return { state: { ...state, dice, justRolled: [] }, end: null };
 }
 
 function doRoll(state, rng) {
@@ -111,7 +142,7 @@ function doRoll(state, rng) {
   const active = indicesWithStatus(state.dice, 'active');
   const before = skullCount(state.dice);
   const dice = rollDice(state.dice, active, rng);
-  const rolled = { ...state, dice, phase: 'rolling' };
+  const rolled = { ...state, dice, phase: 'rolling', justRolled: active };
   // 9-of-a-kind instant win takes priority over everything.
   if (maxSet(dice, state.card) >= 9) return finishGame(rolled, state.turn);
   // Island of Skulls: 4+ skulls on the *first* throw (else fall through to the
@@ -138,9 +169,9 @@ function doIslandRoll(state, rng) {
   const before = skullCount(state.dice);
   const dice = rollDice(state.dice, active, rng);
   const newSkulls = skullCount(dice) - before;
-  if (newSkulls <= 0) return endIslandTurn({ ...state, dice }, rng);
+  if (newSkulls <= 0) return endIslandTurn({ ...state, dice, justRolled: active }, rng);
   const scores = dockOpponents(state.scores, state.players, state.turn, newSkulls);
-  return { state: { ...state, dice, scores, islandSkulls: state.islandSkulls + newSkulls }, end: null };
+  return { state: { ...state, dice, scores, islandSkulls: state.islandSkulls + newSkulls, justRolled: active }, end: null };
 }
 
 function doReroll(state, move, rng) {
@@ -152,7 +183,7 @@ function doReroll(state, move, rng) {
     if (state.dice[i].status !== 'active') return { error: 'can only reroll active dice' };
   }
   const dice = rollDice(state.dice, idx, rng);
-  return settle({ ...state, dice, rerollCount: state.rerollCount + 1 }, rng);
+  return settle({ ...state, dice, rerollCount: state.rerollCount + 1, justRolled: idx }, rng);
 }
 
 function doSorceress(state, move, rng) {
@@ -167,7 +198,7 @@ function doSorceress(state, move, rng) {
     if (s !== 'active' && s !== 'skull') return { error: 'cannot reroll that die' };
   }
   const dice = rollDice(state.dice, idx, rng);
-  return settle({ ...state, dice, sorceressUsed: true }, rng);
+  return settle({ ...state, dice, sorceressUsed: true, justRolled: idx }, rng);
 }
 
 function doChest(state, move) {
@@ -181,7 +212,7 @@ function doChest(state, move) {
     if (dice[i].status !== 'active') return { error: 'can only store active dice' };
     dice[i].status = 'chest';
   }
-  return { state: { ...state, dice }, end: null };
+  return { state: { ...state, dice, justRolled: [] }, end: null };
 }
 
 // ---- turn resolution ------------------------------------------------------
@@ -209,7 +240,7 @@ function endTurn(state, busted, rng) {
   const { points, lines } = scoreTurn(state, busted);
   const scores = { ...state.scores, [state.turn]: (state.scores[state.turn] ?? 0) + points };
   const dice = state.dice.map(d => ({ face: d.face, status: d.status }));
-  const lastTurn = { user: state.turn, card: state.card, points, busted, breakdown: lines, dice };
+  const lastTurn = { user: state.turn, card: state.card, points, busted, breakdown: lines, dice, rolled: state.justRolled || [] };
   const log = pushLog(state.log, logEntry(state, { points, busted, island: false }));
   return advanceOrFinish({ ...state, scores, lastTurn, log }, rng);
 }
@@ -222,6 +253,7 @@ function endIslandTurn(state, rng) {
     island: true, skulls: state.islandSkulls,
     breakdown: [{ label: `${state.islandSkulls} skulls`, points: -100 * state.islandSkulls, perRival: true }],
     dice: state.dice.map(d => ({ face: d.face, status: d.status })),
+    rolled: state.justRolled || [],
   };
   const log = pushLog(state.log, logEntry(state, { points: 0, busted: false, island: true, skulls: state.islandSkulls }));
   return advanceOrFinish({ ...state, lastTurn, log }, rng);

@@ -316,3 +316,63 @@ test('a reroll must include at least two dice', () => {
   assert.equal(applyMove(s, { action: 'reroll', dice: [0] }, 'a').error,
     'a reroll must include at least 2 dice');
 });
+
+// ---- bench ------------------------------------------------------------
+
+test('bench toggles an active die on and off', () => {
+  const s = rolling({ type: 'sorceress' }, Array(8).fill('parrot'));
+  const r1 = applyMove(s, { action: 'bench', dice: [0] }, 'a');
+  assert.equal(r1.state.dice[0].bench, true);
+  assert.equal(r1.state.dice[1].bench, undefined);
+  const r2 = applyMove(r1.state, { action: 'bench', dice: [0] }, 'a');
+  assert.equal(r2.state.dice[0].bench, false);
+});
+
+test('bench rejects skull/locked/chest dice and requires the rolling phase', () => {
+  const s = rolling({ type: 'chest' }, ['parrot', 'skull'],
+    { extra: [{ face: 'saber', status: 'chest' }, { face: 'coin', status: 'locked' }] });
+  assert.equal(applyMove(s, { action: 'bench', dice: [1] }, 'a').error, 'can only bench active dice');
+  assert.equal(applyMove(s, { action: 'bench', dice: [2] }, 'a').error, 'can only bench active dice');
+  assert.equal(applyMove(s, { action: 'bench', dice: [3] }, 'a').error, 'can only bench active dice');
+  const awaitState = awaiting({ type: 'sorceress' });
+  assert.equal(applyMove(awaitState, { action: 'bench', dice: [0] }, 'a').error, 'roll first');
+});
+
+test('rerolling a benched die clears its bench flag', () => {
+  const s = rolling({ type: 'sorceress' }, ['parrot', 'parrot', 'parrot', 'parrot']);
+  const benched = applyMove(s, { action: 'bench', dice: [0] }, 'a').state;
+  assert.equal(benched.dice[0].bench, true);
+  const r = applyMove(benched, { action: 'reroll', dice: [0, 1] }, 'a', faceRng(['saber', 'saber']));
+  assert.equal(r.state.dice[0].bench, false);
+});
+
+test('init gives every die a bench:false default', () => {
+  const s = init({ target: 4000 }, [{ user: 'x' }, { user: 'y' }]);
+  assert.ok(s.dice.every(d => d.bench === false));
+});
+
+// ---- justRolled (UI tumble hint) ------------------------------------------
+
+test('a reroll records exactly which indices it rolled, even landing on the same face', () => {
+  const s = rolling({ type: 'sorceress' }, ['saber', 'saber', 'saber', 'saber']);
+  const r = applyMove(s, { action: 'reroll', dice: [2, 3] }, 'a', faceRng(['saber', 'saber']));
+  assert.deepEqual(r.state.justRolled, [2, 3]);
+  assert.equal(r.state.dice[2].face, 'saber');   // same face as before the reroll
+});
+
+test('bench and chest clear justRolled so a stale roll never replays', () => {
+  const s = rolling({ type: 'chest' }, ['saber', 'saber', 'saber', 'saber']);
+  const rolled = applyMove(s, { action: 'reroll', dice: [0, 1] }, 'a', faceRng(['saber', 'saber']));
+  assert.deepEqual(rolled.state.justRolled, [0, 1]);
+  const benched = applyMove(rolled.state, { action: 'bench', dice: [2] }, 'a');
+  assert.deepEqual(benched.state.justRolled, []);
+  const stored = applyMove(rolled.state, { action: 'chest', dice: [2] }, 'a');
+  assert.deepEqual(stored.state.justRolled, []);
+});
+
+test('a bust records the busting roll on lastTurn.rolled', () => {
+  const s = rolling({ type: 'sorceress' },
+    ['skull', 'skull', 'parrot', 'parrot', 'parrot', 'parrot', 'parrot', 'parrot']);
+  const r = applyMove(s, { action: 'reroll', dice: [2, 3] }, 'a', faceRng(['skull', 'skull']));
+  assert.deepEqual(r.state.lastTurn.rolled, [2, 3]);
+});

@@ -12,11 +12,14 @@
  * a rounded-pixel font ("Pixelify Sans", ./pixelify.ttf) with a bold monospace
  * fallback.
  *
- * All game state is public. Two viewer-local conveniences never touch state:
- *   - sort mode reorders the dice *display* only (tiles keep their original
- *     data-i so moves stay correct);
- *   - keep mode flips what a selection means - reroll the selected dice, or keep
- *     them and reroll the rest - translating to the same `reroll` move.
+ * All game state is public. Dice live in three zones - Active (rollable),
+ * Bench (set aside: player-benched dice, card-locked dice, chest-stored dice)
+ * and Skulls - derived entirely from each die's `status`/`bench` fields, so
+ * every zone move (a `bench` click, a card power) is a real `move` the
+ * server broadcasts, visible live to every player and spectator in the room.
+ * `sortMode` is the one purely client-local, viewer-only convenience left -
+ * it reorders the dice *display* only (tiles keep their original data-i so
+ * moves stay correct).
  */
 
 import { SPRITE } from './sprites.js';
@@ -109,6 +112,9 @@ const STYLE = `
   .kf-die.skull{background:#f3cbc7;box-shadow:inset 3px 3px 0 rgba(255,255,255,.75),inset -3px -3px 0 #cf8f8a,0 6px 0 #a5514c,0 9px 0 rgba(0,0,0,.35)}
   .kf-die.chest{background:#ffe6a2;box-shadow:inset 3px 3px 0 rgba(255,255,255,.9),inset -3px -3px 0 #d3ab4e,0 6px 0 #b0871f,0 9px 0 rgba(0,0,0,.35)}
   .kf-die.locked{filter:grayscale(.5) brightness(.85);opacity:.8}
+  .kf-die.can.armed{box-shadow:inset 3px 3px 0 rgba(255,255,255,.9),inset -3px -3px 0 #b3bbdd,0 6px 0 #8f96bd,0 9px 0 rgba(0,0,0,.35),0 0 0 3px var(--purple)}
+  .kf-die.can.armed.picked{transform:translateY(-9px);
+    box-shadow:inset 3px 3px 0 rgba(255,255,255,.9),inset -3px -3px 0 #b3bbdd,0 10px 0 #8f96bd,0 13px 0 rgba(0,0,0,.4),0 0 0 3px var(--purple),0 0 10px rgba(139,92,246,.7)}
   .kf-die.empty{background:rgba(255,255,255,.06);border-style:dashed;border-color:var(--key);border-radius:3px;box-shadow:none}
   .kf-die.empty::after{content:"";position:absolute;inset:0;margin:auto;width:6px;height:6px;border-radius:2px;background:var(--key)}
   .kf-die.kf-roll{animation:kf-shake .12s steps(2,end) infinite}
@@ -141,6 +147,7 @@ const STYLE = `
   .kf-btn.sorc:active:not(:disabled){box-shadow:inset 0 2px 0 rgba(255,255,255,.2),0 0 0 var(--purple-d)}
   .kf-btn.store{background:var(--gold);color:#3a2a00;box-shadow:inset 0 2px 0 rgba(255,255,255,.4),0 4px 0 var(--gold-d)}
   .kf-btn.store:active:not(:disabled){box-shadow:inset 0 2px 0 rgba(255,255,255,.3),0 0 0 var(--gold-d)}
+  .kf-btn.on{filter:brightness(1.18);box-shadow:inset 0 2px 0 rgba(255,255,255,.4),0 4px 0 var(--line),0 0 0 3px var(--cream)}
   .kf-last{font-size:.8rem;color:var(--muted);margin:.6rem 4px .2rem;min-height:1.1em}
 
   /* ---- floating score juice ---- */
@@ -212,17 +219,38 @@ const STYLE = `
   .kf-logres{flex:0 0 auto;font-weight:700;min-width:40px;text-align:right}
   .kf-logres.pos{color:var(--green)} .kf-logres.neg,.kf-logres.isl{color:#ff8a8a} .kf-logres.zero{color:var(--muted)}
 
-  /* ---- saved dice zone (keep mode): a treasure shelf ---- */
-  .kf-saved{margin:.9rem 4px .35rem;padding:.7rem .85rem .9rem;border-radius:16px;min-height:96px;
+  /* ---- dice stage layout: dice column (active + bench) beside a skull tray ---- */
+  .kf-diewrap{display:flex;gap:.7rem;align-items:flex-start;margin:.2rem 4px .3rem}
+  .kf-dicecol{flex:1 1 auto;min-width:0}
+  .kf-dicecol .kf-dice{margin:0 0 .3rem;min-height:60px}
+
+  /* ---- bench: a permanent treasure shelf for kept, locked and stored dice ---- */
+  .kf-bench{margin:.55rem 0 0;padding:.7rem .85rem .9rem;border-radius:16px;min-height:88px;
     border:3px solid var(--line);
     background:linear-gradient(180deg,#33291a,#22190f);
     box-shadow:inset 0 0 0 2px rgba(245,197,66,.22), inset 0 7px 18px rgba(0,0,0,.5)}
-  .kf-saved[hidden]{display:none}
-  .kf-saved .kf-zlabel{display:flex;align-items:center;gap:7px;font-size:.68rem;letter-spacing:.12em;
+  .kf-bench .kf-zlabel{display:flex;align-items:center;gap:7px;font-size:.68rem;letter-spacing:.12em;
     text-transform:uppercase;color:var(--gold);margin-bottom:.6rem;text-shadow:1px 1px 0 rgba(0,0,0,.5)}
-  .kf-saved .kf-coin{width:16px;height:16px;display:inline-block;image-rendering:pixelated}
-  .kf-saved .kf-dice{margin:0;gap:.65rem}
-  .kf-saved .kf-die{box-shadow:inset 3px 3px 0 rgba(255,255,255,.9),inset -3px -3px 0 #b3bbdd,0 6px 0 #8f96bd,0 9px 0 rgba(0,0,0,.4),0 0 0 3px var(--gold)}
+  .kf-bench .kf-coin{width:16px;height:16px;display:inline-block;image-rendering:pixelated}
+  .kf-bench .kf-empty-hint{font-size:.68rem;color:var(--muted);opacity:.8}
+  .kf-chesticon{width:16px;height:16px;display:inline-block;image-rendering:pixelated;margin-left:auto;transition:transform .1s ease}
+  .kf-chesticon.pop{animation:kf-chestpop .5s cubic-bezier(.3,1.6,.4,1)}
+  @keyframes kf-chestpop{0%{transform:scale(1)}35%{transform:scale(1.6) rotate(-8deg)}70%{transform:scale(.9) rotate(4deg)}100%{transform:scale(1)}}
+  .kf-bench .kf-dice{margin:0;gap:.65rem}
+  .kf-bench .kf-die{box-shadow:inset 3px 3px 0 rgba(255,255,255,.9),inset -3px -3px 0 #b3bbdd,0 6px 0 #8f96bd,0 9px 0 rgba(0,0,0,.4),0 0 0 3px var(--gold)}
+  .kf-bench .kf-die.chest{box-shadow:inset 3px 3px 0 rgba(255,255,255,.9),inset -3px -3px 0 #d3ab4e,0 6px 0 #b0871f,0 9px 0 rgba(0,0,0,.4),0 0 0 3px var(--gold)}
+  .kf-bench .kf-die.locked{box-shadow:inset 3px 3px 0 rgba(255,255,255,.9), inset -3px -3px 0 #b3bbdd, 0 6px 0 #8f96bd, 0 9px 0 rgba(0,0,0,.35)}
+
+  /* ---- skull tray: a slim side column, low weight until skulls pile up ---- */
+  .kf-skulls{flex:0 0 84px;padding:.6rem .5rem;border-radius:14px;min-height:88px;align-self:stretch;
+    border:3px solid var(--line);background:linear-gradient(180deg,#3a1a1c,#220f10);
+    box-shadow:inset 0 0 0 2px rgba(229,72,77,.22), inset 0 7px 18px rgba(0,0,0,.5)}
+  .kf-skulls .kf-zlabel{display:block;font-size:.64rem;letter-spacing:.1em;text-transform:uppercase;
+    color:#ff8a8a;margin-bottom:.5rem;text-shadow:1px 1px 0 rgba(0,0,0,.5);text-align:center}
+  .kf-skulls .kf-dice{margin:0;gap:.4rem;justify-content:center}
+  .kf-skulls .kf-die{width:44px;height:44px}
+  .kf-skulls .kf-die.can.armed{box-shadow:inset 3px 3px 0 rgba(255,255,255,.75),inset -3px -3px 0 #cf8f8a,0 6px 0 #a5514c,0 9px 0 rgba(0,0,0,.35),0 0 0 3px var(--purple)}
+  .kf-bg-island .kf-skulls{border-color:#ff5a5a;box-shadow:inset 0 0 0 2px rgba(255,90,90,.5), inset 0 7px 18px rgba(0,0,0,.5), 0 0 18px rgba(255,90,90,.35)}
 
   /* ---- turn-end summary overlay ---- */
   .kf-summary{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
@@ -250,7 +278,7 @@ const STYLE = `
 
   @media (prefers-reduced-motion: reduce){
     .kf-die.kf-roll,.kf-die.kf-settle,.kf-showcase,.kf-pop,.kf-stage.busting::before,.kf-player.dock,
-    .kf-summary,.kf-card-panel,.kf-sum-row{animation:none}
+    .kf-summary,.kf-card-panel,.kf-sum-row,.kf-chesticon.pop{animation:none}
   }
 `;
 
@@ -261,20 +289,33 @@ export default {
     let st = null;                 // full public game state
     let pendingAnim = [];          // die indices to tumble on the next render
     let rollTimers = [];           // active tumble intervals
-    const selected = new Set();    // die indices the player has selected
     const shown = {};              // score currently displayed per user (count-up)
     let prevCardKey = null;        // detect a new scene (slam animation)
     let sortMode = false;          // group identical faces in the display
-    let keepMode = false;          // selection means "keep" (reroll the rest)
+    let armedPower = null;         // null | 'sorceress' | 'chest' - click-a-die-to-target mode
+    let prevChestCount = 0;        // detect a new chest deposit (badge pop)
     let summaryTimer = null;        // turn-end overlay auto-dismiss
+    let replaying = false;         // briefly showing a turn-ending roll before the real (already-advanced) state
+    const sorcSel = new Set();     // die indices picked while Sorceress is armed, cast together on confirm
 
     rootEl.innerHTML = `<div class="kf-root"><style>${STYLE}</style>
       <div class="kf-stage" id="kf-stage">
         <div class="kf-watermark" id="kf-wm"></div>
         <div class="kf-fx" id="kf-fx"></div>
         <div class="kf-status" id="kf-status">Loading…</div>
-        <div class="kf-dice" id="kf-dice"></div>
-        <div class="kf-saved" id="kf-savedzone" hidden><span class="kf-zlabel"><span class="kf-coin">${SPRITE.coin}</span>Saved treasure - kept to bank</span><div class="kf-dice" id="kf-saved"></div></div>
+        <div class="kf-diewrap">
+          <div class="kf-dicecol">
+            <div class="kf-dice" id="kf-dice"></div>
+            <div class="kf-bench" id="kf-bench">
+              <span class="kf-zlabel"><span class="kf-coin">${SPRITE.coin}</span>Bench<span class="kf-chesticon" id="kf-chesticon">${SPRITE.chest}</span></span>
+              <div class="kf-dice" id="kf-benchdice"></div>
+            </div>
+          </div>
+          <div class="kf-skulls" id="kf-skulls">
+            <span class="kf-zlabel">Skulls</span>
+            <div class="kf-dice" id="kf-skulldice"></div>
+          </div>
+        </div>
         <div class="kf-toolbar" id="kf-toolbar"></div>
         <div class="kf-controls" id="kf-controls"></div>
         <div class="kf-last" id="kf-last"></div>
@@ -290,11 +331,20 @@ export default {
 
     const myTurn = () => st && !st.winner && st.turn === me;
     const send = payload => sdk.send('move', { room: sdk.room.id, data: JSON.stringify(payload) });
-    const selectable = d => myTurn() && st.phase === 'rolling' &&
-      (d.status === 'active' || (st.card?.type === 'sorceress' && d.status === 'skull'));
     const sprite = face => (face && SPRITE[face]) || '';
     const faceRank = d => (d.face == null ? 99 : FACE_KEYS.indexOf(d.face));
     const activeIndices = () => st.dice.map((d, i) => (d.status === 'active' ? i : -1)).filter(i => i >= 0);
+    // zone a die belongs in: rollable / set-aside / skull tray. Locked (card-fixed)
+    // and chest (stored) dice always live on the bench; only "active" dice move
+    // between Active and Bench under the player's own bench toggle.
+    const zoneOf = d => d.status === 'skull' ? 'skull'
+      : (d.status === 'locked' || d.status === 'chest' || (d.status === 'active' && d.bench)) ? 'bench' : 'active';
+    // plain click (no power armed): toggles bench, only for active dice.
+    const canBench = d => myTurn() && st.phase === 'rolling' && !armedPower && d.status === 'active';
+    // armed click: sorceress targets active or skull dice; chest-store targets active dice.
+    const canArmedTarget = d => myTurn() && st.phase === 'rolling' && armedPower &&
+      (armedPower === 'sorceress' ? (d.status === 'active' || d.status === 'skull') : d.status === 'active');
+    const selectable = d => canBench(d) || canArmedTarget(d);
 
     function stopTumbles() { rollTimers.forEach(clearInterval); rollTimers = []; }
 
@@ -407,12 +457,8 @@ export default {
                 ? (st.phase === 'awaitRoll' ? 'Your turn - roll the dice!' : 'Your turn - reroll or bank.')
                 : `Waiting for ${name(st.turn)}…`));
 
-      // dice - split into an "in play" zone and, in keep mode, a "saved" zone.
-      // data-i stays the original index so moves are correct under sorting.
-      const savedZone = $('#kf-savedzone');
-      const showSaved = myTurn() && keepMode && st.phase === 'rolling';
-      savedZone.hidden = !showSaved;
-      const isSaved = i => showSaved && selected.has(i) && st.dice[i].status === 'active';
+      // dice - three persistent zones (active / bench / skulls). data-i stays
+      // the original index so moves are correct under sorting.
       const order = sortMode
         ? [...st.dice.keys()].sort((a, b) => faceRank(st.dice[a]) - faceRank(st.dice[b]))
         : [...st.dice.keys()];
@@ -423,38 +469,59 @@ export default {
         if (d.status === 'skull') cls.push('skull');
         else if (d.status === 'chest') cls.push('chest');
         else if (d.status === 'locked') cls.push('locked');
-        if (!keepMode && selected.has(i)) cls.push('sel');
-        if (selectable(d)) cls.push('can');
+        else if (d.status === 'active' && d.bench) cls.push('kept');
+        if (selectable(d)) {
+          cls.push('can');
+          if (armedPower) cls.push('armed');
+          if (armedPower === 'sorceress' && sorcSel.has(i)) cls.push('picked');
+        }
         return `<div class="${cls.join(' ')}" data-i="${i}"><span class="kf-face">${sprite(d.face)}</span></div>`;
       };
       const dEl = $('#kf-dice');
-      const sEl = $('#kf-saved');
+      const bEl = $('#kf-benchdice');
+      const skEl = $('#kf-skulldice');
       const beforeRects = new Map();
       rootEl.querySelectorAll('.kf-die[data-i]').forEach(el => beforeRects.set(el.dataset.i, el.getBoundingClientRect()));
-      dEl.innerHTML = order.filter(i => !isSaved(i)).map(tile).join('');
-      sEl.innerHTML = order.filter(i => isSaved(i)).map(tile).join('');
-      [dEl, sEl].forEach(zone => zone.querySelectorAll('.kf-die.can').forEach(el =>
+      dEl.innerHTML = order.filter(i => zoneOf(st.dice[i]) === 'active').map(tile).join('');
+      const benchOrder = order.filter(i => zoneOf(st.dice[i]) === 'bench');
+      bEl.innerHTML = benchOrder.map(tile).join('');
+      $('#kf-bench').querySelector('.kf-empty-hint')?.remove();
+      if (!benchOrder.length) bEl.insertAdjacentHTML('afterend', '<div class="kf-empty-hint">Nothing benched yet.</div>');
+      skEl.innerHTML = order.filter(i => zoneOf(st.dice[i]) === 'skull').map(tile).join('');
+      [dEl, bEl, skEl].forEach(zone => zone.querySelectorAll('.kf-die.can').forEach(el =>
         el.addEventListener('click', () => {
           const i = +el.dataset.i;
-          selected.has(i) ? selected.delete(i) : selected.add(i);
-          render();
+          if (armedPower === 'sorceress') {
+            // pick dice first (highlighted), cast them together via the Sorceress button
+            sorcSel.has(i) ? sorcSel.delete(i) : sorcSel.add(i);
+            render();
+          } else if (armedPower === 'chest') {
+            send({ action: 'chest', dice: [i] });
+          } else {
+            send({ action: 'bench', dice: [i] });
+          }
         })));
       flipDice(beforeRects);
       animateDice(dEl);
 
-      // toolbar (sort + keep/reroll) - while it's my active-rolling turn
+      // chest badge: a little pop whenever a new die lands in the chest
+      const chestCount = st.dice.filter(d => d.status === 'chest').length;
+      if (chestCount > prevChestCount && !reduce) {
+        const badge = $('#kf-chesticon');
+        badge?.classList.remove('pop'); void badge?.offsetWidth; badge?.classList.add('pop');
+      }
+      prevChestCount = chestCount;
+
+      // toolbar (sort) - while it's my active-rolling turn
       const tb = $('#kf-toolbar');
-      if (myTurn() && st.phase === 'rolling') {
-        tb.innerHTML = `
-          <button class="kf-toggle ${sortMode ? 'on' : ''}" id="kf-sort">Sort ${sortMode ? 'on' : 'off'}</button>
-          <button class="kf-toggle ${keepMode ? 'on' : ''}" id="kf-mode">Select → ${keepMode ? 'keep' : 'reroll'}</button>`;
+      if (myTurn() && st.phase === 'rolling' && !replaying) {
+        tb.innerHTML = `<button class="kf-toggle ${sortMode ? 'on' : ''}" id="kf-sort">Sort ${sortMode ? 'on' : 'off'}</button>`;
         $('#kf-sort').addEventListener('click', () => { sortMode = !sortMode; render(); });
-        $('#kf-mode').addEventListener('click', () => { keepMode = !keepMode; selected.clear(); render(); });
       } else tb.innerHTML = '';
 
       // controls
       const c = $('#kf-controls');
-      if (!myTurn()) c.innerHTML = '';
+      if (!myTurn() || replaying) c.innerHTML = '';
       else if (st.phase === 'island') {
         c.innerHTML = `<button id="kf-iroll" class="kf-btn big stop">Roll again</button>`;
         $('#kf-iroll').addEventListener('click', () => send({ action: 'roll' }));
@@ -462,21 +529,26 @@ export default {
         c.innerHTML = `<button id="kf-roll" class="kf-btn big">Roll the dice</button>`;
         $('#kf-roll').addEventListener('click', () => send({ action: 'roll' }));
       } else {
-        const activeSel = [...selected].filter(i => st.dice[i]?.status === 'active');
-        const rerollTargets = keepMode ? activeIndices().filter(i => !selected.has(i)) : activeSel;
+        const rerollTargets = activeIndices().filter(i => !st.dice[i].bench);
         const canReroll = rerollTargets.length >= 2;
-        const rerollLabel = keepMode ? `Reroll rest (${rerollTargets.length})` : `Reroll ${activeSel.length || ''}`;
         const canSorc = st.card?.type === 'sorceress' && !st.sorceressUsed;
         const canChest = st.card?.type === 'chest';
+        const sorcArmed = armedPower === 'sorceress';
+        const sorcLabel = !sorcArmed ? 'Sorceress' : (sorcSel.size ? `Cast (${sorcSel.size})` : 'Cancel');
         c.innerHTML = `
-          <button id="kf-reroll" class="kf-btn" ${canReroll ? '' : 'disabled'}>${rerollLabel}</button>
-          ${canSorc ? `<button id="kf-sorc" class="kf-btn sorc" ${selected.size < 1 ? 'disabled' : ''}>Sorceress (${selected.size})</button>` : ''}
-          ${canChest ? `<button id="kf-chest" class="kf-btn store" ${activeSel.length < 1 ? 'disabled' : ''}>Store (${activeSel.length})</button>` : ''}
+          <button id="kf-reroll" class="kf-btn" ${canReroll ? '' : 'disabled'}>Reroll (${rerollTargets.length})</button>
+          ${canSorc ? `<button id="kf-sorc" class="kf-btn sorc ${sorcArmed ? 'on' : ''}">${sorcLabel}</button>` : ''}
+          ${canChest ? `<button id="kf-chest" class="kf-btn store ${armedPower === 'chest' ? 'on' : ''}">${armedPower === 'chest' ? 'Done storing' : 'Store dice'}</button>` : ''}
           <button id="kf-stop" class="kf-btn stop">Stop &amp; bank</button>`;
         $('#kf-reroll').addEventListener('click', () => canReroll && send({ action: 'reroll', dice: rerollTargets }));
         $('#kf-stop').addEventListener('click', () => send({ action: 'stop' }));
-        $('#kf-sorc')?.addEventListener('click', () => send({ action: 'sorceress', dice: [...selected] }));
-        $('#kf-chest')?.addEventListener('click', () => send({ action: 'chest', dice: activeSel }));
+        $('#kf-sorc')?.addEventListener('click', () => {
+          if (sorcArmed && sorcSel.size) { send({ action: 'sorceress', dice: [...sorcSel] }); armedPower = null; sorcSel.clear(); }
+          else if (sorcArmed) { armedPower = null; }
+          else { armedPower = 'sorceress'; sorcSel.clear(); }
+          render();
+        });
+        $('#kf-chest')?.addEventListener('click', () => { armedPower = armedPower === 'chest' ? null : 'chest'; render(); });
       }
 
       // last-turn line
@@ -613,39 +685,62 @@ export default {
     }
 
     // ---- events ----
+    const TUMBLE_MS = 700; // matches animateDice's tumble+settle duration
+    const diceMatch = (a, b) => !!a && !!b && a.length === b.length &&
+      a.every((d, i) => d.face === b[i]?.face && d.status === b[i]?.status);
+
     const apply = s => {
       const prev = st?.dice;
       const prevLt = st?.lastTurn;
       const prevScores = st?.scores;
       const prevPhase = st?.phase;
       const prevTurn = st?.turn;
-      pendingAnim = (s.phase !== 'awaitRoll')
-        ? s.dice.map((d, i) => (d.face && (!prev || prev[i]?.face !== d.face)) ? i : -1).filter(i => i >= 0)
-        : [];
-      st = s;
-      // keep-mode selection survives rerolls (the kept dice); else it's transient
-      if (!keepMode || s.winner || s.phase === 'awaitRoll' || s.turn !== prevTurn) selected.clear();
-      else for (const i of [...selected]) if (s.dice[i]?.status !== 'active') selected.delete(i);
-      render();
 
-      // turn-end summary overlay (covers the stage ~3s so everyone sees the math)
       const lt = s.lastTurn;
       const ltChanged = !!lt && (!prevLt || prevLt.user !== lt.user || prevLt.points !== lt.points
         || prevLt.busted !== lt.busted || prevLt.island !== lt.island || prevLt.skulls !== lt.skulls);
-      if (ltChanged) showSummary(lt); else hideSummary();
 
-      // island juice (mid-turn): rivals just lost points → red popup + flash rows
-      if (prevScores && !ltChanged && (s.phase === 'island' || prevPhase === 'island')) {
-        let dock = 0;
-        s.players.forEach((u, idx) => {
-          const d = (s.scores[u] ?? 0) - (prevScores[u] ?? 0);
-          if (u !== s.turn && d < 0) {
-            dock = -d;
-            const row = $('#kf-scores')?.querySelector(`.kf-player[data-u="${idx}"]`);
-            if (row && !reduce) { row.classList.add('dock'); setTimeout(() => row.classList.remove('dock'), 620); }
-          }
-        });
-        if (dock > 0) spawnPopup(`☠ -${dock}`, 'neg');
+      const finish = () => {
+        // trust the server's own record of which indices this move rolled -
+        // a face landing on the same value as before must still tumble.
+        pendingAnim = s.justRolled || [];
+        replaying = false;
+        st = s;
+        if (s.winner || s.phase === 'awaitRoll' || s.turn !== prevTurn) { armedPower = null; sorcSel.clear(); }
+        render();
+        if (ltChanged) showSummary(lt); else hideSummary();
+
+        // island juice (mid-turn): rivals just lost points → red popup + flash rows
+        if (prevScores && !ltChanged && (s.phase === 'island' || prevPhase === 'island')) {
+          let dock = 0;
+          s.players.forEach((u, idx) => {
+            const d = (s.scores[u] ?? 0) - (prevScores[u] ?? 0);
+            if (u !== s.turn && d < 0) {
+              dock = -d;
+              const row = $('#kf-scores')?.querySelector(`.kf-player[data-u="${idx}"]`);
+              if (row && !reduce) { row.classList.add('dock'); setTimeout(() => row.classList.remove('dock'), 620); }
+            }
+          });
+          if (dock > 0) spawnPopup(`☠ -${dock}`, 'neg');
+        }
+      };
+
+      // A turn that ends the moment it's rolled (an instant bust, or a bust/
+      // island-exit on a mid-turn reroll) never passes through a visible
+      // state showing that final roll - the server already advances to the
+      // next player's blank dice in the same move. Without this, the tumble
+      // animation never plays and the summary just appears out of nowhere.
+      // Replay the turn-ending roll's own dice first - tumbling into place -
+      // before jumping to the real (already-advanced) state. Skipped when
+      // the player already saw these exact dice (e.g. a plain "Stop & bank").
+      if (ltChanged && lt.dice?.length && !diceMatch(prev, lt.dice) && !reduce) {
+        replaying = true;
+        st = { ...s, turn: lt.user, card: lt.card, dice: lt.dice, phase: lt.island ? 'island' : 'rolling', winner: null };
+        pendingAnim = lt.rolled?.length ? lt.rolled : lt.dice.map((d, i) => (d.face != null) ? i : -1).filter(i => i >= 0);
+        render();
+        setTimeout(finish, TUMBLE_MS);
+      } else {
+        finish();
       }
     };
     const onStarted   = e => apply(JSON.parse(e.state));
