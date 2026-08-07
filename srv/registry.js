@@ -8,8 +8,8 @@ import cds from '@sap/cds';
  * game's hook into the platform: it imports the game's pure module and writes
  * it onto `cds.games` (the `@sap/cds` facade is the ONE thing every package can
  * reach in both dev and packed-deploy layouts — a game cannot import platform
- * files relatively, which is why engine.js's getBoard is handed in, not
- * imported). No root-package scanning, no `main` entry, no config.
+ * files relatively once packed, so it touches the platform only through `cds`).
+ * No root-package scanning, no `main` entry, no config.
  *
  *   // games/<id>/cds-plugin.js
  *   import cds from '@sap/cds';

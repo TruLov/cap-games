@@ -7,7 +7,7 @@ using { cap.games as db } from '../db/schema';
 @path: 'lobby'
 service LobbyService {
 
-  // Game catalogue — derived from cds.env.games registry at runtime
+  // Game catalogue — derived from the cds.games registry at runtime
   @readonly entity Games {
     key id          : String(50);
         name        : String;
