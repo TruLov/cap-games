@@ -1,7 +1,7 @@
 /**
  * Ultimate Tic-Tac-Toe — CAP-touching service extension.
  *
- * Registers this game's WS actions/events (see srv/extend.cds):
+ * Registers this game's pre-start WS actions/events (see srv/extend.cds):
  *   - `chooseTeam`      self-service team picking (each player picks their own,
  *                       pre-start — the platform's own `configure` is host-only
  *                       and blindly overwrites Rooms.settings, so team picks
@@ -9,21 +9,19 @@
  *   - `configureBlitz`  host-only per-move timer config, pre-start
  *   - `requestSettings` a client mounting the waiting room asks for the current
  *                       settings (the platform's WS actions are fire-and-forget)
- *   - the blitz per-move timer itself
  *
  * This is the documented exception to the pure-function game contract: it needs
  * DB access for the pre-start picks (same as srv/play-service.js). The blitz
- * timer additionally uses `getBoard` (handed in as the second arg — engine.js
- * lives outside every `@cap-games/*` package, so a relative import would break
- * once this package is packed for deploy) to mutate the shared board-state
- * reference in place. ./cds-plugin.js composes this onto the pure ./game.js
- * module before registering the game with the platform.
+ * timer itself is NOT here — it's a pure reducer (game.js's onTick), driven by
+ * the platform's generic server-tick loop, so this extension no longer reaches
+ * into engine.js's board state. ./cds-plugin.js composes this onto the pure
+ * ./game.js module before registering the game with the platform.
  */
 
 import cds from '@sap/cds';
-import { currentTurn, resolveBlitz, MIN_BLITZ_SECONDS, MAX_BLITZ_SECONDS } from './game.js';
+import { resolveBlitz, MIN_BLITZ_SECONDS, MAX_BLITZ_SECONDS } from './game.js';
 
-export function extendService(srv, { getBoard }) {
+export function extendService(srv) {
   const { Rooms, Players } = cds.entities('cap.games');
 
   const loadSettings = async (roomId) => {
@@ -92,70 +90,5 @@ export function extendService(srv, { getBoard }) {
   srv.on('requestSettings', async (req) => {
     const settings = await loadSettings(req.data.room);
     await broadcastSettings(req.data.room, settings);
-  });
-
-  // ---- blitz per-move timer ----------------------------------------
-  // roomId -> Node timer handle. Module-scoped like srv/engine.js's own
-  // graceTimers/boardState maps.
-  const turnTimers = new Map();
-
-  const clearTurnTimer = (roomId) => {
-    clearTimeout(turnTimers.get(roomId));
-    turnTimers.delete(roomId);
-  };
-  const armTurnTimer = (roomId, seconds) => {
-    clearTurnTimer(roomId);
-    turnTimers.set(roomId, setTimeout(() => onTimeout(roomId), seconds * 1000));
-  };
-
-  // Re-evaluate the timer for a room whenever its board progresses
-  // (started/moved/rematched) — reused by real moves AND by onTimeout's
-  // own skip, which re-broadcasts via the same 'moved' event, so a single
-  // hook naturally re-arms the timer for whoever's turn it is next.
-  const onProgress = (roomId) => {
-    const b = getBoard(roomId);
-    if (!b || b.game !== 'mttt') return; // this hook fires for EVERY game's events
-    clearTurnTimer(roomId);
-    if (b.state.winner || !b.state.blitz?.enabled) return;
-    armTurnTimer(roomId, b.state.blitz.seconds);
-  };
-
-  async function onTimeout(roomId) {
-    turnTimers.delete(roomId); // this handle already fired
-    const b = getBoard(roomId);
-    if (!b || b.game !== 'mttt' || b.state.winner || !b.state.blitz?.enabled) return;
-
-    const room = await SELECT.one.from(Rooms, roomId).columns('status');
-    if (!room || room.status !== 'playing') return; // paused/finished/reset since arming
-
-    const timedOutUser = b.state.turn;
-    const newMoveCount = b.state.moveCount + 1;
-    const newState = { ...b.state, moveCount: newMoveCount, turn: currentTurn(b.state.teams, newMoveCount) };
-    b.state = newState;
-    b.turn = newState.turn;
-
-    await srv._broadcastState(roomId, 'mttt', b, 'moved', {});
-    await srv._sysMsg(roomId, `${timedOutUser} timed out — turn skipped.`);
-    // no explicit re-arm here: the 'moved' broadcast above runs through
-    // onProgress() below just like a real move would.
-  }
-
-  srv.on('started',   (req) => onProgress(req.data.room));
-  srv.on('moved',     (req) => onProgress(req.data.room));
-  srv.on('rematched', (req) => onProgress(req.data.room));
-  srv.on('finished',   (req) => clearTurnTimer(req.data.room));
-  srv.on('roomReset',  (req) => clearTurnTimer(req.data.room));
-  srv.on('gameSwitched', (req) => clearTurnTimer(req.data.room));
-
-  // Disconnect tolerance, consistent with the platform's own grace-timer
-  // philosophy: don't let a dropped connection burn the mover's clock.
-  srv.on('playerDisconnected', (req) => {
-    const b = getBoard(req.data.room);
-    if (b?.game === 'mttt' && b.state.turn === req.data.player) clearTurnTimer(req.data.room);
-  });
-  srv.on('playerReconnected', (req) => {
-    const b = getBoard(req.data.room);
-    if (b?.game === 'mttt' && b.state.turn === req.data.player && !b.state.winner && b.state.blitz?.enabled)
-      armTurnTimer(req.data.room, b.state.blitz.seconds);
   });
 }

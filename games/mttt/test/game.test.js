@@ -77,6 +77,36 @@ describe('ultimate tic-tac-toe', () => {
     expect(r.state.blitz).to.deep.equal({ enabled: true, seconds: 15 });
   });
 
+  // --- server-driven blitz (onTick, a pure reducer — no timers/WS) ---------
+  it('meta declares a server tick', () => {
+    expect(game.meta.tick).to.deep.equal({ everyMs: 1000 });
+  });
+
+  it('onTick: no-op while blitz is disabled', () => {
+    const s = mkState({ blitz: { enabled: false, seconds: 10 } });
+    expect(game.onTick(s, 999_999)).to.equal(null);
+  });
+
+  it('onTick: no-op while time remains', () => {
+    const s = mkState({ blitz: { enabled: true, seconds: 10 } });
+    expect(game.onTick(s, 9_000)).to.equal(null);   // 9s < 10s
+  });
+
+  it('onTick: skips the current turn once past the limit', () => {
+    const s = mkState({ blitz: { enabled: true, seconds: 10 }, turn: 'alice', moveCount: 0 });
+    const r = game.onTick(s, 10_000);               // exactly at the limit
+    expect(r.state.turn).to.equal('bob');           // O team, move 1
+    expect(r.state.moveCount).to.equal(1);
+    expect(r.state.cells).to.deep.equal(s.cells);   // board untouched — only a skip
+    expect(r.end).to.equal(undefined);              // a skip never ends the game
+    expect(r.sys).to.match(/alice.*timed out/i);
+  });
+
+  it('onTick: no-op once the game is already won', () => {
+    const s = mkState({ blitz: { enabled: true, seconds: 10 }, winner: 'X' });
+    expect(game.onTick(s, 999_999)).to.equal(null);
+  });
+
   it('applyMove rejects illegal moves', () => {
     const s = mkState();
     expect(game.applyMove(s, { cell: 0 }, 'bob').error).to.equal('not your turn');

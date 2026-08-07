@@ -315,9 +315,76 @@ class PlayService extends cds.ApplicationService {
       }
     });
 
+    // --- Server-driven ticks -------------------------------------------------
+    // Generic driver for games that declare `meta.tick` + `onTick(state,
+    // elapsedMs)` (e.g. mttt's per-move blitz). The platform owns the timer, so
+    // a game stays a pure reducer and never reaches into engine.js's board
+    // state: each tick we hand the game how long the current turn has run, and
+    // if it returns a new state we broadcast it exactly like a real move.
+    const tickTimers = new Map();   // roomId -> interval handle
+
+    const clearTick = (roomId) => {
+      clearInterval(tickTimers.get(roomId));
+      tickTimers.delete(roomId);
+    };
+
+    const armTick = (roomId) => {
+      const b = eng.getBoard(roomId);
+      if (!b) return;
+      const game = reg.get(b.game);
+      if (!game?.onTick || !game.meta?.tick) return;
+      clearTick(roomId);
+      b.turnAt = Date.now();
+      const everyMs = game.meta.tick.everyMs ?? 1000;
+      tickTimers.set(roomId, setInterval(() => tick(roomId), everyMs));
+    };
+
+    const tick = async (roomId) => {
+      const b = eng.getBoard(roomId);
+      const game = b && reg.get(b.game);
+      if (!game?.onTick) return clearTick(roomId);
+      const room = await SELECT.one.from(Rooms, roomId).columns('status');
+      if (!room) return clearTick(roomId);
+      if (room.status !== 'playing') return;   // paused/finished: hold, don't skip
+      const res = game.onTick(b.state, Date.now() - (b.turnAt ?? Date.now()));
+      if (!res?.state) return;
+      b.state  = res.state;
+      b.turn   = res.state.turn ?? b.turn;
+      b.turnAt = Date.now();
+      if (res.end) {
+        await UPDATE(Rooms, roomId).with({ status: 'finished' });
+        const players = await SELECT.from(Players).where({ room_ID: roomId });
+        await this._persistMatch({ game: b.game }, roomId, { end: res.end }, players);
+        await this._broadcastState(roomId, b.game, b, 'finished', { winner: res.end.winner });
+        clearTick(roomId);
+        LOG.info('TICK-END', roomId, 'winner=' + res.end.winner);
+      } else {
+        await this._broadcastState(roomId, b.game, b, 'moved', {});
+      }
+      if (res.sys) await this._sysMsg(roomId, res.sys);
+    };
+
+    // Arm on the events that begin a turn; a real move (or a skip's own 'moved'
+    // broadcast) restarts the current turn's clock; clear when the match/board
+    // ends. Don't burn the mover's clock while they're disconnected (paused).
+    this.on('started',   (req) => armTick(req.data.room));
+    this.on('rematched', (req) => armTick(req.data.room));
+    this.on('moved',     (req) => { const b = eng.getBoard(req.data.room); if (b) b.turnAt = Date.now(); });
+    this.on('finished',     (req) => clearTick(req.data.room));
+    this.on('roomReset',    (req) => clearTick(req.data.room));
+    this.on('gameSwitched', (req) => clearTick(req.data.room));
+    this.on('playerDisconnected', (req) => {
+      const b = eng.getBoard(req.data.room);
+      if (b?.state?.turn === req.data.player) clearTick(req.data.room);
+    });
+    this.on('playerReconnected', (req) => {
+      const b = eng.getBoard(req.data.room);
+      if (b && b.state?.turn === req.data.player && !b.state?.winner) armTick(req.data.room);
+    });
+
     // Games have already self-registered onto cds.games via their cds-plugin.js
     // (run during cds.plugins, before serving). Validate them and wire any
-    // service extensions.
+    // service extensions (extra pre-start actions/events).
     cds.on('served', async () => {
       for (const [id, game] of Object.entries(reg.all())) {
         try {
@@ -327,12 +394,7 @@ class PlayService extends cds.ApplicationService {
           continue;
         }
         if (typeof game.extendService === 'function') {
-          // getBoard passed alongside srv: engine.js lives in the root
-          // project, not a `@cap-games/*` package, so a game plugin can't
-          // reach it via a relative import once packed into node_modules
-          // for deployment (see games/mttt for the one game that needs it,
-          // for its per-move blitz timer).
-          game.extendService(this, { getBoard: eng.getBoard });
+          game.extendService(this);
           LOG.info(`extended PlayService with game: ${id}`);
         }
       }

@@ -32,6 +32,11 @@ import cds from '@sap/cds';
  *     lets a game keep the platform's default W/D/L result mapping while
  *     attaching its own points instead of hand-rolling a full score())
  *   publicState?/privateState?(state, user) → hidden-information projection
+ *   onTick?(state, elapsedMs)        → { state, end?, sys? } | null  (server-
+ *     driven turn; requires meta.tick = { everyMs }. The platform calls it on
+ *     an interval while the match is playing, passing how long the current turn
+ *     has run, and broadcasts any returned state like a real move — so a timed
+ *     game stays a pure reducer instead of reaching into engine.js)
  *   extendService?(srv)              → void  (optional extra WS actions/events)
  */
 

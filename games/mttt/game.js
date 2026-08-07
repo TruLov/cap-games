@@ -78,6 +78,10 @@ export default {
     name:       'Ultimate Tic-Tac-Toe',
     minPlayers: 2,
     maxPlayers: 8,
+    // Server-driven per-move blitz: the platform calls onTick every second
+    // while a match is playing (see srv/play-service.js). Only bites when the
+    // room enabled blitz; otherwise onTick is a no-op.
+    tick: { everyMs: 1000 },
   },
 
   init(settings = {}, players = []) {
@@ -159,6 +163,22 @@ export default {
     return {
       state: newState,
       end: winner ? { winner, teams } : null,
+    };
+  },
+
+  // Server-driven blitz: skip the current player's turn once they've run past
+  // the configured per-move limit. Pure — the platform supplies `elapsedMs`
+  // (how long this turn has run) so no clock lives in the reducer. Returns null
+  // (no change) when blitz is off, the game is over, or time remains. A skip
+  // never ends the game, so there's no `end`.
+  onTick(state, elapsedMs) {
+    if (state.winner || !state.blitz?.enabled) return null;
+    if (elapsedMs < state.blitz.seconds * 1000) return null;
+    const timedOut = state.turn;
+    const moveCount = state.moveCount + 1;
+    return {
+      state: { ...state, moveCount, turn: currentTurn(state.teams, moveCount) },
+      sys: `${timedOut} timed out — turn skipped.`,
     };
   },
 
