@@ -294,17 +294,10 @@ export default {
         </div>`;
     }
 
-    function onStarted({ state }) { renderBoard(JSON.parse(state)); }
-    function onMoved({ data })    { renderBoard(JSON.parse(data)); }
-    function onFinished({ state }) { renderBoard(JSON.parse(state)); }
-    function onRematched({ state }) { renderBoard(JSON.parse(state)); }
+    const stopState = sdk.onState(state => renderBoard(state));
     function onDisconnected({ player }) { setStatus(`${sdk.nameOf(player)} disconnected — waiting 60s…`); }
     function onReconnected({ player })  { setStatus(`${sdk.nameOf(player)} reconnected`); }
 
-    sdk.on('started',            onStarted);
-    sdk.on('moved',               onMoved);
-    sdk.on('finished',            onFinished);
-    sdk.on('rematched',           onRematched);
     sdk.on('playerDisconnected',  onDisconnected);
     sdk.on('playerReconnected',   onReconnected);
 
@@ -313,10 +306,7 @@ export default {
 
     return () => {
       clearInterval(clockInterval);
-      sdk.off('started',            onStarted);
-      sdk.off('moved',              onMoved);
-      sdk.off('finished',           onFinished);
-      sdk.off('rematched',          onRematched);
+      stopState();
       sdk.off('playerDisconnected', onDisconnected);
       sdk.off('playerReconnected',  onReconnected);
     };

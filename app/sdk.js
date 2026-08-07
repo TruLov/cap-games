@@ -16,6 +16,13 @@
  *   send(action, data)      — send any WS action to PlayService
  *   on(event, fn)           — subscribe to any server event
  *   off(event, fn)          — unsubscribe
+ *   onState(cb)             — subscribe to the state lifecycle (started/moved/
+ *                             finished/rematched/privateState) with the state
+ *                             pre-parsed: cb(state, event, raw). Absorbs the
+ *                             state-vs-data field split; returns an unsubscribe
+ *                             fn. Prefer this over hand-wiring each event.
+ *   onError(cb)             — subscribe to the `gameError` broadcast:
+ *                             cb({ message }). Returns an unsubscribe fn.
  *   toast(msg)              — show brief status in shell header
  *   leave()                 — leave room (shell handles routing)
  *   nameOf(user)            — gamertag for a user id, falling back to the id
@@ -50,6 +57,27 @@ export function makeSdk({ room, me, players, wsSend, emitter, toastFn, leaveFn, 
     send(action, data) { wsSend(action, data); },
     on(event, fn)      { emitter.on(event, fn); },
     off(event, fn)     { emitter.off(event, fn); },
+    onState(cb)        {
+      // Subscribe to the platform's fixed state-lifecycle events with the
+      // state already parsed, so a game never has to remember which event
+      // carries `.state` vs `.data`. cb(state, event, raw): `event` is the
+      // event name and `raw` the untouched payload (for the extra public
+      // fields some events add, e.g. started.firstTurn, finished.winner).
+      // Returns an unsubscribe fn — call it from your mount cleanup.
+      const evs = ['started', 'moved', 'finished', 'rematched', 'privateState'];
+      const subs = evs.map(ev => {
+        const h = e => cb(JSON.parse(e.state ?? e.data), ev, e);
+        emitter.on(ev, h);
+        return [ev, h];
+      });
+      return () => subs.forEach(([ev, h]) => emitter.off(ev, h));
+    },
+    onError(cb)        {
+      // Subscribe to the platform's `gameError` broadcast. cb({ message }).
+      // Returns an unsubscribe fn.
+      emitter.on('gameError', cb);
+      return () => emitter.off('gameError', cb);
+    },
     toast(msg)         { toastFn(msg); },
     leave()            { leaveFn(); },
     nameOf(user)       { return nameOf ? nameOf(user) : user; },

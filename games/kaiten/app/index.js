@@ -412,35 +412,20 @@ export default {
     function redraw() { renderHand(); renderTableau(); renderScores(); renderResults(); }
 
     // ---- events ---------------------------------------------------------
-    function onStarted(e)  { pub = JSON.parse(e.state); chopFirstPick = null; chopsticksActive = false; setStatus('Game started!'); redraw(); }
-    function onMoved(e)    { pub = JSON.parse(e.data); chopFirstPick = null; chopsticksActive = false; redraw(); }
-    function onPrivate(e)  { const p = JSON.parse(e.data); pub = p; myHand = p.myHand ?? []; menuOffer = p.menuOffer ?? null; chopFirstPick = null; chopsticksActive = false; redraw(); }
-    function onFinished(e) {
-      pub = JSON.parse(e.state);
-      const msg = e.winner === 'draw' ? 'Draw!' : `${initials(e.winner)} wins!`;
-      setStatus(`Game over — ${msg}`);
+    const stopState = sdk.onState((state, ev, raw) => {
+      pub = state;
+      if (ev === 'privateState') { myHand = state.myHand ?? []; menuOffer = state.menuOffer ?? null; }
+      if (ev !== 'finished') { chopFirstPick = null; chopsticksActive = false; }
+      if (ev === 'started')   setStatus('Game started!');
+      if (ev === 'rematched') setStatus('Rematch!');
+      if (ev === 'finished')  setStatus(`Game over — ${raw.winner === 'draw' ? 'Draw!' : `${initials(raw.winner)} wins!`}`);
       redraw();
-    }
-    function onRematched(e) { pub = JSON.parse(e.state); chopFirstPick = null; chopsticksActive = false; setStatus('Rematch!'); redraw(); }
-    function onError(e)    { sdk.toast(e.message); }
-
-    sdk.on('started',      onStarted);
-    sdk.on('moved',        onMoved);
-    sdk.on('privateState', onPrivate);
-    sdk.on('finished',     onFinished);
-    sdk.on('rematched',    onRematched);
-    sdk.on('gameError',    onError);
+    });
+    const stopError = sdk.onError(e => sdk.toast(e.message));
 
     setStatus('Loading…');
 
     // ---- cleanup --------------------------------------------------------
-    return () => {
-      sdk.off('started',      onStarted);
-      sdk.off('moved',        onMoved);
-      sdk.off('privateState', onPrivate);
-      sdk.off('finished',     onFinished);
-      sdk.off('rematched',    onRematched);
-      sdk.off('gameError',    onError);
-    };
+    return () => { stopState(); stopError(); };
   }
 };

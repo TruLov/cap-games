@@ -744,26 +744,14 @@ export default {
         finish();
       }
     };
-    const onStarted   = e => apply(JSON.parse(e.state));
-    const onMoved     = e => apply(JSON.parse(e.data));
-    const onFinished  = e => apply(JSON.parse(e.state));
-    const onRematched = e => apply(JSON.parse(e.state));
-    const onError     = e => sdk.toast(e.message);
-
-    sdk.on('started',   onStarted);
-    sdk.on('moved',     onMoved);
-    sdk.on('finished',  onFinished);
-    sdk.on('rematched', onRematched);
-    sdk.on('gameError', onError);
+    const stopState = sdk.onState(state => apply(state));
+    const stopError = sdk.onError(e => sdk.toast(e.message));
 
     return () => {
       stopTumbles();
       clearTimeout(summaryTimer);
-      sdk.off('started',   onStarted);
-      sdk.off('moved',     onMoved);
-      sdk.off('finished',  onFinished);
-      sdk.off('rematched', onRematched);
-      sdk.off('gameError', onError);
+      stopState();
+      stopError();
     };
   },
 };

@@ -83,30 +83,13 @@ export default {
 
     function setStatus(msg) { statusEl.textContent = msg; }
 
-    function onStarted({ firstTurn, state }) {
-      const s = JSON.parse(state);
-      setStatus(`Playing — ${markOf(s, firstTurn)} goes first`);
+    const stopState = sdk.onState((s, ev, raw) => {
+      if (ev === 'started')        setStatus(`Playing — ${markOf(s, raw.firstTurn)} goes first`);
+      else if (ev === 'moved')     setStatus(`Turn: ${markOf(s, s.turn)}`);
+      else if (ev === 'finished')  setStatus(`Game over — ${raw.winner === 'draw' ? 'Draw!' : `${markOf(s, raw.winner)} wins!`}`);
+      else if (ev === 'rematched') setStatus(`Rematch — ${markOf(s, raw.firstTurn)} goes first`);
       renderBoard(s, boardEl, sdk);
-    }
-
-    function onMoved({ data }) {
-      const s = JSON.parse(data);
-      setStatus(`Turn: ${markOf(s, s.turn)}`);
-      renderBoard(s, boardEl, sdk);
-    }
-
-    function onFinished({ winner, state }) {
-      const s = JSON.parse(state);
-      const msg = winner === 'draw' ? 'Draw!' : `${markOf(s, winner)} wins!`;
-      setStatus(`Game over — ${msg}`);
-      renderBoard(s, boardEl, sdk);
-    }
-
-    function onRematched({ firstTurn, state }) {
-      const s = JSON.parse(state);
-      setStatus(`Rematch — ${markOf(s, firstTurn)} goes first`);
-      renderBoard(s, boardEl, sdk);
-    }
+    });
 
     function onDisconnected({ player }) {
       setStatus(`${player} disconnected — waiting 60s…`);
@@ -116,20 +99,13 @@ export default {
       setStatus(`${player} reconnected`);
     }
 
-    sdk.on('started',           onStarted);
-    sdk.on('moved',             onMoved);
-    sdk.on('finished',          onFinished);
-    sdk.on('rematched',         onRematched);
     sdk.on('playerDisconnected', onDisconnected);
     sdk.on('playerReconnected',  onReconnected);
 
     setStatus('Loading…');
 
     return () => {
-      sdk.off('started',            onStarted);
-      sdk.off('moved',              onMoved);
-      sdk.off('finished',           onFinished);
-      sdk.off('rematched',          onRematched);
+      stopState();
       sdk.off('playerDisconnected', onDisconnected);
       sdk.off('playerReconnected',  onReconnected);
     };

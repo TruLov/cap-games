@@ -539,28 +539,13 @@ export default {
       render();
       if (history[0]?.fresh) setTimeout(() => { if (history[0]) history[0].fresh = false; }, 1300);
     };
-    const onStarted      = e => apply(JSON.parse(e.state));
-    const onMoved         = e => apply(JSON.parse(e.data));
-    const onFinished      = e => apply(JSON.parse(e.state));
-    const onRematched     = e => apply(JSON.parse(e.state));
-    const onPrivateState  = e => apply(JSON.parse(e.data));
-    const onError         = e => sdk.toast(e.message);
-
-    sdk.on('started',      onStarted);
-    sdk.on('moved',        onMoved);
-    sdk.on('finished',     onFinished);
-    sdk.on('rematched',    onRematched);
-    sdk.on('privateState', onPrivateState);
-    sdk.on('gameError',    onError);
+    const stopState = sdk.onState(state => apply(state));
+    const stopError = sdk.onError(e => sdk.toast(e.message));
 
     return () => {
       clearTimeout(summaryTimer);
-      sdk.off('started',      onStarted);
-      sdk.off('moved',        onMoved);
-      sdk.off('finished',     onFinished);
-      sdk.off('rematched',    onRematched);
-      sdk.off('privateState', onPrivateState);
-      sdk.off('gameError',    onError);
+      stopState();
+      stopError();
     };
   },
 };
