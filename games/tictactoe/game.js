@@ -1,10 +1,10 @@
 /**
- * TicTacToe game module
+ * TicTacToe — pure game module (platform hook contract).
  *
- * Game interface (cap-games platform):
- *   meta, settingsSchema, init(settings, players), applyMove(state, move, user)
- *   score?(end, players)   — omitted: platform defaultScore is used (W:3 D:1 L:0)
- *   extendService?(srv)    — omitted: no game-specific actions needed
+ * Implements meta, settingsSchema, init, applyMove; score is omitted so the
+ * platform's defaultScore is used (W:3 D:1 L:0), and extendService is omitted
+ * (no game-specific actions needed). Pure logic — no CAP imports. Registered
+ * with the platform by ./cds-plugin.js.
  *
  * The platform identifies players by `user` and assigns no symbols. X/O are a
  * tic-tac-toe concern: init() maps the two players (host first) to marks and

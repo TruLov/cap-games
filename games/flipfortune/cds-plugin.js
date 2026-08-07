@@ -1,3 +1,6 @@
-// Empty marker file — makes CAP load this package so it is discovered as a
-// game by srv/registry.js (every @cap-games/* dependency is a game). All wiring
-// lives in the game interface exported from index.js; there is no CDS model.
+import cds from '@sap/cds';
+import game from './game.js';
+
+// Self-register with the platform. The @sap/cds facade is the only channel a
+// game can reach in both dev and packed-deploy layouts (see srv/registry.js).
+((cds.games ??= {}).flipfortune = { mod: game, dir: import.meta.url });

@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Kaperfahrt — a pirate dice game plugin for the cap-games platform",
   "type": "module",
-  "main": "index.js",
   "scripts": {
     "test": "node --test-reporter=tap --test \"test/**/*.test.js\""
   }

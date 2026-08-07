@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import cds from '@sap/cds';
-import game from '../index.js';
+import game from '../game.js';
 
 const { expect } = cds.test;
 

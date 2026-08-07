@@ -1,14 +1,13 @@
 /**
- * Kaiten — Platform game module.
+ * Kaiten — pure game module (platform hook contract).
  *
- * Implements the cap-games game interface:
- *   meta, settingsSchema, init(settings, players), applyMove(state, move, user),
- *   score(end, players)
- *
- * Pure logic — no CAP imports (per platform conventions). The heavy lifting
- * lives in ./flow (turn engine) and ./scoring (card strategies). Players are
- * identified by their `user` id (the platform assigns no symbols); internally
- * the flow/scoring code treats those ids as opaque per-player tokens.
+ * Implements meta, settingsSchema, init, applyMove, score plus
+ * publicState/privateState for hidden hands. Pure logic — no CAP imports (so
+ * unit tests stay CAP-free). The heavy lifting lives in ./flow (turn engine)
+ * and ./scoring (card strategies). Registered with the platform by
+ * ./cds-plugin.js. Players are identified by their `user` id (the platform
+ * assigns no symbols); internally the flow/scoring code treats those ids as
+ * opaque per-player tokens.
  *
  * ── Roster ─────────────────────────────────────────────────────────────────
  * The platform hands init() the ordered player roster, which kaiten needs to
@@ -27,8 +26,6 @@
  * counts, scores), while each player receives their own hand through a
  * user-scoped `privateState` event.
  */
-
-
 
 import * as flow from './flow.js';
 import { MENUS } from './deck.js';

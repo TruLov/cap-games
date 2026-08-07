@@ -315,16 +315,23 @@ class PlayService extends cds.ApplicationService {
       }
     });
 
-    // load + validate all registered games, then register game extensions
+    // Games have already self-registered onto cds.games via their cds-plugin.js
+    // (run during cds.plugins, before serving). Validate them and wire any
+    // service extensions.
     cds.on('served', async () => {
-      await reg.loadAll();
       for (const [id, game] of Object.entries(reg.all())) {
+        try {
+          reg.validate(id, game);
+        } catch (e) {
+          LOG.error(`invalid game plugin '${id}': ${e.message}`);
+          continue;
+        }
         if (typeof game.extendService === 'function') {
           // getBoard passed alongside srv: engine.js lives in the root
           // project, not a `@cap-games/*` package, so a game plugin can't
           // reach it via a relative import once packed into node_modules
-          // for deployment (see games/mttt/index.js for the one game that
-          // needs it, for its per-move blitz timer).
+          // for deployment (see games/mttt for the one game that needs it,
+          // for its per-move blitz timer).
           game.extendService(this, { getBoard: eng.getBoard });
           LOG.info(`extended PlayService with game: ${id}`);
         }

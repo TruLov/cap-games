@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Flip Fortune — a press-your-luck card game plugin for cap-games",
   "type": "module",
-  "main": "index.js",
   "scripts": {
     "test": "node --test-reporter=tap --test \"test/**/*.test.js\""
   }

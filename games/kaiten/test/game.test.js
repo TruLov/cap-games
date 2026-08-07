@@ -3,7 +3,7 @@
 import cds from '@sap/cds';
 const { expect } = cds.test;
 import { describe, it } from 'node:test';
-import game from '../index.js';
+import game from '../game.js';
 
 describe('kaiten game', () => {
 

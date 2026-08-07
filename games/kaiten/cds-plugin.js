@@ -1,2 +1,6 @@
-// Intentionally empty — marks this package as a CAP plugin so its
-// package.json "cds" section (game registration) is merged into cds.env.
+import cds from '@sap/cds';
+import game from './game.js';
+
+// Self-register with the platform. The @sap/cds facade is the only channel a
+// game can reach in both dev and packed-deploy layouts (see srv/registry.js).
+((cds.games ??= {}).kaiten = { mod: game, dir: import.meta.url });

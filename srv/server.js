@@ -1,30 +1,27 @@
 /**
  * Custom server bootstrap — serves the UI of every registered game.
  *
- * Games are discovered by convention (see srv/registry.js discoverGames): every
- * `@cap-games/*` dependency is a game, its UI served from `<package>/app`
- * (override via a `cds.games.<id>.ui` entry) at /games/<id>. Game plugins need
- * no bootstrap code (and no express dependency) of their own. Legacy plugins
- * that mount their own statics in cds-plugin.js are unaffected.
+ * Games self-register onto cds.games via their cds-plugin.js (see
+ * srv/registry.js). Each registration carries the game package's cds-plugin.js
+ * URL (`dir`), from which we serve its `app/` folder at /games/<id>. Game
+ * plugins need no bootstrap code (and no express dependency) of their own.
  */
 import cds from '@sap/cds';
 import express from 'express';
-import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { discoverGames } from './registry.js';
+import { entry, ids } from './registry.js';
 
-const require = createRequire(import.meta.url);
 const LOG = cds.log('games:registry');
 
 cds.on('bootstrap', app => {
-  for (const [id, entry] of Object.entries(discoverGames())) {
-    if (typeof entry?.init === 'function') continue;            // programmatic module: no static UI
-    const impl = typeof entry === 'string' ? entry : (entry.impl ?? `@cap-games/${id}`);
-    const ui = (typeof entry === 'object' && entry.ui) || 'app';
+  // By bootstrap, cds.plugins has resolved, so every game is registered.
+  for (const id of ids()) {
+    const { dir } = entry(id);
     try {
-      const pkgDir = dirname(require.resolve(`${impl}/package.json`));
-      app.use(`/games/${id}`, express.static(join(pkgDir, ui)));
-      LOG.info(`serving UI for '${id}' from ${impl}/${ui}`);
+      const root = dirname(fileURLToPath(dir));   // game package root
+      app.use(`/games/${id}`, express.static(join(root, 'app')));
+      LOG.info(`serving UI for '${id}' from ${root}/app`);
     } catch (e) {
       LOG.error(`cannot mount UI for game '${id}': ${e.message}`);
     }

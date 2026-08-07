@@ -1,9 +1,10 @@
 /**
- * Flip Fortune — Platform game module.
+ * Flip Fortune — pure game module (platform hook contract).
  *
- * Implements the cap-games game interface (meta, settingsSchema, init, applyMove,
- * score) plus publicState/privateState to hide the draw pile. Pure logic — no CAP
- * imports; the turn engine lives in ./flow and scoring in ./scoring. Players are
+ * Implements meta, settingsSchema, init, applyMove, score plus
+ * publicState/privateState to hide the draw pile. Pure logic — no CAP imports
+ * (so unit tests stay CAP-free); the turn engine lives in ./flow and scoring in
+ * ./scoring. Registered with the platform by ./cds-plugin.js. Players are
  * identified by their `user` id (the platform assigns no symbols).
  *
  * Hidden information here is only the *order of the draw pile* — every played
