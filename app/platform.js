@@ -18,6 +18,8 @@ import { mountPlayers } from './shell/players.js';
 import { mountChat } from './shell/chat.js';
 import { mountWaitingRoom } from './shell/host.js';
 import { renderBrandMark } from './brand-logo.js';
+import { initTheme } from './theme.js';
+import { initProfileEditing } from './profile-edit.js';
 
 // ── State ────────────────────────────────────────────────────
 const shell = {
@@ -36,6 +38,7 @@ const shell = {
 
 let ws      = null;
 let emitter = makeEmitter();
+let showProfilePage = () => {};   // wired by initProfileEditing() at boot
 
 // Re-render the header whenever a profile resolves (own gamertag/avatar may
 // arrive asynchronously after the initial login render). Global/always-on —
@@ -114,30 +117,8 @@ function showView(name) {
   if (el) el.hidden = false;
 }
 
-// ── Theme (light/dark) ──────────────────────────────────────────
-// Applied via [data-theme] on <html> — style.css defines both palettes
-// under the same variable names. index.html/logout.html set the initial
-// value inline (before first paint, no flash); this just handles toggling
-// + persistence for the running session.
-const ICON_SUN =
-  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" ' +
-  'stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4' +
-  'M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
-const ICON_MOON =
-  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" ' +
-  'stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>';
-
-function applyTheme(theme) {
-  document.documentElement.dataset.theme = theme;
-  localStorage.setItem('theme', theme);
-  const btn = $('sh-theme-toggle');
-  if (btn) btn.innerHTML = theme === 'light' ? ICON_MOON : ICON_SUN;
-}
-function toggleTheme() {
-  applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
-}
-$('sh-theme-toggle').onclick = toggleTheme;
-applyTheme(document.documentElement.dataset.theme ?? 'dark'); // sync button glyph to the inline pre-paint choice
+// ── Theme (light/dark) — see theme.js ─────────────────────────
+initTheme();
 
 // ── Account control (header, top-right) ───────────────────────
 // One control, three shapes:
@@ -664,85 +645,11 @@ $('sh-btn-join').onclick = () => {
 };
 $('sh-btn-refresh-rooms').onclick = () => loadOpenRooms();
 
-// ── Edit profile (gamertag + avatar) ────────────────────────────
-// Client-side resize before upload: avoids relying solely on the server
-// rejecting an oversized image — the user gets a usable avatar instead of
-// an error. Downscales to a small square and re-encodes as JPEG, shrinking
-// quality until the result fits under maxBytes.
-async function resizeImageToLimit(file, maxBytes = 256 * 1024, maxDim = 256) {
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
-  const w = Math.max(1, Math.round(bitmap.width * scale));
-  const h = Math.max(1, Math.round(bitmap.height * scale));
-  const canvas = document.createElement('canvas');
-  canvas.width = w; canvas.height = h;
-  canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h);
-
-  let quality = 0.85;
-  for (let i = 0; i < 6; i++) {
-    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
-    if (blob.size <= maxBytes || quality <= 0.3) return blob;
-    quality -= 0.15;
-  }
-  return new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.3));
-}
-
-function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload  = () => resolve(r.result.split(',')[1]);
-    r.onerror = reject;
-    r.readAsDataURL(blob);
-  });
-}
-
-let pendingAvatarBlob = null;
-
-function renderProfileAvatarPreview() {
-  const el = $('profile-avatar-preview');
-  if (pendingAvatarBlob) {
-    el.innerHTML = `<img src="${URL.createObjectURL(pendingAvatarBlob)}" alt="">`;
-    return;
-  }
-  const url = avatarUrlOf(shell.user.id);
-  el.innerHTML = url ? `<img src="${url}" alt="">` : '';
-  if (!url) el.textContent = initials(nameOf(shell.user.id));
-}
-
-async function showProfilePage() {
-  pendingAvatarBlob = null;
-  $('profile-gamertag-input').value = profiles.get(shell.user.id)?.gamertag ?? '';
-  renderProfileAvatarPreview();
-  showView('profile');
-}
-
-$('profile-avatar-input').onchange = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  try {
-    pendingAvatarBlob = await resizeImageToLimit(file);
-    renderProfileAvatarPreview();
-  } catch { toast('Could not read that image'); }
-};
-
-$('profile-save-btn').onclick = async () => {
-  const tag = $('profile-gamertag-input').value.trim();
-  try {
-    if (tag) await serviceCall('profile', 'POST', 'saveGamertag', { gamertag: tag });
-    if (pendingAvatarBlob) {
-      const data = await blobToBase64(pendingAvatarBlob);
-      await serviceCall('profile', 'POST', 'saveAvatar', { data, mediaType: 'image/jpeg' });
-      pendingAvatarBlob = null;
-    }
-    profiles.delete(shell.user.id);
-    await ensureProfiles([shell.user.id]);
-    toast('Profile saved');
-    showView('lobby');
-  } catch (e) {
-    toast(e.message || 'Could not save profile');
-  }
-};
-$('profile-back-btn').onclick = () => showView('lobby');
+// ── Edit profile (gamertag + avatar) — see profile-edit.js ──────
+({ showProfilePage } = initProfileEditing({
+  $, serviceCall, profiles, ensureProfiles, nameOf, avatarUrlOf, initials,
+  getUserId: () => shell.user?.id, toast, showView,
+}));
 
 renderBrandMark($('sh-logo-canvas'), {
   fontPx: 108, dripCount: 3, pivotXRatio: 0.03, pivotYRatio: 0.02, seed: 4242,
