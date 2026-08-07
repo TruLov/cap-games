@@ -53,9 +53,16 @@ export async function mountWaitingRoom(el, sdk, gameModule) {
   el.querySelector('#sh-btn-start')?.addEventListener('click',
     () => sdk.send('start', { room: sdk.room.id }));
 
-  const settingsCleanup = hasSettings
-    ? (gameModule.renderSettings(el.querySelector('#sh-settings-slot'), sdk) ?? null)
-    : null;
+  // Render the game's settings panel inside a shadow root too, for the same
+  // style isolation as the game board (mountGame) — the panel is a game-owned
+  // surface that shouldn't inherit the platform's button/heading theme.
+  let settingsCleanup = null;
+  if (hasSettings) {
+    const slot = el.querySelector('#sh-settings-slot');
+    const sroot = document.createElement('div');
+    slot.attachShadow({ mode: 'open' }).appendChild(sroot);
+    settingsCleanup = gameModule.renderSettings(sroot, sdk) ?? null;
+  }
 
   return () => { settingsCleanup?.(); };
 }

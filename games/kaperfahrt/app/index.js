@@ -63,8 +63,6 @@ function scene(st) {
 const SEGMENTS = 14; // segmented progress bar cells
 
 const STYLE = `
-  @font-face{font-family:'Pixelify Sans';src:url('./pixelify.ttf') format('truetype');font-weight:400 700;font-display:swap}
-
   .kf-root{
     --ink:#14152a; --ink2:#20223f; --panel:#2b2d52; --panel2:#343869;
     --key:#565a9c; --line:#0e0f24; --cream:#f4efe1; --muted:#a6a7d0;
@@ -284,6 +282,9 @@ const STYLE = `
 
 export default {
   mount(rootEl, sdk) {
+    // @font-face must be registered on the document — it's ignored inside the
+    // shadow root the platform mounts us in. Absolute URL via import.meta.url.
+    sdk.loadFont(`@font-face{font-family:'Pixelify Sans';src:url('${new URL('./pixelify.ttf', import.meta.url).href}') format('truetype');font-weight:400 700;font-display:swap}`);
     const me = sdk.me.user;
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     let st = null;                 // full public game state

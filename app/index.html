@@ -21,7 +21,6 @@
       <button id="sh-btn-copy" class="sh-small sh-ghost" hidden title="Copy room code">Copy</button>
       <button id="sh-btn-invite" class="sh-small sh-ghost" hidden title="Copy invite link">Invite</button>
       <span id="sh-toast" class="sh-toast" hidden></span>
-      <button id="sh-btn-leave" class="sh-small danger" hidden>Leave</button>
       <button id="sh-theme-toggle" class="sh-small sh-ghost" title="Toggle light/dark theme"></button>
       <div id="sh-account" class="sh-account" hidden>
         <button id="sh-account-btn" class="sh-account-btn"></button>
@@ -115,6 +114,9 @@
       </aside>
     </div>
   </main>
+
+  <!-- Floating exit — bottom-left while in a room, overlays any game/shadow content -->
+  <button id="sh-btn-exit" class="sh-exit" hidden title="Exit game">← Exit</button>
 
   <script type="module" src="platform.js"></script>
 </body>

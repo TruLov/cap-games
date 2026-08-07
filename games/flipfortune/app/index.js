@@ -66,7 +66,6 @@ function cardLabel(c) {
 }
 
 const STYLE = `
-  @font-face{font-family:'Pixelify Sans';src:url('./pixelify.ttf') format('truetype');font-weight:400 700;font-display:swap}
 
   .ff-root{
     --felt:#1e5638; --felt-d:#123c26; --felt-l:#2a6b46;
@@ -269,6 +268,9 @@ const STYLE = `
 
 export default {
   mount(rootEl, sdk) {
+    // @font-face must be registered on the document — it's ignored inside the
+    // shadow root the platform mounts us in. Absolute URL via import.meta.url.
+    sdk.loadFont(`@font-face{font-family:'Pixelify Sans';src:url('${new URL('./pixelify.ttf', import.meta.url).href}') format('truetype');font-weight:400 700;font-display:swap}`);
     const me = sdk.me.user;
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     let st = null;
@@ -334,7 +336,7 @@ export default {
       ghost.style.top = `${from.top + from.height / 2 - to.height / 2}px`;
       ghost.style.transform = 'scaleX(.06) rotate(-8deg)';   // edge-on: "drawn from the deck"
       ghost.style.opacity = '.9';
-      document.body.appendChild(ghost);
+      rootEl.appendChild(ghost);   // inside our shadow root (was document.body) so it keeps .ff-card/.ff-flying styles; position:fixed stays viewport-relative
       targetEl.style.visibility = 'hidden';
 
       // phase 1: rise + flip face-up

@@ -395,10 +395,18 @@ function applyRoomLayout() {
 }
 
 function mountGame() {
-  const el = $('game-root');
-  el.innerHTML = '';
-  el.classList.add('gm-game-active');   // opt this game's DOM out of shell chrome styling — see style.css
-  shell.matchUnmount = shell.gameModule.mount(el, shell.sdk) ?? null;
+  const host = $('game-root');
+  host.innerHTML = '';                    // clear any leftover waiting-room light DOM
+  host.classList.add('gm-game-active');
+  // Mount the game inside a shadow root so the platform's theme (global button
+  // clip-path/screws, headings, HUD grid) can't reach in and the game's own
+  // styles can't leak out — every game owns its entire look. attachShadow can
+  // only run once per element, so reuse an existing root across rematches.
+  const shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' });
+  shadow.innerHTML = '';
+  const root = document.createElement('div');   // real element so games keep classList/style/dataset
+  shadow.appendChild(root);
+  shell.matchUnmount = shell.gameModule.mount(root, shell.sdk) ?? null;
 }
 
 async function showWaitingRoom() {
@@ -485,8 +493,15 @@ async function joinRoom(roomId, code, game) {
     });
 
     showView('room');
+    $('sh-btn-exit').hidden = false;
     shell.playersUnmount = mountPlayers($('room-players'), shell.sdk, []);
-    shell.chatUnmount    = mountChat($('room-chat'), shell.sdk);
+    // A game can render its own chat UI (via sdk.chat) by declaring
+    // meta.ownsChat — the platform still owns the transport/data, only the
+    // default panel is skipped and its grid area collapsed (such a game should
+    // supply a meta.layout without a "chat" area).
+    const ownsChat = shell.gameModule?.meta?.ownsChat === true;
+    $('room-layout').querySelector('.gm-chat').hidden = ownsChat;
+    shell.chatUnmount = ownsChat ? null : mountChat($('room-chat'), shell.sdk);
 
     // room-scoped listeners — all torn down together in leaveRoom()
     emitter.on('roster',       onRoster);
@@ -539,6 +554,7 @@ function leaveRoom() {
   $('sh-room-id').hidden = true;
   $('sh-btn-copy').hidden = true;
   $('sh-btn-invite').hidden = true;
+  $('sh-btn-exit').hidden = true;
   showView('lobby');
   loadLobby();
 }
@@ -627,7 +643,7 @@ $('sh-logo-btn').onclick = () => {
   else showView('landing');
 };
 
-$('sh-btn-leave').onclick  = leaveRoom;
+$('sh-btn-exit').onclick   = leaveRoom;
 $('sh-btn-copy').onclick   = () => {
   navigator.clipboard.writeText(shell.room?.code ?? '');
   toast('Room code copied');

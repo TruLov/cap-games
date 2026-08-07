@@ -314,23 +314,10 @@ button.sh-ghost {
 }
 
 /* ── Game-owned surface ─────────────────────────────────────
-   Everything a game module (or its renderSettings panel) renders opts out
-   of the shell's metal treatment — a game supplies its own look via its
-   own <style> block (see games/mttt/app/index.js, games/kaiten/app/index.js,
-   etc.), same document/no iframe so it'd otherwise inherit the unscoped
-   button/input/heading rules above. Scoped to .gm-game-active (set by
-   platform.js's mountGame()/showWaitingRoom() only while an actual game
-   module is mounted, i.e. NOT during the platform's own waiting-room
-   chrome) and to #sh-settings-slot (a game's renderSettings panel, which
-   can render during the waiting room, before that class is set).
-   Wrapped entirely in :where() (zero specificity) so it's a pure fallback
-   — any class a game's own <style> block declares (e.g. .ttt-cell) wins
-   outright, rather than fighting the #game-root id's specificity. */
-:where(#game-root.gm-game-active, #sh-settings-slot) :where(button, input, select, h1, h2) {
-  all: revert;
-  font: inherit;
-}
-:where(#game-root.gm-game-active, #sh-settings-slot) :where(button) { cursor: pointer; }
+   A game board (mountGame) and its renderSettings panel (shell/host.js) are
+   each mounted inside a shadow root, so the shell's global button/heading/HUD
+   theme physically cannot reach in and the game's own styles cannot leak out —
+   every game owns its entire look. No CSS opt-out needed here anymore. */
 
 h1 {
   font-family: var(--font-mono);
@@ -452,6 +439,19 @@ button.sh-ghost::before, button.sh-ghost::after { display: none; }
 #sh-theme-toggle::before, #sh-theme-toggle::after,
 .sh-icon-btn::before, .sh-icon-btn::after,
 .sh-account-btn.sh-avatar::before, .sh-account-btn.sh-avatar::after { display: none; }
+
+/* Floating exit — bottom-left over the game (crazygames-style). Deliberately
+   plain (no screws/chamfer) so it reads as neutral platform chrome, not part
+   of any game's look. */
+.sh-exit {
+  position: fixed; left: var(--space-3); bottom: var(--space-3); z-index: 50;
+  clip-path: none; padding: .5rem 1rem; font-size: .82rem;
+  background: var(--surface); color: var(--text); text-shadow: none;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-sheen);
+}
+.sh-exit::before, .sh-exit::after { display: none; }
+.sh-exit:hover { background: var(--surface-hover); filter: none; }
 
 /* ── Inputs ─────────────────────────────────────────────── */
 input, select {

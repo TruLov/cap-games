@@ -26,8 +26,21 @@
  *   avatarUrl(user)         — avatar image URL for a user id, or null if
  *                             they haven't set one (render your own fallback,
  *                             e.g. initials, in that case)
+ *   chat                    — chat hook: the platform owns the transport (and,
+ *                             later, history); a game that renders its own chat
+ *                             UI (meta.ownsChat = true) drives it through here
+ *                             instead of the platform's default chat panel.
+ *                             .send(text) / .onMessage(fn) / .offMessage(fn),
+ *                             fn receives { room, player, text, ts }.
+ *   loadFont(css)           — inject a document-level <style> (e.g. @font-face).
+ *                             A game's own styles live in its shadow root, but
+ *                             @font-face is ignored inside a shadow root, so
+ *                             fonts must be registered on the document. Use an
+ *                             absolute URL: new URL('../x.ttf', import.meta.url).
  * }
  */
+
+const loadedFonts = new Set();   // dedupe loadFont across mounts/rooms in a session
 
 export function makeSdk({ room, me, players, wsSend, emitter, toastFn, leaveFn, nameOf, avatarUrl }) {
   return {
@@ -41,6 +54,18 @@ export function makeSdk({ room, me, players, wsSend, emitter, toastFn, leaveFn, 
     leave()            { leaveFn(); },
     nameOf(user)       { return nameOf ? nameOf(user) : user; },
     avatarUrl(user)    { return avatarUrl ? avatarUrl(user) : null; },
+    chat: {
+      send(text)     { wsSend('chat', { room: room.id, text }); },
+      onMessage(fn)  { emitter.on('chatMessage', fn); },
+      offMessage(fn) { emitter.off('chatMessage', fn); },
+    },
+    loadFont(css) {
+      if (loadedFonts.has(css)) return;
+      loadedFonts.add(css);
+      const s = document.createElement('style');
+      s.textContent = css;
+      document.head.appendChild(s);
+    },
   };
 }
 
