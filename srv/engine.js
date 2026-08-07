@@ -80,16 +80,20 @@ function allGraceTimers(roomId) {
   return [...(graceTimers[roomId]?.keys() ?? [])];
 }
 
-// --- Default scoring (W:3 D:1 L:0) — used if game.score() not provided ---
-// end.winner is a `user` id (or 'draw'); scoring keys on user.
-function defaultScore(end, players) {
+// --- Default scoring — used if game.score() not provided ---
+// end.winner is a `user` id (or 'draw'); result keys on user (W/D/L). Points
+// default to W:3 D:1 L:0, but a game that carries its own tally can pass
+// `pointsOf(user) → number` to attach real points while reusing this W/D/L
+// mapping instead of hand-rolling one (see games/flipfortune).
+function defaultScore(end, players, { pointsOf } = {}) {
   return players
     .filter(p => !p.spectator)
     .map(p => ({
       user:   p.user,
       result: end.winner === 'draw'  ? 'draw'
             : p.user === end.winner ? 'win' : 'loss',
-      points: end.winner === 'draw'  ? 1
+      points: pointsOf ? pointsOf(p.user)
+            : end.winner === 'draw'  ? 1
             : p.user === end.winner ? 3 : 0,
     }));
 }

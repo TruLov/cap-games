@@ -514,7 +514,8 @@ class PlayService extends cds.ApplicationService {
     const game = reg.get(room.game);
     const scores = typeof game.score === 'function'
       ? game.score(result.end, players)
-      : eng.defaultScore(result.end, players);
+      : eng.defaultScore(result.end, players,
+          game.pointsOf ? { pointsOf: u => game.pointsOf(result.end, u) } : {});
 
     for (const s of scores) {
       const existing = await SELECT.one.from(Leaderboard).where({ user: s.user, game: room.game });

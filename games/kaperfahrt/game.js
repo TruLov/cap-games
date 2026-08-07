@@ -11,10 +11,13 @@
  * ./deck.js. Registered with the platform by ./cds-plugin.js.
  *
  * All state is public (dice and cards are open information), so no
- * publicState/privateState projection is needed.
+ * publicState/privateState projection is needed. No score() either: the
+ * leaderboard result is plain win/draw/loss (3/1/0), which is exactly the
+ * platform's defaultScore — so the game omits it and lets the platform apply
+ * the default.
  */
 
-import { init, applyMove, score } from './flow.js';
+import { init, applyMove } from './flow.js';
 
 export default {
 
@@ -34,9 +37,5 @@ export default {
 
   applyMove(state, move, user) {
     return applyMove(state, move, user);
-  },
-
-  score(end, players) {
-    return score(end, players);
   },
 };

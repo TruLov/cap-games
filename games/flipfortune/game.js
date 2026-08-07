@@ -13,7 +13,7 @@
  * everyone; there are no per-player secrets.
  */
 
-import { init, applyMove, score } from './flow.js';
+import { init, applyMove } from './flow.js';
 
 export default {
   meta: { name: 'Flip Fortune', minPlayers: 2, maxPlayers: 8 },
@@ -30,8 +30,11 @@ export default {
     return applyMove(state, move, user);
   },
 
-  score(end, players) {
-    return score(end, players);
+  // No score(): reuse the platform's defaultScore win/loss mapping and just
+  // supply the real per-player points (the running tally), so the W/D/L logic
+  // lives in one place. end.winner is always a single user here.
+  pointsOf(end, user) {
+    return end.scores?.[user] ?? 0;
   },
 
   // Broadcast to the whole room: everything except the hidden pile order.

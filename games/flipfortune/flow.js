@@ -247,18 +247,10 @@ function endRound(state, _rng) {
   return ok(state);
 }
 
-// ---- leaderboard scoring --------------------------------------------------
-
-export function score(end, players) {
-  const scores = end.scores ?? {};
-  return players
-    .filter(p => !p.spectator)
-    .map(p => ({
-      user: p.user,
-      result: p.user === end.winner ? 'win' : 'loss',
-      points: scores[p.user] ?? 0,
-    }));
-}
+// No leaderboard scorer here: the win/loss mapping is the platform's
+// defaultScore (resolveWinner only ever yields a single winner, never 'draw'),
+// and the real per-player points come from end.scores via the game's pointsOf
+// hook (see game.js). end.winner is a single user id.
 
 // ---- helpers --------------------------------------------------------------
 

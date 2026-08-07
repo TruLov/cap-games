@@ -28,6 +28,9 @@ import cds from '@sap/cds';
  *   init(settings, players)          → state   (players: ordered [{ user, isHost }])
  *   applyMove(state, move, user)     → { state, end } | { error }
  *   score?(end, players)             → [{ user, result, points? }]  (end.winner = user|'draw')
+ *   pointsOf?(end, user)             → number  (ignored if score() is given;
+ *     lets a game keep the platform's default W/D/L result mapping while
+ *     attaching its own points instead of hand-rolling a full score())
  *   publicState?/privateState?(state, user) → hidden-information projection
  *   extendService?(srv)              → void  (optional extra WS actions/events)
  */

@@ -307,21 +307,9 @@ function winnerByScore(scores, players) {
   return tie ? 'draw' : winner;
 }
 
-// ---- leaderboard scoring --------------------------------------------------
-
-export function score(end, players) {
-  return players
-    .filter(p => !p.spectator)
-    .map(p => {
-      const draw = end.winner === 'draw';
-      const win = !draw && p.user === end.winner;
-      return {
-        user: p.user,
-        result: draw ? 'draw' : (win ? 'win' : 'loss'),
-        points: draw ? 1 : (win ? 3 : 0),
-      };
-    });
-}
+// No leaderboard scorer: kaperfahrt awards plain win/draw/loss (3/1/0), which
+// is exactly the platform's defaultScore, so the game omits score() entirely
+// (see game.js). end.winner (a user id or 'draw') is computed by winnerByScore.
 
 // ---- helpers --------------------------------------------------------------
 

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { FACES, scoreDice, scoreBreakdown } from '../dice.js';
-import { applyMove, init, score } from '../flow.js';
+import { applyMove, init } from '../flow.js';
 
 // ---- scripted RNG ---------------------------------------------------------
 // rollFace maps rng() -> FACES[floor(rng()*6)]. Emit the midpoint of a face's
@@ -228,14 +228,8 @@ test('init seats players in order and starts on the first player', () => {
   assert.equal(s.phase, 'awaitRoll');
 });
 
-test('score maps the winner to a leaderboard row', () => {
-  const rows = score({ winner: 'a', scores: { a: 6100, b: 3000 } },
-    [{ user: 'a' }, { user: 'b' }, { user: 'c', spectator: true }]);
-  assert.deepEqual(rows, [
-    { user: 'a', result: 'win', points: 3 },
-    { user: 'b', result: 'loss', points: 0 },
-  ]);
-});
+// (leaderboard scoring is the platform's defaultScore — covered in
+// test/unit/engine.test.js; kaperfahrt no longer defines its own score())
 
 // ---- Island of Skulls -----------------------------------------------------
 
