@@ -379,6 +379,12 @@ function mountGame() {
   const host = $('game-root');
   host.innerHTML = '';                    // clear any leftover waiting-room light DOM
   host.classList.add('gm-game-active');
+  // data-game on <html> (mirrors theme.js's data-theme) scopes a game's chrome
+  // reskin — chat/roster + #sh-btn-exit/#room-match-controls, which live
+  // outside #room-layout. Set only once a match is actually mounted (NOT in the
+  // waiting room, which keeps the default platform look), cleared in
+  // showWaitingRoom()/leaveRoom().
+  document.documentElement.dataset.game = shell.room?.game ?? '';
   // Mount the game inside a shadow root so the platform's theme (global button
   // clip-path/screws, headings, HUD grid) can't reach in and the game's own
   // styles can't leak out — every game owns its entire look. attachShadow can
@@ -394,6 +400,14 @@ async function showWaitingRoom() {
   const el = $('game-root');
   el.innerHTML = '';
   el.classList.remove('gm-game-active');
+  document.documentElement.dataset.game = '';   // back to default platform look
+  // Once a match has been mounted, #game-root carries a shadow root (mountGame)
+  // that permanently owns rendering — the waiting-room light DOM below would
+  // stay hidden behind the stale game board (so the host couldn't reach the
+  // switch-game control after an Abort). A <slot> projects the light DOM back
+  // through; mountGame clears the shadow root (dropping the slot) on start.
+  if (el.shadowRoot) el.shadowRoot.innerHTML = '<slot></slot>';
+
   shell.waitingUnmount = await mountWaitingRoom(el, shell.sdk, shell.gameModule) ?? null;
 }
 
@@ -532,6 +546,7 @@ function leaveRoom() {
   shell.sdk  = null;
   shell.gameModule = null;
   shell.players.length = 0;
+  document.documentElement.dataset.game = '';
   $('sh-room-id').hidden = true;
   $('sh-btn-copy').hidden = true;
   $('sh-btn-invite').hidden = true;

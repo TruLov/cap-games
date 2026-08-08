@@ -543,3 +543,128 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
    below its intrinsic size and the row overflows the 280px chat column. */
 .sh-chat-input  { display: flex; gap: var(--space-2); margin-top: var(--space-2); min-width: 0; }
 #sh-chat-text   { min-width: 0; }
+
+/* ── Kaperfahrt pixel reskin ──────────────────────────────
+   Roster/chat/match-controls/exit are shell-owned (state and behavior stay
+   untouched — see platform.js, shell/players.js, shell/chat.js). Only their
+   look changes here, scoped to html[data-game="kaperfahrt"] (set by
+   platform.js's mountGame() once a match is active, cleared in
+   showWaitingRoom()/leaveRoom() — so the pre-match waiting room where you
+   pick a game keeps the default platform look). Palette matches the hardcoded
+   values in games/kaperfahrt/app/index.js's own STYLE constant — the two
+   surfaces can't share CSS custom props across the shadow-root boundary
+   that game deliberately mounts inside, so the hex values are duplicated
+   on purpose. Fixed dark palette, like kf-root itself — ignores light/dark
+   shell theme. */
+html[data-game="kaperfahrt"] {
+  --kfx-ink: #14152a; --kfx-ink2: #20223f; --kfx-panel: #2b2d52; --kfx-panel2: #343869;
+  --kfx-key: #565a9c; --kfx-line: #0e0f24; --kfx-cream: #f4efe1; --kfx-muted: #a6a7d0;
+  --kfx-blue: #3b7dd8; --kfx-blue-d: #22508f; --kfx-red: #e5484d; --kfx-red-d: #9d2b2f;
+  --kfx-gold: #f5c542; --kfx-gold-d: #b0821a;
+  --kfx-pix: 'Pixelify Sans', ui-monospace, "SFMono-Regular", "Courier New", monospace;
+}
+
+html[data-game="kaperfahrt"] .gm-roster,
+html[data-game="kaperfahrt"] .gm-chat {
+  background: linear-gradient(180deg, var(--kfx-panel), #242648);
+  border: 3px solid var(--kfx-line); border-radius: 14px;
+  box-shadow: inset 0 0 0 2px var(--kfx-key);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+html[data-game="kaperfahrt"] .gm-roster h3,
+html[data-game="kaperfahrt"] .gm-chat h3 {
+  font-family: var(--kfx-pix); color: var(--kfx-muted); text-align: center;
+}
+html[data-game="kaperfahrt"] .gm-roster h3::before,
+html[data-game="kaperfahrt"] .gm-chat h3::before { content: none; }
+
+html[data-game="kaperfahrt"] .sh-player {
+  background: var(--kfx-ink2); border: 2px solid var(--kfx-line);
+  border-radius: 10px; box-shadow: none; font-family: var(--kfx-pix);
+}
+html[data-game="kaperfahrt"] .sh-player.me { border-color: var(--kfx-blue); background: var(--kfx-ink2); }
+html[data-game="kaperfahrt"] .sh-sym {
+  background: var(--kfx-panel2); border: 2px solid var(--kfx-line); border-radius: 6px; color: var(--kfx-cream);
+}
+html[data-game="kaperfahrt"] .sh-name { color: var(--kfx-cream); }
+
+html[data-game="kaperfahrt"] #room-chat,
+html[data-game="kaperfahrt"] .sh-chat-messages {
+  background: var(--kfx-ink2); border: 3px solid var(--kfx-line); border-radius: 14px;
+  box-shadow: inset 0 0 0 2px var(--kfx-key); backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+html[data-game="kaperfahrt"] .sh-chat-msg { color: var(--kfx-cream); font-family: var(--kfx-pix); font-size: .82rem; }
+html[data-game="kaperfahrt"] .sh-chat-msg strong { color: var(--kfx-gold); }
+html[data-game="kaperfahrt"] .sh-chat-sys { color: var(--kfx-muted); }
+html[data-game="kaperfahrt"] #sh-chat-text {
+  font-family: var(--kfx-pix); background: var(--kfx-panel2); color: var(--kfx-cream);
+  border: 2px solid var(--kfx-line); border-radius: 8px; box-shadow: none;
+}
+
+/* Pixel button base — same border/box-shadow stack as kf-root's .kf-btn,
+   dropping the default shell button's clip-path notches and screw dots. */
+html[data-game="kaperfahrt"] #room-match-controls button,
+html[data-game="kaperfahrt"] .sh-player button,
+html[data-game="kaperfahrt"] #sh-chat-send,
+html[data-game="kaperfahrt"] #sh-btn-exit {
+  font-family: var(--kfx-pix); font-weight: 700; letter-spacing: .02em;
+  color: var(--kfx-cream); border: 3px solid var(--kfx-line); border-radius: 9px;
+  padding: .5rem 1.05rem; clip-path: none; text-shadow: none;
+  background: var(--kfx-blue); box-shadow: inset 0 2px 0 rgba(255,255,255,.25), 0 4px 0 var(--kfx-blue-d);
+  /* snappy pixel press feel, same timing as kf-root's .kf-btn */
+  transition: transform .08s ease, box-shadow .08s ease, filter .08s ease;
+}
+html[data-game="kaperfahrt"] #room-match-controls button::before,
+html[data-game="kaperfahrt"] #room-match-controls button::after,
+html[data-game="kaperfahrt"] .sh-player button::before,
+html[data-game="kaperfahrt"] .sh-player button::after,
+html[data-game="kaperfahrt"] #sh-chat-send::before,
+html[data-game="kaperfahrt"] #sh-chat-send::after,
+html[data-game="kaperfahrt"] #sh-btn-exit::before,
+html[data-game="kaperfahrt"] #sh-btn-exit::after { display: none; }
+html[data-game="kaperfahrt"] #room-match-controls button:hover,
+html[data-game="kaperfahrt"] .sh-player button:hover,
+html[data-game="kaperfahrt"] #sh-chat-send:hover,
+html[data-game="kaperfahrt"] #sh-btn-exit:hover { filter: brightness(1.08); background: var(--kfx-blue); }
+html[data-game="kaperfahrt"] #room-match-controls button:active,
+html[data-game="kaperfahrt"] .sh-player button:active,
+html[data-game="kaperfahrt"] #sh-chat-send:active,
+html[data-game="kaperfahrt"] #sh-btn-exit:active {
+  transform: translateY(4px); box-shadow: inset 0 2px 0 rgba(255,255,255,.2), 0 0 0 var(--kfx-blue-d);
+}
+html[data-game="kaperfahrt"] .sh-player button.sh-small { padding: .32rem .7rem; font-size: .76rem; }
+/* Destructive actions (kick, abort match, exit) get the red "stop" treatment */
+html[data-game="kaperfahrt"] #sh-btn-abort,
+html[data-game="kaperfahrt"] #sh-btn-exit,
+html[data-game="kaperfahrt"] .sh-player .sh-kick {
+  background: var(--kfx-red); box-shadow: inset 0 2px 0 rgba(255,255,255,.25), 0 4px 0 var(--kfx-red-d);
+}
+html[data-game="kaperfahrt"] #sh-btn-abort:hover,
+html[data-game="kaperfahrt"] #sh-btn-exit:hover,
+html[data-game="kaperfahrt"] .sh-player .sh-kick:hover { background: var(--kfx-red); }
+html[data-game="kaperfahrt"] #sh-btn-abort:active,
+html[data-game="kaperfahrt"] #sh-btn-exit:active,
+html[data-game="kaperfahrt"] .sh-player .sh-kick:active { box-shadow: inset 0 2px 0 rgba(255,255,255,.2), 0 0 0 var(--kfx-red-d); }
+html[data-game="kaperfahrt"] #sh-btn-rematch {
+  background: var(--kfx-gold); color: #3a2a00; box-shadow: inset 0 2px 0 rgba(255,255,255,.4), 0 4px 0 var(--kfx-gold-d);
+}
+html[data-game="kaperfahrt"] #sh-btn-rematch:hover { background: var(--kfx-gold); }
+html[data-game="kaperfahrt"] #sh-btn-rematch:active { box-shadow: inset 0 2px 0 rgba(255,255,255,.3), 0 0 0 var(--kfx-gold-d); }
+
+/* Abort/Rematch/Back-to-room move from the top of the room view down to the
+   bottom of the screen. Bottom-center, not bottom-right — the roster/chat
+   column also reaches the bottom of the viewport, so bottom-right would sit
+   right on top of the chat's Send button. Bottom-left is the Exit button. */
+html[data-game="kaperfahrt"] #room-match-controls {
+  position: fixed; left: 50%; bottom: var(--space-3); transform: translateX(-50%); z-index: 50; padding: 0;
+}
+
+/* Narrow screens: the layout stacks (game/roster/chat) and the body scrolls,
+   so the fixed Exit + Abort bar would overlay the chat input at the very
+   bottom of the page. Reserve room below the last panel so nothing hides
+   under the bar, and shrink the buttons to fit side by side. */
+@media (max-width: 760px) {
+  html[data-game="kaperfahrt"] .gm-layout { padding-bottom: 4.5rem; }
+  html[data-game="kaperfahrt"] #room-match-controls button,
+  html[data-game="kaperfahrt"] #sh-btn-exit { padding: .45rem .8rem; font-size: .82rem; }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "snake-ladder",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@cap-js/mcp": "^1.4.1",
+    "@sap/cds": "^10"
+  },
+  "devDependencies": {
+    "@cap-js/sqlite": "^3"
+  },
+  "scripts": {
+    "start": "cds-serve"
+  },
+  "private": true,
+  "cds": {
+    "mcp": {
+      "per_action_tool": true
+    }
+  }
+}

@@ -1,0 +1,46 @@
+
+###
+# @name createGame
+POST http://localhost:4004/odata/v4/game/GameSessions
+Content-Type: application/json
+
+{
+  "name": "My First Multiplayer Game"
+}
+
+###
+# @name joinAlice
+@id={{createGame.response.body.ID}}
+
+POST http://localhost:4004/odata/v4/game/Players
+Content-Type: application/json
+
+{
+  "session_ID": "{{id}}",
+  "name": "Alice",
+  "turnOrder": 1
+}
+
+###
+# @name joinBob
+POST http://localhost:4004/odata/v4/game/Players
+Content-Type: application/json
+
+{
+  "session_ID": "{{id}}",
+  "name": "Bob",
+  "turnOrder": 2
+}
+
+###
+@sessionID={{joinAlice.response.body.session_ID}}
+
+###
+# @name asdasd
+POST http://localhost:4004/odata/v4/game/GameSessions({{sessionID}})/startGame
+Content-Type: application/json
+
+{}
+
+###
+GET http://localhost:4004/odata/v4/game/Players?$filter=session_ID eq '{{sessionID}}'
