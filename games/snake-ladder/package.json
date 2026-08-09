@@ -1,21 +1,13 @@
 {
-  "name": "snake-ladder",
+  "name": "@cap-games/snake-ladder",
   "version": "1.0.0",
+  "description": "Snake & Ladder game plugin for cap-games platform",
   "type": "module",
-  "dependencies": {
-    "@cap-js/mcp": "^1.4.1",
-    "@sap/cds": "^10"
-  },
-  "devDependencies": {
-    "@cap-js/sqlite": "^3"
-  },
-  "scripts": {
-    "start": "cds-serve"
-  },
-  "private": true,
   "cds": {
-    "mcp": {
-      "per_action_tool": true
+    "requires": {
+      "snake-ladder": {
+        "model": "@cap-games/snake-ladder/db/schema.cds"
+      }
     }
   }
 }
