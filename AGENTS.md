@@ -6,6 +6,37 @@ Games are self-registering plugin packages — adding a game never touches platf
 
 ---
 
+## Design Principles
+
+This codebase is a **hexagonal (ports-and-adapters)** architecture riding on
+CAP's **agnostic abstractions**, and the design choices below are deliberate
+applications of that — not incidental:
+
+- **Games are the domain core, the platform is the adapter ring.** `game.js` is
+  a pure reducer with *zero* CAP imports — it can't reach transport, DB, or
+  timers even if it tried. Its only port to the outside is the `cds.games`
+  facade (written by `cds-plugin.js`); the platform inverts the dependency so a
+  packed game never couples to platform files by relative path. That strict
+  boundary is why a game is unit-testable in isolation and why "never modify
+  `srv/` for a new game" holds.
+- **Agnostic persistence & auth (minimal assumptions).** `db` is in-memory
+  SQLite locally → Postgres in `[production]`; `auth` is `mocked` locally → IAS
+  in `[production]`. The domain assumes neither. This is what makes the whole
+  platform + every game runnable locally with no BTP — design shifts *left*
+  (domain, contract, tests first), infrastructure shifts *right* (deferred to
+  the production profile).
+- **Agnostic *location* via service bindings.** Cross-service calls go through
+  `cds.connect.to('<Service>')` (see LobbyService → ProfileService for
+  leaderboard gamertags in `srv/lobby-service.js`), *not* by importing the other
+  service's impl. The call site is identical whether the provider is in-process
+  today or split out to a remote binding later — the consumer stays agnostic to
+  where it lives.
+
+See qmacro's ["Timeless principles, agnostic design"](https://qmacro.org/blog/posts/2026/07/24/timeless-principles-agnostic-design-and-the-power-of-caps-abstractions/)
+for the same principles stated CAP-first.
+
+---
+
 ## Request Flow
 
 ```mermaid

@@ -37,6 +37,20 @@ export default {
     firstPlayer: { type: 'enum', values: ['X', 'O', 'random'], default: 'X' },
   },
 
+  // Game-declared achievements — SINGLE-MATCH, pure. Aggregate feats (streaks,
+  // totals) are the platform's job (srv/achievements.js), not a game's.
+  achievements: {
+    underdog: { name: 'Underdog', desc: 'Win a match as O (the second player)' },
+  },
+
+  // Return the ids THIS user earned in THIS finished match. Pure & synchronous;
+  // reads only the final state + end, never any history.
+  checkAchievements(end, state, user) {
+    const earned = [];
+    if (end.winner === user && state.marks?.[user] === 'O') earned.push('underdog');
+    return earned;
+  },
+
   init(settings = {}, players = []) {
     // player 0 (host) is X, player 1 is O — the platform passes them ordered
     const marks = {};

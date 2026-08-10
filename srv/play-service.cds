@@ -43,6 +43,10 @@ service PlayService {
   // combining a room context with a user filter would OR them and broadcast to
   // the whole room. User-only scoping guarantees the slice reaches just its owner.
   event privateState       { room: String; data: String; }
+  // Achievement unlocks earned by ONE user in a just-finished match. Like
+  // privateState: NO @ws.context — delivered solely to its owner via the `user`
+  // emit filter. `unlocked` is a JSON array of { id, game, name, desc }.
+  event achievementUnlocked { unlocked: LargeString; }
   event playerLeft         { @ws.context room: String; player: String; newHost: String; }
   event playerKicked       { @ws.context room: String; player: String; }
   event playerDisconnected { @ws.context room: String; player: String; }

@@ -669,3 +669,25 @@ html[data-game="kaperfahrt"] #room-match-controls {
   html[data-game="kaperfahrt"] #room-match-controls button,
   html[data-game="kaperfahrt"] #sh-btn-exit { padding: .45rem .8rem; font-size: .82rem; }
 }
+
+/* ── Achievements page (Steam-style browse — owned shown, locked only
+      counted; see app/achievements.js) ───────────────────────────── */
+.ach-game { margin-bottom: var(--space-4); }
+.ach-game h3 {
+  display: flex; align-items: baseline; gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+}
+.ach-count { color: var(--muted); font-size: .8rem; font-weight: 400; }
+.ach-row {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-1);
+}
+.ach-row.ach-locked { opacity: .55; }
+.ach-icon { font-size: 1.5rem; line-height: 1; flex: none; }
+.ach-owned .ach-icon { filter: drop-shadow(var(--glow)); }
+.ach-name { font-weight: 600; }
+.ach-desc { color: var(--muted); font-size: .85rem; }

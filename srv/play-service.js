@@ -1,6 +1,7 @@
 import cds from '@sap/cds';
 import * as eng from './engine.js';
 import * as reg from './registry.js';
+import * as ach from './achievements.js';
 
 const LOG  = cds.log('game');
 
@@ -612,6 +613,46 @@ class PlayService extends cds.ApplicationService {
           draws:  drawsDelta,
           points: pointsDelta,
         });
+      }
+    }
+
+    await this._awardAchievements(room.game, roomId, result.end, players);
+  }
+
+  // Evaluate + persist achievements for every player of a finished match, then
+  // privately notify anyone who unlocked something. Runs after Leaderboard is
+  // updated so the meta (aggregate) tier sees this match. Sources:
+  //   A. game.checkAchievements — single-match, pure (per game)
+  //   B. ach.evaluateMeta       — cross-game aggregate (platform)
+  async _awardAchievements(gameId, roomId, end, players) {
+    const { Unlocks } = cds.entities('cap.games');
+    const game = reg.get(gameId);
+    const state = eng.getBoard(roomId)?.state ?? {};
+
+    for (const p of players.filter(pl => !pl.spectator)) {
+      const candidates = [
+        ...(game.checkAchievements?.(end, state, p.user) ?? []).map(id => ({ id, game: gameId })),
+        ...(await ach.evaluateMeta({ user: p.user, end })).map(id => ({ id, game: '' })),
+      ];
+
+      if (!candidates.length) continue;
+
+      // One lookup for all of this player's existing unlocks instead of a
+      // SELECT per candidate.
+      const owned = await SELECT.from(Unlocks).columns('id', 'game').where({ user: p.user });
+      const ownedKeys = new Set(owned.map(o => `${o.game} ${o.id}`));
+
+      const fresh = [];
+      for (const c of candidates) {
+        if (ownedKeys.has(`${c.game} ${c.id}`)) continue;
+        ownedKeys.add(`${c.game} ${c.id}`); // dedupe within this batch too
+        await INSERT.into(Unlocks).entries({ user: p.user, id: c.id, game: c.game, at: new Date().toISOString() });
+        fresh.push({ id: c.id, game: c.game, ...ach.label(c.game, c.id) });
+      }
+
+      if (fresh.length) {
+        LOG.info('ACHIEVEMENT', p.user, fresh.map(f => f.id).join(','));
+        await this.emit('achievementUnlocked', { unlocked: JSON.stringify(fresh) }, { user: { include: [p.user] } });
       }
     }
   }

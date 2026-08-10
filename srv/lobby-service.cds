@@ -28,11 +28,33 @@ service LobbyService {
     virtual null as isMember    : Boolean,
   } excluding { createdBy, modifiedBy, createdAt, modifiedAt };
 
-  // Leaderboard
-  @readonly entity Leaderboard as projection on db.Leaderboard;
+  // Leaderboard — gamertag is virtual, resolved in an `after READ` handler by
+  // consuming ProfileService through `cds.connect.to` (see lobby-service.js),
+  // so a ranking lists display names without leaking the ProfileService's
+  // location: in-process today, a remote binding tomorrow, same call site.
+  @readonly entity Leaderboard as projection on db.Leaderboard {
+    *,
+    virtual null as gamertag : String,
+  };
 
   // Create a room and become its host
   action createRoom(game: String) returns String;  // returns room ID
+
+  // Achievements the caller has unlocked, grouped by game ('' = platform-wide).
+  // Deliberately returns ONLY owned entries plus a `total` per game — locked
+  // achievement definitions are never disclosed (Steam-style hidden), so the
+  // UI can show "3 / 8" and how many are left without revealing what they are.
+  function myAchievements() returns many {
+    game     : String;
+    gameName : String;
+    total    : Integer;
+    owned    : many {
+      id   : String;
+      name : String;
+      desc : String;
+      at   : Timestamp;
+    };
+  };
 
   // The caller's platform identity (req.user.id) — the authoritative id the
   // frontend must key on so it matches every gameplay comparison. Under IAS

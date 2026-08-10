@@ -1,9 +1,28 @@
 import cds from '@sap/cds';
 import * as registry from './registry.js';
+import * as ach from './achievements.js';
 
 class LobbyService extends cds.ApplicationService {
   async init() {
     const { Rooms, Players } = cds.entities('cap.games');
+
+    // Consume ProfileService through the service binding, not by importing its
+    // impl: `cds.connect.to` resolves it via `cds.requires`, so it's the same
+    // call whether ProfileService is in-process (today) or a remote binding
+    // later — LobbyService stays agnostic to where it lives.
+    const profiles = await cds.connect.to('ProfileService');
+
+    // --- Leaderboard: decorate rows with the display gamertag (see .cds) ---
+    this.after('READ', 'Leaderboard', async (rows) => {
+      const list = Array.isArray(rows) ? rows : rows ? [rows] : [];
+      if (!list.length) return;
+
+      const users = [...new Set(list.map(r => r.user))];
+      const resolved = await profiles.send('profilesOf', { users });
+      const byUser = Object.fromEntries((resolved ?? []).map(p => [p.user, p.gamertag]));
+
+      for (const r of list) r.gamertag = byUser[r.user] || r.user;
+    });
 
     // --- Games catalogue (virtual, from registry) ---
     this.on('READ', 'Games', () => {
@@ -67,6 +86,28 @@ class LobbyService extends cds.ApplicationService {
       });
 
       return roomId;
+    });
+
+    // --- myAchievements: caller's unlocks grouped by game (see .cds) ---
+    // Only OWNED entries + a per-game total leave the server; locked
+    // definitions are never disclosed.
+    this.on('myAchievements', async (req) => {
+      const { Unlocks } = cds.entities('cap.games');
+      const owned = await SELECT.from(Unlocks).where({ user: req.user.id });
+
+      const byGame = {};
+      for (const u of owned) (byGame[u.game] ??= []).push(u);
+
+      const cat = ach.catalogue();
+      return Object.entries(cat).map(([game, c]) => ({
+        game,
+        gameName: c.name,
+        total: Object.keys(c.defs).length,
+        owned: (byGame[game] ?? [])
+          .filter(u => c.defs[u.id])   // ignore unlocks whose definition is gone
+          .map(u => ({ id: u.id, ...ach.label(game, u.id), at: u.at }))
+          .sort((a, b) => (a.at < b.at ? -1 : 1)),
+      }));
     });
 
     // --- whoami: the caller's platform identity ---

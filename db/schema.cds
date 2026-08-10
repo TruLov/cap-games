@@ -33,6 +33,18 @@ entity Matches : cuid, managed {
   state   : LargeString;    // JSON final board state
 }
 
+// Achievement unlocks — one row per (user, achievement, game). Definitions
+// live in CODE, not here: game-declared ones in each game's pure module
+// (game.achievements + checkAchievements), platform-wide meta ones in
+// srv/achievements.js. `game = ''` marks a platform-wide (cross-game) meta
+// unlock. The composite key makes re-unlocking a harmless no-op.
+entity Unlocks {
+  key user : String(255);
+  key id   : String(80);           // achievement id
+  key game : String(50) default ''; // '' = platform-wide meta achievement
+      at   : Timestamp;
+}
+
 // Leaderboard — upserted after each match
 entity Leaderboard {
   key user   : String(255);

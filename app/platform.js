@@ -20,6 +20,7 @@ import { mountWaitingRoom } from './shell/host.js';
 import { renderBrandMark } from './brand-logo.js';
 import { initTheme } from './theme.js';
 import { initProfileEditing } from './profile-edit.js';
+import { initAchievements } from './achievements.js';
 
 // ── State ────────────────────────────────────────────────────
 const shell = {
@@ -38,12 +39,21 @@ const shell = {
 
 let ws      = null;
 let emitter = makeEmitter();
-let showProfilePage = () => {};   // wired by initProfileEditing() at boot
+let showProfilePage = () => {};      // wired by initProfileEditing() at boot
+let showAchievementsPage = () => {}; // wired by initAchievements() at boot
 
 // Re-render the header whenever a profile resolves (own gamertag/avatar may
 // arrive asynchronously after the initial login render). Global/always-on —
 // profile lookups can happen both inside and outside a room.
 emitter.on('profilesUpdated', () => { if (shell.user) renderAccount(); });
+
+// Achievement unlocks arrive per-user at match end (see PlayService). Global/
+// always-on: the notification is the user's, not the room's. Stagger the toasts
+// so several unlocks from one match are each legible.
+emitter.on('achievementUnlocked', ({ unlocked }) => {
+  let list; try { list = JSON.parse(unlocked); } catch { return; }
+  (list ?? []).forEach((a, i) => setTimeout(() => toast(`🏆 ${a.name}`), i * 1600));
+});
 
 const USERS = ['alice', 'bob', 'carol', 'dave', 'erin'];  // local dev only
 
@@ -152,9 +162,12 @@ function renderAccount() {
     menu.innerHTML =
       `<div class="sh-account-name">${name}</div>` +
       (shell.room ? '' : `<button class="sh-menu-item" data-act="profile">Edit profile</button>`) +
+      (shell.room ? '' : `<button class="sh-menu-item" data-act="achievements">Achievements</button>`) +
       `<button class="sh-menu-item" data-act="logout">Logout</button>`;
     menu.querySelector('[data-act="profile"]')?.addEventListener('click',
       () => { closeAccountMenu(); showProfilePage(); });
+    menu.querySelector('[data-act="achievements"]')?.addEventListener('click',
+      () => { closeAccountMenu(); showAchievementsPage(); });
     menu.querySelector('[data-act="logout"]').onclick = logout;
     btn.onclick = toggleAccountMenu;
   } else if (shell.mode === 'mocked') {          // local → pick a mock player
@@ -692,6 +705,8 @@ $('sh-btn-refresh-rooms').onclick = () => loadOpenRooms();
   $, serviceCall, profiles, ensureProfiles, nameOf, avatarUrlOf, initials,
   getUserId: () => shell.user?.id, toast, showView,
 }));
+
+({ showAchievementsPage } = initAchievements({ $, serviceCall, showView }));
 
 renderBrandMark($('sh-logo-canvas'), {
   fontPx: 108, dripCount: 3, pivotXRatio: 0.03, pivotYRatio: 0.02, seed: 4242,
