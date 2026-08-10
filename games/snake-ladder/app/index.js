@@ -140,9 +140,10 @@ export default {
         const badge = u === winner ? '<span class="sl-badge win">🏆 Winner</span>'
           : blocked[u] ? '<span class="sl-badge blocked">Skips next</span>'
           : isTurn ? '<span class="sl-badge">Rolling</span>' : '';
+        const av = sdk.avatarUrl(u);
         return `
           <div class="sl-player${isTurn ? ' turn' : ''}">
-            <div class="sl-avatar" style="background:${colorOf(order, u)}">${initials(sdk.nameOf(u))}</div>
+            <div class="sl-avatar" style="background:${colorOf(order, u)}${av ? `;background-image:url('${av}');background-size:cover;background-position:center` : ''}">${av ? '' : initials(sdk.nameOf(u))}</div>
             <div class="sl-pinfo">
               <div class="sl-pname">${sdk.nameOf(u)}${u === sdk.me.user ? ' (you)' : ''}</div>
               <div class="sl-ppos">Square ${positions[u]}</div>

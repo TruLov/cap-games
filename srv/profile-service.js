@@ -44,7 +44,10 @@ class ProfileService extends cds.ApplicationService {
 
     // ----------------------------------------------------------- myProfile
     this.on('myProfile', async (req) => {
-      const p = await SELECT.one.from(Profiles).where({ user: req.user.id });
+      // CAP omits LargeBinary/media columns from a bare "select *" (to avoid
+      // pulling blobs into ordinary reads) — request `avatar` explicitly or
+      // hasAvatar is silently always false.
+      const p = await SELECT.one.from(Profiles).columns('user', 'gamertag', 'avatar').where({ user: req.user.id });
       return { gamertag: p?.gamertag ?? '', hasAvatar: !!p?.avatar };
     });
 
@@ -53,7 +56,8 @@ class ProfileService extends cds.ApplicationService {
       const users = [...new Set(req.data.users ?? [])];
       if (!users.length) return [];
 
-      const rows = await SELECT.from(Profiles).where({ user: { in: users } });
+      // see myProfile above: avatar must be selected explicitly or it's dropped
+      const rows = await SELECT.from(Profiles).columns('user', 'gamertag', 'avatar').where({ user: { in: users } });
       const byUser = Object.fromEntries(rows.map(p => [p.user, p]));
       return users.map(u => ({
         user: u,

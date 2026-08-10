@@ -207,22 +207,49 @@ async function serviceCall(service, method, path, body) {
 // id used everywhere else. Own writes go through dedicated actions; reads
 // are batch-resolved and cached here, then exposed to games only via
 // sdk.nameOf()/sdk.avatarUrl() — no game ever talks to ProfileService itself.
-const profiles = new Map(); // user -> { gamertag, hasAvatar }
+const profiles = new Map(); // user -> { gamertag, hasAvatar, avatarUrl }
 
 function nameOf(user) { return profiles.get(user)?.gamertag || user; }
-function avatarUrlOf(user) {
-  return profiles.get(user)?.hasAvatar
-    ? `/odata/v4/profile/Profiles(user='${encodeURIComponent(user)}')/avatar`
-    : null;
+function avatarUrlOf(user) { return profiles.get(user)?.avatarUrl || null; }
+
+// The avatar media stream is @requires: 'authenticated-user', and in local
+// mocked dev auth rides a manually-attached Authorization header (see the
+// "Auth" section above) — but a plain <img src="..."> is a browser-native
+// request that can't carry a custom header, so it would 401. Fetch the bytes
+// ourselves (with the same header serviceCall uses) and hand out a blob: URL
+// instead, which any <img> can render regardless of auth mode.
+async function fetchAvatarBlobUrl(user) {
+  try {
+    const headers = {};
+    if (shell.user?.authHeader) headers.Authorization = shell.user.authHeader;   // dev only
+    const res = await fetch(`/odata/v4/profile/Profiles(user='${encodeURIComponent(user)}')/avatar`, { headers });
+    if (!res.ok) return null;
+    return URL.createObjectURL(await res.blob());
+  } catch {
+    return null;
+  }
 }
 
 async function ensureProfiles(users) {
   const missing = [...new Set(users)].filter(u => u && !profiles.has(u));
   if (!missing.length) return;
-  missing.forEach(u => profiles.set(u, { gamertag: '', hasAvatar: false })); // avoid duplicate concurrent fetches
+  missing.forEach(u => profiles.set(u, { gamertag: '', hasAvatar: false, avatarUrl: null })); // avoid duplicate concurrent fetches
   try {
     const data = await serviceCall('profile', 'POST', 'profilesOf', { users: missing });
-    for (const p of data.value ?? []) profiles.set(p.user, { gamertag: p.gamertag, hasAvatar: p.hasAvatar });
+    const list = data.value ?? [];
+    for (const p of list) profiles.set(p.user, { gamertag: p.gamertag, hasAvatar: p.hasAvatar, avatarUrl: null });
+    emitter.emit('profilesUpdated', {});
+
+    const withAvatar = list.filter(p => p.hasAvatar);
+    if (withAvatar.length) {
+      await Promise.all(withAvatar.map(async p => {
+        const url = await fetchAvatarBlobUrl(p.user);
+        const cur = profiles.get(p.user);
+        if (cur) profiles.set(p.user, { ...cur, avatarUrl: url });
+      }));
+      emitter.emit('profilesUpdated', {});
+    }
+    return;
   } catch (e) {
     // keep the empty placeholders — falls back to raw id/initials — but
     // don't swallow the error silently, or a real backend failure (e.g. a
