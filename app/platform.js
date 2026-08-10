@@ -21,12 +21,14 @@ import { renderBrandMark } from './brand-logo.js';
 import { initTheme } from './theme.js';
 import { initProfileEditing } from './profile-edit.js';
 import { initAchievements } from './achievements.js';
+import { initLeaderboard } from './leaderboard.js';
 
 // ── State ────────────────────────────────────────────────────
 const shell = {
   user:   null,   // { id, authHeader } — authHeader only set in local dev (mocked auth)
   mode:   null,   // 'mocked' | 'ias' — drives what the header "Log in" does
-  room:   null,   // { id, code, game }
+  room:   null,   // { id, code, game } — game '' for an empty (not-yet-chosen) room
+  status: null,   // room status mirror: 'lobby'|'playing'|'paused'|'finished'
   me:     null,   // { user, spectator, isHost }
   sdk:    null,   // built once per room session, reused across waiting-room/match/switchGame
   players: [],    // live roster — the canonical sdk.players array, mutated in place
@@ -41,24 +43,71 @@ let ws      = null;
 let emitter = makeEmitter();
 let showProfilePage = () => {};      // wired by initProfileEditing() at boot
 let showAchievementsPage = () => {}; // wired by initAchievements() at boot
+let showLeaderboardPage = () => {};  // wired by initLeaderboard() at boot
 
-// Re-render the header whenever a profile resolves (own gamertag/avatar may
-// arrive asynchronously after the initial login render). Global/always-on —
-// profile lookups can happen both inside and outside a room.
-emitter.on('profilesUpdated', () => { if (shell.user) renderAccount(); });
+// Re-render the header + rail profile whenever a profile resolves (own
+// gamertag/avatar may arrive asynchronously after the initial login render).
+// Global/always-on — profile lookups happen both inside and outside a room.
+emitter.on('profilesUpdated', () => { if (shell.user) { renderAccount(); renderRailProfile(); } });
 
 // Achievement unlocks arrive per-user at match end (see PlayService). Global/
 // always-on: the notification is the user's, not the room's. Stagger the toasts
-// so several unlocks from one match are each legible.
+// so several unlocks from one match are each legible, and refresh the rail tally.
 emitter.on('achievementUnlocked', ({ unlocked }) => {
   let list; try { list = JSON.parse(unlocked); } catch { return; }
   (list ?? []).forEach((a, i) => setTimeout(() => toast(`🏆 ${a.name}`), i * 1600));
+  loadRailStats(true);
 });
 
 const USERS = ['alice', 'bob', 'carol', 'dave', 'erin'];  // local dev only
 
 // ── DOM ───────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
+
+// Placeholder cover art per game (no per-game images ship yet). glyph + a
+// gradient class defined in style.css; unknown games fall back to a die.
+const GAME_ART = {
+  tictactoe:      { glyph: '✕', cls: 'art-a1' },
+  mttt:           { glyph: '▦', cls: 'art-a5' },
+  kaiten:         { glyph: '🍣', cls: 'art-a3' },
+  flipfortune:    { glyph: '🃏', cls: 'art-a4' },
+  kaperfahrt:     { glyph: '🏴‍☠️', cls: 'art-a2' },
+  'snake-ladder': { glyph: '🐍', cls: 'art-a6' },
+};
+
+// ── Rail mini-profile (avatar + name + achievement tally) ─────
+let railStats = null;   // { owned, total } — cached; refreshed on unlock
+
+function renderRailProfile() {
+  const el = $('rail-profile');
+  if (!el || !shell.user) return;
+  const name = nameOf(shell.user.id);
+  const av   = avatarUrlOf(shell.user.id);
+  el.innerHTML = `
+    <div class="sh-rp-av">${av ? `<img src="${av}" alt="">` : initials(name)}</div>
+    <div class="sh-rp-meta">
+      <div class="sh-rp-name" title="${name}">${name}</div>
+      <div class="sh-rp-sub" id="rail-profile-stats"></div>
+    </div>`;
+  loadRailStats();
+}
+
+function paintRailStats() {
+  const el = $('rail-profile-stats');
+  if (el && railStats) el.textContent = `🏆 ${railStats.owned} / ${railStats.total} unlocked`;
+}
+
+async function loadRailStats(force) {
+  if (railStats && !force) { paintRailStats(); return; }
+  try {
+    const { value } = await serviceCall('lobby', 'GET', 'myAchievements()');
+    railStats = {
+      owned: (value ?? []).reduce((n, g) => n + g.owned.length, 0),
+      total: (value ?? []).reduce((n, g) => n + g.total, 0),
+    };
+  } catch { railStats = { owned: 0, total: 0 }; }
+  paintRailStats();
+}
 
 // ── Auth ──────────────────────────────────────────────────────
 // Two modes, distinguished at boot by probing whoami:
@@ -80,6 +129,9 @@ function logout() {
     if (ws) wsClose();
     shell.user = null;
     shell.mode = 'mocked';
+    railStats = null;
+    closeRailRoom();
+    $('sh-hamburger').hidden = true;
     renderAccount();
     showView('landing');
   } else {                                       // IAS: approuter clears the session
@@ -120,11 +172,35 @@ async function probeAuth() {
   }
 }
 
-// ── Views ─────────────────────────────────────────────────────
-function showView(name) {
-  document.querySelectorAll('.sh-view').forEach(v => v.hidden = true);
-  const el = document.getElementById('view-' + name);
+// ── Views / pages ─────────────────────────────────────────────
+// Two top-level shells: the public landing, and the logged-in app (a persistent
+// left rail — profile + nav + room panel — beside a main column). Within the
+// app the main column shows one "page" at a time, driven by the rail nav; the
+// rail is always present so the room stays visible while you browse.
+const PAGE_TO_VIEW = {
+  library: 'lobby', achievements: 'achievements',
+  leaderboard: 'leaderboard', profile: 'profile', game: 'game',
+};
+
+function showLanding() { $('view-app').hidden = true;  $('view-landing').hidden = false; }
+function showApp()     { $('view-landing').hidden = true; $('view-app').hidden = false; }
+
+function showPage(name) {
+  const id = PAGE_TO_VIEW[name] ?? name;
+  $('sh-main').querySelectorAll('.sh-view').forEach(v => v.hidden = true);
+  const el = $('view-' + id);
   if (el) el.hidden = false;
+  document.querySelectorAll('#rail-nav .sh-nav-item')
+    .forEach(b => b.classList.toggle('on', b.dataset.page === name));
+}
+
+// Back-compat shim — existing call sites and the page modules (profile/
+// achievements/leaderboard) call showView('lobby'|'profile'|'achievements'|
+// 'leaderboard'|'landing'); map those onto the app/page model above.
+function showView(name) {
+  if (name === 'landing') { showLanding(); return; }
+  showApp();
+  showPage(name === 'lobby' ? 'library' : name);
 }
 
 // ── Theme (light/dark) — see theme.js ─────────────────────────
@@ -159,15 +235,11 @@ function renderAccount() {
     btn.innerHTML = avatar ? `<img src="${avatar}" alt="">` : '';
     if (!avatar) btn.textContent = initials(name);
     btn.title = name;
+    // Navigation (Library/Achievements/Leaderboard/Profile) lives in the rail
+    // now — the account menu is just identity + logout.
     menu.innerHTML =
       `<div class="sh-account-name">${name}</div>` +
-      (shell.room ? '' : `<button class="sh-menu-item" data-act="profile">Edit profile</button>`) +
-      (shell.room ? '' : `<button class="sh-menu-item" data-act="achievements">Achievements</button>`) +
       `<button class="sh-menu-item" data-act="logout">Logout</button>`;
-    menu.querySelector('[data-act="profile"]')?.addEventListener('click',
-      () => { closeAccountMenu(); showProfilePage(); });
-    menu.querySelector('[data-act="achievements"]')?.addEventListener('click',
-      () => { closeAccountMenu(); showAchievementsPage(); });
     menu.querySelector('[data-act="logout"]').onclick = logout;
     btn.onclick = toggleAccountMenu;
   } else if (shell.mode === 'mocked') {          // local → pick a mock player
@@ -394,100 +466,122 @@ function renderMatchControls(mode) {
   el.querySelector('#sh-btn-abort')?.addEventListener('click',    () => sdk_send('backToRoom'));
   function sdk_send(action) { wsSend(action, { room: shell.room.id }); }
 }
-function onFinishedControls()  { renderMatchControls('finished'); }
-function onClearedControls()   { renderMatchControls(false); }
+function onFinishedControls()  { setRailStatus('finished'); renderMatchControls('finished'); }
+function onClearedControls()   { setRailStatus('playing');  renderMatchControls('active'); updateSwitchHint(); }
 
-// ── Waiting-room ↔ match transitions — the core state machine. A game
-// module is mounted ONLY once a match is actually starting/active; before
-// that (status 'lobby') the platform's own waiting room owns #game-root.
-// A game's optional `meta.layout` ({ areas, columns, rows } — raw
-// grid-template-* values) repositions/resizes the roster/chat panels
-// around its board. #room-players/#room-chat are never touched here —
-// only .gm-layout's grid placement changes — so mountPlayers/mountChat's
-// state (chat scrollback, roster list) survives untouched.
-function applyRoomLayout() {
-  const el = $('room-layout');
-  const layout = shell.gameModule?.meta?.layout;
-  el.dataset.game = shell.room?.game ?? '';
-  const setVar = (name, value) => value ? el.style.setProperty(name, value) : el.style.removeProperty(name);
-  setVar('--gm-areas', layout?.areas);
-  setVar('--gm-cols',  layout?.columns);
-  setVar('--gm-rows',  layout?.rows);
+// ── Rail room panel — persistent while you're in a room (any page/nav) ──
+const STATUS_LABEL = { lobby: 'Waiting', playing: 'Playing', paused: 'Paused', finished: 'Finished' };
+
+function openRailRoom(status) {
+  $('rail-room').hidden = false;
+  $('rr-code').textContent = shell.room?.code ?? '';
+  setRailStatus(status);
+}
+function closeRailRoom() { $('rail-room').hidden = true; }
+function setRailStatus(status) {
+  shell.status = status;
+  const el = $('rr-status');
+  if (el) { el.textContent = STATUS_LABEL[status] ?? status; el.dataset.status = status; }
 }
 
+// The library shows a contextual hint when you're in a waiting room — click a
+// card to set/switch the room's game (host), or wait (non-host).
+function updateSwitchHint() {
+  const el = $('sh-switch-hint');
+  if (!el) return;
+  // Only surface a hint to non-hosts (they can't act on the library); the host
+  // just clicks a card, no instructional banner needed.
+  if (shell.room && shell.status === 'lobby' && !shell.me?.isHost) {
+    el.hidden = false;
+    el.textContent = 'Waiting for the host to choose a game and start.';
+  } else {
+    el.hidden = true;
+  }
+}
+
+// ── Waiting-room ↔ match transitions — the core state machine. A game module
+// is mounted ONLY once a match is actually starting/active, into #game-root on
+// the main "game" page. The roster/chat/host-controls live in the rail room
+// panel and persist across the whole room session. While waiting, the main
+// column stays on the Library so you can browse (and the host can switch game
+// by clicking a card).
 function mountGame() {
+  if (!shell.gameModule) return;          // empty room — nothing to mount yet
   const host = $('game-root');
-  host.innerHTML = '';                    // clear any leftover waiting-room light DOM
+  host.innerHTML = '';                    // clear any leftover content
   host.classList.add('gm-game-active');
   // data-game on <html> (mirrors theme.js's data-theme) scopes a game's chrome
-  // reskin — chat/roster + #sh-btn-exit/#room-match-controls, which live
-  // outside #room-layout. Set only once a match is actually mounted (NOT in the
-  // waiting room, which keeps the default platform look), cleared in
+  // reskin. Set only once a match is actually mounted; cleared in
   // showWaitingRoom()/leaveRoom().
   document.documentElement.dataset.game = shell.room?.game ?? '';
-  // Mount the game inside a shadow root so the platform's theme (global button
-  // clip-path/screws, headings, HUD grid) can't reach in and the game's own
-  // styles can't leak out — every game owns its entire look. attachShadow can
-  // only run once per element, so reuse an existing root across rematches.
+  // Mount the game inside a shadow root so the platform's theme can't reach in
+  // and the game's styles can't leak out. attachShadow runs once per element, so
+  // reuse an existing root across rematches.
   const shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' });
   shadow.innerHTML = '';
-  const root = document.createElement('div');   // real element so games keep classList/style/dataset
+  const root = document.createElement('div');
   shadow.appendChild(root);
   shell.matchUnmount = shell.gameModule.mount(root, shell.sdk) ?? null;
+  showPage('game');
+  $('sh-btn-exit').hidden = false;
 }
 
 async function showWaitingRoom() {
-  const el = $('game-root');
-  el.innerHTML = '';
-  el.classList.remove('gm-game-active');
-  document.documentElement.dataset.game = '';   // back to default platform look
-  // Once a match has been mounted, #game-root carries a shadow root (mountGame)
-  // that permanently owns rendering — the waiting-room light DOM below would
-  // stay hidden behind the stale game board (so the host couldn't reach the
-  // switch-game control after an Abort). A <slot> projects the light DOM back
-  // through; mountGame clears the shadow root (dropping the slot) on start.
-  if (el.shadowRoot) el.shadowRoot.innerHTML = '<slot></slot>';
-
-  shell.waitingUnmount = await mountWaitingRoom(el, shell.sdk, shell.gameModule) ?? null;
+  setRailStatus('lobby');
+  $('sh-btn-exit').hidden = true;
+  // tear down any game board
+  const host = $('game-root');
+  host.classList.remove('gm-game-active');
+  if (host.shadowRoot) host.shadowRoot.innerHTML = '';
+  host.innerHTML = '';
+  document.documentElement.dataset.game = '';
+  // waiting host-controls (start / game settings) render into the rail
+  const slot = $('room-waiting');
+  slot.innerHTML = '';
+  shell.waitingUnmount = await mountWaitingRoom(slot, shell.sdk, shell.gameModule) ?? null;
+  updateSwitchHint();
+  showPage('library');                    // browse while waiting
 }
 
 function onStartedTopLevel(payload) {
+  setRailStatus('playing');
   if (shell.waitingUnmount) {
     shell.waitingUnmount(); shell.waitingUnmount = null;
     mountGame();
-    // The 'started' event that triggered this transition already fired before
-    // the freshly-mounted game had a chance to register its own listener —
-    // replay it now so the game's own onStarted sees its first state.
+    // The 'started' event fired before the freshly-mounted game registered its
+    // own listener — replay it so the game's onStarted sees its first state.
     emitter.emit('started', payload);
   }
   renderMatchControls('active');
+  updateSwitchHint();
 }
 function onRoomResetTopLevel() {
   if (shell.matchUnmount) { shell.matchUnmount(); shell.matchUnmount = null; }
-  onClearedControls();
+  renderMatchControls(false);
   showWaitingRoom();
 }
-async function onGameSwitchedTopLevel({ game }) {
+async function onGameSwitchedTopLevel({ game, name }) {
   if (!shell.room || shell.room.game === game) return;
   shell.room.game = game;
   shell.matchUnmount?.();   shell.matchUnmount = null;
   shell.waitingUnmount?.(); shell.waitingUnmount = null;
   const mod = await import(`/games/${game}/index.js`);
   shell.gameModule = mod.default;
-  applyRoomLayout();
   await showWaitingRoom();
-  toast('Host switched the game');
+  refreshLibraryActive();
+  toast(`Game set to ${name ?? game}`);
 }
 
 async function joinRoom(roomId, code, game) {
-  // resolve room details if not provided (e.g. when called from createRoom)
-  if (!game) {
+  // resolve room details if not provided (e.g. when called from createRoom).
+  // game may be '' for an empty room — a game is chosen later via switchGame.
+  if (game == null) {
     const data = await odata('GET', `Rooms?$filter=ID eq '${roomId}'`).catch(() => null);
     const room = data?.value?.[0] ?? {};
     code = room.code ?? roomId;
-    game = room.game ?? 'tictactoe';
+    game = room.game ?? '';
   }
-  shell.room = { id: roomId, code: code ?? roomId, game };
+  shell.room = { id: roomId, code: code ?? roomId, game: game || '' };
 
   // update header — show short code
   $('sh-room-id').textContent = shell.room.code;
@@ -495,10 +589,8 @@ async function joinRoom(roomId, code, game) {
   $('sh-btn-copy').hidden = false;
   $('sh-btn-invite').hidden = false;
 
-  // load game UI module
-  const mod = await import(`/games/${game}/index.js`);
-  shell.gameModule = mod.default;
-  applyRoomLayout();
+  // load game UI module (skipped for an empty room — nothing to load yet)
+  shell.gameModule = game ? (await import(`/games/${game}/index.js`)).default : null;
 
   // connect WS if needed — wsConnect's onopen sends 'join' once shell.room is
   // set (it already is, above), so a fresh connection auto-joins; if a socket
@@ -506,8 +598,9 @@ async function joinRoom(roomId, code, game) {
   if (!ws || ws.readyState > WebSocket.OPEN) wsConnect();
   else wsSend('join', { room: roomId });
 
-  // once joined — platform sets me, mounts the persistent chrome, then either
-  // the waiting room (status 'lobby') or the game itself (already active)
+  // once joined — platform sets me, reveals the rail room panel + mounts the
+  // persistent chrome, then either the waiting room (status 'lobby') or the
+  // game itself (already active).
   emitter.on('joined', function onFirstJoin(payload) {
     if (payload.player !== shell.user.id) return;
     emitter.off('joined', onFirstJoin);
@@ -527,15 +620,14 @@ async function joinRoom(roomId, code, game) {
       avatarUrl: avatarUrlOf,
     });
 
-    showView('room');
-    $('sh-btn-exit').hidden = false;
+    showApp();
+    openRailRoom(payload.status);
     shell.playersUnmount = mountPlayers($('room-players'), shell.sdk, []);
-    // A game can render its own chat UI (via sdk.chat) by declaring
-    // meta.ownsChat — the platform still owns the transport/data, only the
-    // default panel is skipped and its grid area collapsed (such a game should
-    // supply a meta.layout without a "chat" area).
+    // A game can render its own chat UI (via sdk.chat) by declaring meta.ownsChat
+    // — the platform still owns the transport/data, only the default panel is
+    // skipped.
     const ownsChat = shell.gameModule?.meta?.ownsChat === true;
-    $('room-layout').querySelector('.gm-chat').hidden = ownsChat;
+    $('rail-room').querySelector('.sh-rr-chat').hidden = ownsChat;
     shell.chatUnmount = ownsChat ? null : mountChat($('room-chat'), shell.sdk);
 
     // room-scoped listeners — all torn down together in leaveRoom()
@@ -551,14 +643,15 @@ async function joinRoom(roomId, code, game) {
     emitter.on('roomReset',    onRoomResetTopLevel);
     emitter.on('gameSwitched', onGameSwitchedTopLevel);
 
+    refreshLibraryActive();
     if (payload.status === 'lobby') showWaitingRoom();
     else { mountGame(); renderMatchControls(payload.status === 'finished' ? 'finished' : 'active'); }
   });
 }
 
 async function createRoom(game) {
-  const { value: roomId } = await odata('POST', 'createRoom', { game });
-  await joinRoom(roomId);  // joinRoom will fetch code+game since they're not passed
+  const { value: roomId } = await odata('POST', 'createRoom', game ? { game } : {});
+  await joinRoom(roomId);  // joinRoom fetches code+game since they're not passed
 }
 
 function leaveRoom() {
@@ -584,30 +677,60 @@ function leaveRoom() {
   shell.room = null;
   shell.me   = null;
   shell.sdk  = null;
+  shell.status = null;
   shell.gameModule = null;
   shell.players.length = 0;
   document.documentElement.dataset.game = '';
+  $('room-waiting').innerHTML = '';
+  closeRailRoom();
   $('sh-room-id').hidden = true;
   $('sh-btn-copy').hidden = true;
   $('sh-btn-invite').hidden = true;
   $('sh-btn-exit').hidden = true;
-  showView('lobby');
+  showApp();
+  showPage('library');
+  updateSwitchHint();
   loadLobby();
 }
 
-// ── Lobby ─────────────────────────────────────────────────────
+// ── Library (game cards) ──────────────────────────────────────
+function gameCard(g) {
+  const art = GAME_ART[g.id] ?? { glyph: '🎲', cls: 'art-default' };
+  const active = shell.room && shell.room.game === g.id ? ' sh-card-active' : '';
+  return `
+    <button class="sh-card${active}" data-game="${g.id}">
+      <span class="sh-card-art ${art.cls}">${art.glyph}</span>
+      <span class="sh-card-meta">
+        <span class="sh-card-title">${g.name}</span>
+        <span class="sh-card-sub">${g.minPlayers}–${g.maxPlayers} players</span>
+      </span>
+    </button>`;
+}
+
+// Clicking a game card: create a room (not in one), switch the room's game
+// (host, still waiting), or explain why not.
+function handleGameCard(gameId) {
+  if (!shell.room)                     return createRoom(gameId);
+  if (!shell.me?.isHost)               return toast('Only the host can change the game');
+  if (shell.status !== 'lobby')        return toast('Finish or leave the current match first');
+  if (shell.room.game === gameId)      return toast('Your room is already on this game');
+  wsSend('switchGame', { room: shell.room.id, game: gameId });
+}
+
+// Reflect which card is the current room's game (highlight), without a reload.
+function refreshLibraryActive() {
+  document.querySelectorAll('#sh-game-list .sh-card').forEach(c =>
+    c.classList.toggle('sh-card-active', !!shell.room && c.dataset.game === shell.room.game));
+  updateSwitchHint();
+}
+
 async function loadLobby() {
   const data = await odata('GET', 'Games').catch(() => ({ value: [] }));
   const list = $('sh-game-list');
-  list.innerHTML = (data.value ?? []).map(g => `
-    <li>
-      <strong>${g.name}</strong>
-      <span class="sh-small">${g.minPlayers}–${g.maxPlayers} players</span>
-      <button data-game="${g.id}">Create room</button>
-    </li>`).join('');
+  list.innerHTML = (data.value ?? []).map(gameCard).join('');
   list.querySelectorAll('[data-game]').forEach(b =>
-    b.onclick = () => createRoom(b.dataset.game));
-
+    b.onclick = () => handleGameCard(b.dataset.game));
+  updateSwitchHint();
   await loadOpenRooms();
 }
 
@@ -630,7 +753,7 @@ async function loadOpenRooms() {
     const label = r.isMember ? 'Reconnect' : full ? 'Spectate' : 'Join';
     return `
     <li>
-      <strong>${r.gameName ?? r.game}</strong>
+      <strong>${r.gameName || r.game || 'Empty room'}</strong>
       <code>${r.code}</code>
       <span class="sh-small">${r.host}</span>
       <span class="sh-small">${r.playerCount}${r.maxPlayers != null ? '/' + r.maxPlayers : ''} players${full ? ' — full' : ''}</span>
@@ -666,8 +789,11 @@ function consumePendingJoin() {
 function enterLobby(id) {
   shell.user ??= { id, authHeader: null };
   closeAccountMenu();
-  renderAccount();               // header now shows the avatar
-  showView('lobby');
+  $('sh-hamburger').hidden = false;   // rail toggle only makes sense once logged in
+  renderAccount();                    // header avatar
+  renderRailProfile();                // rail mini-profile
+  showApp();
+  showPage('library');
   loadLobby();
   ensureProfiles([id]);
   consumePendingJoin();
@@ -675,9 +801,22 @@ function enterLobby(id) {
 
 $('sh-logo-btn').onclick = () => {
   if (shell.room) leaveRoom();          // same as the Leave button — tears down room state
-  else if (shell.user) { showView('lobby'); loadLobby(); }
+  else if (shell.user) { showApp(); showPage('library'); loadLobby(); }
   else showView('landing');
 };
+
+// Rail navigation — Library / Achievements / Leaderboard / Edit profile.
+document.querySelectorAll('#rail-nav .sh-nav-item').forEach(b => b.onclick = () => {
+  switch (b.dataset.page) {
+    case 'library':      showApp(); showPage('library'); loadOpenRooms(); break;
+    case 'achievements': showAchievementsPage(); break;
+    case 'leaderboard':  showLeaderboardPage();  break;
+    case 'profile':      showProfilePage();      break;
+  }
+});
+$('sh-hamburger').onclick    = () => $('view-app').classList.toggle('rail-collapsed');
+$('sh-btn-empty-room').onclick = () => createRoom();   // no game → empty room, pick later
+$('rr-leave').onclick        = leaveRoom;
 
 $('sh-btn-exit').onclick   = leaveRoom;
 $('sh-btn-copy').onclick   = () => {
@@ -707,6 +846,10 @@ $('sh-btn-refresh-rooms').onclick = () => loadOpenRooms();
 }));
 
 ({ showAchievementsPage } = initAchievements({ $, serviceCall, showView }));
+
+({ showLeaderboardPage } = initLeaderboard({
+  $, serviceCall, showView, getUserId: () => shell.user?.id,
+}));
 
 renderBrandMark($('sh-logo-canvas'), {
   fontPx: 108, dripCount: 3, pivotXRatio: 0.03, pivotYRatio: 0.02, seed: 4242,

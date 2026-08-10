@@ -179,7 +179,7 @@ button.sh-ghost {
 .sh-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--space-3);
   padding: var(--space-2) var(--space-4);
   background: var(--bg-elevated);
   border-width: 0 0 1px 0;
@@ -201,7 +201,7 @@ button.sh-ghost {
 .sh-logo::before, .sh-logo::after { content: none; }
 .sh-logo:hover { filter: brightness(1.2); }
 #sh-logo-canvas { display: block; height: 32px; width: auto; }
-.sh-nav   { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.sh-nav   { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-left: auto; }
 .sh-toast {
   border-radius: 999px; padding: .3rem .8rem; font-size: .82rem;
   box-shadow: var(--shadow-sm);
@@ -379,66 +379,41 @@ h3::before { content: "// "; color: var(--accent); opacity: .7; }
    horizontal padding keeps label text clear of both screws; the text
    itself gets a light-below/dark-above shadow so it reads as debossed
    into the plate rather than flat print. */
+/* Modern, quiet button — flat accent fill, no clip-path notches or screw dots.
+   Games render their own controls inside a shadow root, so this only ever
+   styles platform chrome. */
 button {
   cursor: pointer;
   position: relative;
-  background:
-    radial-gradient(140% 200% at 15% 0%, rgba(255,255,255,.16), transparent 55%),
-    linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: var(--accent);
   color: var(--on-accent);
-  text-shadow: 0 1px 0 rgba(255,255,255,.3), 0 -1px 0 rgba(0,0,0,.35);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-  padding: .65rem 1.75rem;
-  font-size: .9rem;
-  font-family: var(--font-mono);
+  padding: .55rem 1.1rem;
+  font-size: .88rem;
+  font-family: var(--font);
   font-weight: 600;
-  letter-spacing: .03em;
-  box-shadow: 0 0 16px var(--accent-soft), inset 0 1px 0 rgba(255,255,255,.25);
-  transition: background var(--transition), transform var(--transition), filter var(--transition), box-shadow var(--transition);
+  letter-spacing: .005em;
+  transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
 }
-button::before, button::after {
-  content: ""; position: absolute; width: 6px; height: 6px; border-radius: 50%;
-  background:
-    linear-gradient(90deg, transparent calc(50% - .6px), rgba(0,0,0,.85) calc(50% - .6px), rgba(0,0,0,.85) calc(50% + .6px), transparent calc(50% + .6px)),
-    radial-gradient(circle at 35% 35%, rgba(255,255,255,.95), rgba(0,0,0,.75) 75%);
-  box-shadow: 0 0 1px rgba(0,0,0,.8), inset 0 0 1px rgba(0,0,0,.5);
-}
-button::before { top: 5px; right: 7px; }
-button::after  { bottom: 5px; left: 7px; }
-button:hover     { filter: brightness(1.15); box-shadow: 0 0 24px var(--accent-soft), inset 0 1px 0 rgba(255,255,255,.25); }
-button:active    { transform: translateY(1px) scale(.98); }
-button:disabled  { background: var(--border); color: var(--muted); cursor: default; transform: none; box-shadow: none; }
-button:disabled::before, button:disabled::after { display: none; }
+button::before, button::after { content: none; }
+button:hover     { background: var(--accent-hover); }
+button:active    { transform: translateY(1px); }
+button:disabled  { background: var(--border); color: var(--muted); cursor: default; transform: none; }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-/* .sh-small doubles as a plain-text utility class (muted metadata like "3
-   players") AND gets slapped on real buttons (Join, Kick, ...). Both share
-   the class selector's specificity, so button.sh-small must restate color
-   itself or the utility's muted gray silently wins over the button's dark-on-neon
-   text — that's the "unreadable" bug. .sh-ghost/.danger still override this
-   correctly since they're declared after and set color explicitly. */
-button.sh-small  { font-size: .78rem; padding: .4rem 1.1rem; color: var(--on-accent); }
-button.sh-small::before, button.sh-small::after { width: 4px; height: 4px; }
-button.danger    {
-  background:
-    radial-gradient(140% 200% at 15% 0%, rgba(255,255,255,.16), transparent 55%),
-    linear-gradient(135deg, var(--danger), #ff6b8f);
-  color: var(--on-accent); box-shadow: 0 0 16px var(--danger-soft), inset 0 1px 0 rgba(255,255,255,.25);
-}
-button.danger:hover { filter: brightness(1.15); }
+/* .sh-small doubles as a plain-text utility (muted metadata) AND is put on real
+   buttons (Join, Kick, ...); restate color so the utility's muted gray doesn't
+   win over the button's on-accent text. */
+button.sh-small  { font-size: .78rem; padding: .38rem .85rem; color: var(--on-accent); }
+button.danger    { background: var(--danger); color: #fff; }
+button.danger:hover { background: color-mix(in srgb, var(--danger) 84%, #fff); }
 button.sh-ghost  {
-  background: var(--surface); color: var(--text); text-shadow: none;
-  box-shadow: inset 0 1px 0 var(--glass-sheen);
-  border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border);
 }
-button.sh-ghost:hover { background: var(--surface-hover); }
-button.sh-ghost::before, button.sh-ghost::after { display: none; }
+button.sh-ghost:hover { background: var(--surface-hover); border-color: var(--border-strong); }
 #sh-theme-toggle,
-.sh-icon-btn { display: inline-flex; align-items: center; justify-content: center; padding: .45rem; border-radius: var(--radius-sm); clip-path: none; }
-#sh-theme-toggle::before, #sh-theme-toggle::after,
-.sh-icon-btn::before, .sh-icon-btn::after,
-.sh-account-btn.sh-avatar::before, .sh-account-btn.sh-avatar::after { display: none; }
+.sh-icon-btn { display: inline-flex; align-items: center; justify-content: center; padding: .45rem; border-radius: var(--radius-sm); }
 
 /* Floating exit — bottom-left over the game (crazygames-style). Deliberately
    plain (no screws/chamfer) so it reads as neutral platform chrome, not part
@@ -532,6 +507,10 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 .sh-chat        { display: flex; flex-direction: column; height: 100%; }
 .sh-chat-messages {
   flex: 1; overflow-y: auto;
+  /* explicit cap so a long history scrolls INSIDE the panel rather than
+     stretching the rail — belt-and-braces for when the flex height chain in
+     the rail doesn't resolve to a definite height. */
+  max-height: 32vh;
   border-radius: var(--radius); padding: var(--space-3); display: flex;
   flex-direction: column; gap: .3rem;
   box-shadow: inset 0 1px 0 var(--glass-sheen);
@@ -545,130 +524,9 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 .sh-chat-input  { display: flex; gap: var(--space-2); margin-top: var(--space-2); min-width: 0; }
 #sh-chat-text   { min-width: 0; }
 
-/* ── Kaperfahrt pixel reskin ──────────────────────────────
-   Roster/chat/match-controls/exit are shell-owned (state and behavior stay
-   untouched — see platform.js, shell/players.js, shell/chat.js). Only their
-   look changes here, scoped to html[data-game="kaperfahrt"] (set by
-   platform.js's mountGame() once a match is active, cleared in
-   showWaitingRoom()/leaveRoom() — so the pre-match waiting room where you
-   pick a game keeps the default platform look). Palette matches the hardcoded
-   values in games/kaperfahrt/app/index.js's own STYLE constant — the two
-   surfaces can't share CSS custom props across the shadow-root boundary
-   that game deliberately mounts inside, so the hex values are duplicated
-   on purpose. Fixed dark palette, like kf-root itself — ignores light/dark
-   shell theme. */
-html[data-game="kaperfahrt"] {
-  --kfx-ink: #14152a; --kfx-ink2: #20223f; --kfx-panel: #2b2d52; --kfx-panel2: #343869;
-  --kfx-key: #565a9c; --kfx-line: #0e0f24; --kfx-cream: #f4efe1; --kfx-muted: #a6a7d0;
-  --kfx-blue: #3b7dd8; --kfx-blue-d: #22508f; --kfx-red: #e5484d; --kfx-red-d: #9d2b2f;
-  --kfx-gold: #f5c542; --kfx-gold-d: #b0821a;
-  --kfx-pix: 'Pixelify Sans', ui-monospace, "SFMono-Regular", "Courier New", monospace;
-}
-
-html[data-game="kaperfahrt"] .gm-roster,
-html[data-game="kaperfahrt"] .gm-chat {
-  background: linear-gradient(180deg, var(--kfx-panel), #242648);
-  border: 3px solid var(--kfx-line); border-radius: 14px;
-  box-shadow: inset 0 0 0 2px var(--kfx-key);
-  backdrop-filter: none; -webkit-backdrop-filter: none;
-}
-html[data-game="kaperfahrt"] .gm-roster h3,
-html[data-game="kaperfahrt"] .gm-chat h3 {
-  font-family: var(--kfx-pix); color: var(--kfx-muted); text-align: center;
-}
-html[data-game="kaperfahrt"] .gm-roster h3::before,
-html[data-game="kaperfahrt"] .gm-chat h3::before { content: none; }
-
-html[data-game="kaperfahrt"] .sh-player {
-  background: var(--kfx-ink2); border: 2px solid var(--kfx-line);
-  border-radius: 10px; box-shadow: none; font-family: var(--kfx-pix);
-}
-html[data-game="kaperfahrt"] .sh-player.me { border-color: var(--kfx-blue); background: var(--kfx-ink2); }
-html[data-game="kaperfahrt"] .sh-sym {
-  background: var(--kfx-panel2); border: 2px solid var(--kfx-line); border-radius: 6px; color: var(--kfx-cream);
-}
-html[data-game="kaperfahrt"] .sh-name { color: var(--kfx-cream); }
-
-html[data-game="kaperfahrt"] #room-chat,
-html[data-game="kaperfahrt"] .sh-chat-messages {
-  background: var(--kfx-ink2); border: 3px solid var(--kfx-line); border-radius: 14px;
-  box-shadow: inset 0 0 0 2px var(--kfx-key); backdrop-filter: none; -webkit-backdrop-filter: none;
-}
-html[data-game="kaperfahrt"] .sh-chat-msg { color: var(--kfx-cream); font-family: var(--kfx-pix); font-size: .82rem; }
-html[data-game="kaperfahrt"] .sh-chat-msg strong { color: var(--kfx-gold); }
-html[data-game="kaperfahrt"] .sh-chat-sys { color: var(--kfx-muted); }
-html[data-game="kaperfahrt"] #sh-chat-text {
-  font-family: var(--kfx-pix); background: var(--kfx-panel2); color: var(--kfx-cream);
-  border: 2px solid var(--kfx-line); border-radius: 8px; box-shadow: none;
-}
-
-/* Pixel button base — same border/box-shadow stack as kf-root's .kf-btn,
-   dropping the default shell button's clip-path notches and screw dots. */
-html[data-game="kaperfahrt"] #room-match-controls button,
-html[data-game="kaperfahrt"] .sh-player button,
-html[data-game="kaperfahrt"] #sh-chat-send,
-html[data-game="kaperfahrt"] #sh-btn-exit {
-  font-family: var(--kfx-pix); font-weight: 700; letter-spacing: .02em;
-  color: var(--kfx-cream); border: 3px solid var(--kfx-line); border-radius: 9px;
-  padding: .5rem 1.05rem; clip-path: none; text-shadow: none;
-  background: var(--kfx-blue); box-shadow: inset 0 2px 0 rgba(255,255,255,.25), 0 4px 0 var(--kfx-blue-d);
-  /* snappy pixel press feel, same timing as kf-root's .kf-btn */
-  transition: transform .08s ease, box-shadow .08s ease, filter .08s ease;
-}
-html[data-game="kaperfahrt"] #room-match-controls button::before,
-html[data-game="kaperfahrt"] #room-match-controls button::after,
-html[data-game="kaperfahrt"] .sh-player button::before,
-html[data-game="kaperfahrt"] .sh-player button::after,
-html[data-game="kaperfahrt"] #sh-chat-send::before,
-html[data-game="kaperfahrt"] #sh-chat-send::after,
-html[data-game="kaperfahrt"] #sh-btn-exit::before,
-html[data-game="kaperfahrt"] #sh-btn-exit::after { display: none; }
-html[data-game="kaperfahrt"] #room-match-controls button:hover,
-html[data-game="kaperfahrt"] .sh-player button:hover,
-html[data-game="kaperfahrt"] #sh-chat-send:hover,
-html[data-game="kaperfahrt"] #sh-btn-exit:hover { filter: brightness(1.08); background: var(--kfx-blue); }
-html[data-game="kaperfahrt"] #room-match-controls button:active,
-html[data-game="kaperfahrt"] .sh-player button:active,
-html[data-game="kaperfahrt"] #sh-chat-send:active,
-html[data-game="kaperfahrt"] #sh-btn-exit:active {
-  transform: translateY(4px); box-shadow: inset 0 2px 0 rgba(255,255,255,.2), 0 0 0 var(--kfx-blue-d);
-}
-html[data-game="kaperfahrt"] .sh-player button.sh-small { padding: .32rem .7rem; font-size: .76rem; }
-/* Destructive actions (kick, abort match, exit) get the red "stop" treatment */
-html[data-game="kaperfahrt"] #sh-btn-abort,
-html[data-game="kaperfahrt"] #sh-btn-exit,
-html[data-game="kaperfahrt"] .sh-player .sh-kick {
-  background: var(--kfx-red); box-shadow: inset 0 2px 0 rgba(255,255,255,.25), 0 4px 0 var(--kfx-red-d);
-}
-html[data-game="kaperfahrt"] #sh-btn-abort:hover,
-html[data-game="kaperfahrt"] #sh-btn-exit:hover,
-html[data-game="kaperfahrt"] .sh-player .sh-kick:hover { background: var(--kfx-red); }
-html[data-game="kaperfahrt"] #sh-btn-abort:active,
-html[data-game="kaperfahrt"] #sh-btn-exit:active,
-html[data-game="kaperfahrt"] .sh-player .sh-kick:active { box-shadow: inset 0 2px 0 rgba(255,255,255,.2), 0 0 0 var(--kfx-red-d); }
-html[data-game="kaperfahrt"] #sh-btn-rematch {
-  background: var(--kfx-gold); color: #3a2a00; box-shadow: inset 0 2px 0 rgba(255,255,255,.4), 0 4px 0 var(--kfx-gold-d);
-}
-html[data-game="kaperfahrt"] #sh-btn-rematch:hover { background: var(--kfx-gold); }
-html[data-game="kaperfahrt"] #sh-btn-rematch:active { box-shadow: inset 0 2px 0 rgba(255,255,255,.3), 0 0 0 var(--kfx-gold-d); }
-
-/* Abort/Rematch/Back-to-room move from the top of the room view down to the
-   bottom of the screen. Bottom-center, not bottom-right — the roster/chat
-   column also reaches the bottom of the viewport, so bottom-right would sit
-   right on top of the chat's Send button. Bottom-left is the Exit button. */
-html[data-game="kaperfahrt"] #room-match-controls {
-  position: fixed; left: 50%; bottom: var(--space-3); transform: translateX(-50%); z-index: 50; padding: 0;
-}
-
-/* Narrow screens: the layout stacks (game/roster/chat) and the body scrolls,
-   so the fixed Exit + Abort bar would overlay the chat input at the very
-   bottom of the page. Reserve room below the last panel so nothing hides
-   under the bar, and shrink the buttons to fit side by side. */
-@media (max-width: 760px) {
-  html[data-game="kaperfahrt"] .gm-layout { padding-bottom: 4.5rem; }
-  html[data-game="kaperfahrt"] #room-match-controls button,
-  html[data-game="kaperfahrt"] #sh-btn-exit { padding: .45rem .8rem; font-size: .82rem; }
-}
+/* Games render inside a shadow root and own their entire look; the platform
+   shell (rail, roster, chat, buttons) keeps ONE consistent modern style
+   regardless of which game is mounted — no per-game reskin of shell chrome. */
 
 /* ── Achievements page (Steam-style browse — owned shown, locked only
       counted; see app/achievements.js) ───────────────────────────── */
@@ -691,3 +549,142 @@ html[data-game="kaperfahrt"] #room-match-controls {
 .ach-owned .ach-icon { filter: drop-shadow(var(--glow)); }
 .ach-name { font-weight: 600; }
 .ach-desc { color: var(--muted); font-size: .85rem; }
+
+/* ── Leaderboard page (per-game ranking; see app/leaderboard.js) ─── */
+.lb-table { width: 100%; border-collapse: collapse; margin-top: var(--space-3); }
+.lb-table th {
+  text-align: left; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--muted); font-weight: 700; padding: 0 .75rem .5rem;
+  border-bottom: 1px solid var(--border);
+}
+.lb-table td { padding: .6rem .75rem; border-bottom: 1px solid var(--border); font-size: .92rem; }
+.lb-table tr:hover td { background: var(--surface); }
+.lb-rank { width: 3rem; color: var(--muted); }
+.lb-pts  { width: 5rem; font-weight: 700; color: var(--accent); }
+.lb-wld  { width: 6rem; color: var(--muted); }
+.lb-wld span { color: var(--faint, var(--muted)); margin: 0 1px; }
+.lb-table tr.lb-me td { background: var(--accent-soft); }
+.lb-table tr.lb-me .lb-name { font-weight: 700; }
+.lb-table tr.lb-me .lb-name::after { content: " (you)"; color: var(--muted); font-weight: 400; }
+
+/* ══════════════════════════════════════════════════════════════════
+   Concept C shell — persistent left rail + main column, collapsible.
+   (app/index.html #view-app, wired in app/platform.js)
+   ════════════════════════════════════════════════════════════════ */
+
+/* Hamburger (header, far left) — quiet ghost square */
+.sh-ham {
+  display: grid; place-items: center; width: 34px; height: 34px; padding: 0;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text); clip-path: none; box-shadow: none;
+}
+.sh-ham::before, .sh-ham::after { content: none; }
+.sh-ham:hover { background: var(--surface-hover); filter: none; }
+
+/* App grid */
+#view-app { flex: 1; min-height: 0; display: grid; grid-template-columns: 288px 1fr; overflow: hidden; }
+#view-app[hidden] { display: none; }
+#view-app.rail-collapsed { grid-template-columns: 1fr; }
+#view-app.rail-collapsed #sh-rail { display: none; }
+
+#sh-rail {
+  display: flex; flex-direction: column; gap: var(--space-3);
+  padding: var(--space-3); min-height: 0; overflow-y: auto;
+  border-right: 1px solid var(--border); background: var(--bg-elevated);
+}
+#sh-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+#sh-main .sh-view { flex: 1; min-height: 0; overflow-y: auto; }
+#view-game:not([hidden]) { max-width: 100%; padding: 0; margin: 0; display: flex; }
+#view-game #game-root { flex: 1; min-height: 0; }
+
+/* Rail mini-profile */
+.sh-rail-profile { display: flex; align-items: center; gap: var(--space-2); padding-bottom: var(--space-2); }
+.sh-rp-av {
+  width: 42px; height: 42px; border-radius: 50%; flex: none; overflow: hidden;
+  display: grid; place-items: center; font-weight: 700; font-size: .9rem; color: var(--on-accent);
+  background: linear-gradient(135deg, var(--accent-hover), var(--accent));
+}
+.sh-rp-av img { width: 100%; height: 100%; object-fit: cover; }
+.sh-rp-meta { min-width: 0; }
+.sh-rp-name { font-weight: 700; font-size: .95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-rp-sub  { font-size: .74rem; color: var(--muted); margin-top: 1px; }
+
+/* Rail nav */
+.sh-rail-nav { display: flex; flex-direction: column; gap: 2px; }
+.sh-nav-item {
+  display: flex; align-items: center; gap: var(--space-2); width: 100%; text-align: left;
+  padding: .55rem .7rem; background: none; border: 1px solid transparent; border-radius: var(--radius-sm);
+  color: var(--muted); font-family: var(--font); font-weight: 500; font-size: .9rem;
+  letter-spacing: 0; text-shadow: none; box-shadow: none; clip-path: none;
+}
+.sh-nav-item::before, .sh-nav-item::after { content: none; }
+.sh-nav-item:hover { background: var(--surface); color: var(--text); filter: none; }
+.sh-nav-item.on { background: var(--accent-soft); color: var(--accent); border-color: var(--border-strong); }
+.sh-nav-ico { width: 1.2em; text-align: center; }
+
+/* Rail room panel */
+.sh-rail-room {
+  margin-top: auto; display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-2); border: 1px solid var(--border-strong); border-radius: var(--radius);
+  background: var(--surface);
+}
+.sh-rail-room[hidden] { display: none; }
+.sh-rr-head { display: flex; align-items: center; gap: var(--space-2); }
+.sh-rr-status {
+  font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; font-weight: 700;
+  color: var(--success); padding: .2rem .5rem; border-radius: 999px; background: var(--success-soft);
+}
+.sh-rr-status[data-status="finished"] { color: var(--accent); background: var(--accent-soft); }
+.sh-rr-status[data-status="paused"]   { color: var(--muted);  background: var(--surface-hover); }
+.sh-rr-head code { margin-left: auto; color: var(--accent); font-weight: 700; letter-spacing: .12em; }
+.sh-rr-chat { display: flex; flex-direction: column; max-height: 34vh; min-height: 120px; }
+.sh-rr-chat[hidden] { display: none; }
+.sh-rr-start { width: 100%; }
+#room-waiting:empty, #room-match-controls:empty { display: none; }
+#rr-leave { align-self: stretch; }
+
+/* Library — page head + game cards */
+.sh-page-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-3); }
+.sh-page-head h2 { margin: 0; }
+/* Room-code field — the join code is case-insensitive server-side, so no forced
+   uppercase/tracking (which made the "Room code" placeholder overflow). Typed
+   value still reads clean; keep it a normal, comfortably sized input. */
+.sh-code-input { flex: 0 0 auto; width: 9.5rem; }
+.sh-code-input::placeholder { letter-spacing: normal; text-transform: none; }
+.sh-sec-title { margin: var(--space-4) 0 var(--space-2); font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.sh-switch-hint {
+  margin-bottom: var(--space-3); padding: .6rem .85rem; font-size: .85rem; color: var(--muted);
+  border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.sh-switch-hint[hidden] { display: none; }
+
+.sh-card-grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+.sh-card {
+  display: flex; flex-direction: column; padding: 0; overflow: hidden; text-align: left;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); font-family: var(--font); box-shadow: none; clip-path: none; letter-spacing: 0;
+  text-shadow: none; transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+}
+.sh-card::before, .sh-card::after { content: none; }
+.sh-card:hover { transform: translateY(-2px); filter: none; border-color: var(--accent); box-shadow: var(--glow); }
+.sh-card-active { border-color: var(--accent); box-shadow: var(--glow); }
+.sh-card-art { display: grid; place-items: center; aspect-ratio: 16 / 10; font-size: 2.6rem; }
+.sh-card-meta { padding: .6rem .75rem; }
+.sh-card-title { display: block; font-weight: 700; font-size: .95rem; }
+.sh-card-sub { display: block; font-size: .76rem; color: var(--muted); margin-top: 2px; }
+.sh-card-active .sh-card-title::after { content: " · in your room"; color: var(--accent); font-weight: 400; font-size: .74rem; }
+
+.art-a1 { background: linear-gradient(135deg, #3a2a5a, #6d3fa3); }
+.art-a2 { background: linear-gradient(135deg, #5a2a2a, #a33f3f); }
+.art-a3 { background: linear-gradient(135deg, #1f4a44, #2f8f7f); }
+.art-a4 { background: linear-gradient(135deg, #4a3a1f, #b0812e); }
+.art-a5 { background: linear-gradient(135deg, #1f2f4a, #3f6da3); }
+.art-a6 { background: linear-gradient(135deg, #2a4a1f, #5f9f3f); }
+.art-default { background: linear-gradient(135deg, var(--accent-2), #333); }
+
+@media (max-width: 760px) {
+  #view-app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  #sh-rail { border-right: none; border-bottom: 1px solid var(--border); max-height: 45vh; }
+  .sh-rail-room { margin-top: var(--space-2); }
+}

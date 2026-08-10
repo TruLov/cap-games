@@ -25,8 +25,10 @@ class PlayService extends cds.ApplicationService {
         .columns('ID','game','host','status','settings');
       if (!room) return this._error(req, roomId, 'room not found');
 
-      const game = reg.get(room.game);
-      if (!game) return this._error(req, roomId, `unknown game: ${room.game}`);
+      // An empty room (game === '') is valid — the host picks a game later via
+      // switchGame. Only a *specified but unknown* game is an error.
+      const game = room.game ? reg.get(room.game) : null;
+      if (room.game && !game) return this._error(req, roomId, `unknown game: ${room.game}`);
 
       await req.context.ws.service.enter(roomId);
 
@@ -71,7 +73,10 @@ class PlayService extends cds.ApplicationService {
       // setRole once they've seen the room)
       const players = await SELECT.from(Players).where({ room_ID: roomId });
       const seatsTaken = players.filter(p => !p.spectator).length;
-      const spectator = room.status !== 'lobby' || seatsTaken >= game.meta.maxPlayers;
+      // No game yet (empty room) → no seat cap; everyone waits as a player until
+      // a game is chosen, then switchGame re-splits against its maxPlayers.
+      const maxSeats = game ? game.meta.maxPlayers : Infinity;
+      const spectator = room.status !== 'lobby' || seatsTaken >= maxSeats;
 
       const isHost = players.length === 0;  // first to join is host
       await INSERT.into(Players).entries({ room_ID: roomId, user, spectator, isHost });
@@ -110,6 +115,7 @@ class PlayService extends cds.ApplicationService {
 
       const players = await SELECT.from(Players).where({ room_ID: roomId });
       const game = reg.get(room.game);
+      if (!game) return this._error(req, roomId, 'pick a game before starting');
       const realPlayers = players.filter(p => !p.spectator);
 
       if (realPlayers.length < game.meta.minPlayers)

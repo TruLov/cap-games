@@ -60,7 +60,7 @@ class LobbyService extends cds.ApplicationService {
 
       for (const r of list) {
         const g = registry.get(r.game);
-        r.gameName    = g?.meta.name ?? r.game;
+        r.gameName    = g?.meta.name ?? (r.game || 'Empty room');
         r.maxPlayers  = g?.meta.maxPlayers ?? null;
         r.playerCount = countByRoom[r.ID] ?? 0;
         r.isMember    = memberOf.has(r.ID);
@@ -72,14 +72,17 @@ class LobbyService extends cds.ApplicationService {
       const { game } = req.data;
       const user = req.user.id;
 
-      if (!registry.get(game))
+      // game is optional — an "empty room" (game === '' / omitted) is created in
+      // the lobby with no game yet; the host picks one via switchGame. Only a
+      // *specified* game must be known.
+      if (game && !registry.get(game))
         return req.error(400, `Unknown game: ${game}`);
 
       const roomId = cds.utils.uuid();
       const code   = await this._uniqueCode();
 
       await INSERT.into(Rooms).entries({
-        ID: roomId, game, host: user, status: 'lobby', settings: '{}', code,
+        ID: roomId, game: game ?? '', host: user, status: 'lobby', settings: '{}', code,
       });
       await INSERT.into(Players).entries({
         room_ID: roomId, user, spectator: false, isHost: true,

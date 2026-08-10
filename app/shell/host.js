@@ -18,46 +18,30 @@
  */
 
 export async function mountWaitingRoom(el, sdk, gameModule) {
-  const hasSettings = typeof gameModule.renderSettings === 'function';
+  const noGame      = !gameModule;                                    // empty room
+  const hasSettings = typeof gameModule?.renderSettings === 'function';
 
-  let hostControls = '';
+  // Game selection lives in the library cards now (see platform.js
+  // handleGameCard) — the rail waiting panel only owns Start + the game's own
+  // settings + the appropriate "waiting" message.
+  let controls;
   if (sdk.me.isHost) {
-    let games = [];
-    try {
-      const res = await fetch('/odata/v4/lobby/Games');
-      games = (await res.json()).value ?? [];
-    } catch { /* leave games empty — switch control just shows nothing to pick */ }
-
-    hostControls = `
-      <div class="sh-host-controls">
-        <div class="sh-row sh-switch-game">
-          <select id="sh-switch-select">
-            ${games.map(g => `<option value="${g.id}" ${g.id === sdk.room.game ? 'selected' : ''}>${g.name}</option>`).join('')}
-          </select>
-          <button id="sh-btn-switch" class="sh-small">Switch game</button>
-        </div>
-        ${hasSettings ? '' : '<button id="sh-btn-start">Start game</button>'}
-      </div>`;
+    if (noGame)          controls = '<p class="sh-small">Pick a game from the library to set up your room.</p>';
+    else if (!hasSettings) controls = '<button id="sh-btn-start" class="sh-rr-start">Start game</button>';
+    else                 controls = '';   // the game's settings panel supplies its own Start
+  } else {
+    controls = !hasSettings ? '<p class="sh-small">Waiting for the host…</p>' : '';
   }
 
-  el.innerHTML = `
-    ${hostControls}
-    <div id="sh-settings-slot"></div>
-    ${!sdk.me.isHost && !hasSettings ? '<p class="sh-small">Waiting for the host to start…</p>' : ''}
-  `;
-
-  el.querySelector('#sh-btn-switch')?.addEventListener('click', () => {
-    const game = el.querySelector('#sh-switch-select').value;
-    if (game && game !== sdk.room.game) sdk.send('switchGame', { room: sdk.room.id, game });
-  });
+  el.innerHTML = `${controls}<div id="sh-settings-slot"></div>`;
   el.querySelector('#sh-btn-start')?.addEventListener('click',
     () => sdk.send('start', { room: sdk.room.id }));
 
-  // Render the game's settings panel inside a shadow root too, for the same
-  // style isolation as the game board (mountGame) — the panel is a game-owned
-  // surface that shouldn't inherit the platform's button/heading theme.
+  // Render the game's settings panel inside a shadow root, for the same style
+  // isolation as the game board — a game-owned surface that shouldn't inherit
+  // the platform theme. Rendered for everyone (some games have per-player setup).
   let settingsCleanup = null;
-  if (hasSettings) {
+  if (hasSettings && !noGame) {
     const slot = el.querySelector('#sh-settings-slot');
     const sroot = document.createElement('div');
     slot.attachShadow({ mode: 'open' }).appendChild(sroot);
