@@ -21,21 +21,23 @@ class LobbyService extends cds.ApplicationService {
       const list = Array.isArray(rooms) ? rooms : rooms ? [rooms] : [];
       if (!list.length) return;
 
+      // One round trip for both the per-room headcount and whether the caller
+      // already has a seat (see below) — was two separate queries.
       const ids = [...new Set(list.map(r => r.ID))];
-      const counts = await SELECT.from(Players)
-        .columns('room_ID', 'count(*) as n')
-        .where({ room_ID: { in: ids }, spectator: false })
-        .groupBy('room_ID');
-      const countByRoom = Object.fromEntries(counts.map(c => [c.room_ID, c.n]));
+      const members = await SELECT.from(Players)
+        .columns('room_ID', 'user', 'spectator')
+        .where({ room_ID: { in: ids } });
 
-      // Rooms the caller already has a seat in — the start page shows
-      // "Reconnect" instead of "Join"/"Spectate" for these (matters after a
-      // disconnect: the room may look "full" from the outside, but that seat
-      // is the caller's own).
-      const own = await SELECT.from(Players)
-        .columns('room_ID')
-        .where({ room_ID: { in: ids }, user: req.user.id });
-      const memberOf = new Set(own.map(p => p.room_ID));
+      const countByRoom = {};
+      const memberOf = new Set();
+      for (const p of members) {
+        if (!p.spectator) countByRoom[p.room_ID] = (countByRoom[p.room_ID] ?? 0) + 1;
+        // Rooms the caller already has a seat in — the start page shows
+        // "Reconnect" instead of "Join"/"Spectate" for these (matters after a
+        // disconnect: the room may look "full" from the outside, but that seat
+        // is the caller's own).
+        if (p.user === req.user.id) memberOf.add(p.room_ID);
+      }
 
       for (const r of list) {
         const g = registry.get(r.game);

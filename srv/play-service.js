@@ -289,9 +289,14 @@ class PlayService extends cds.ApplicationService {
         .columns('ID','status','game','settings','host')
         .where({ status: { in: ['playing', 'lobby', 'paused', 'finished'] } });
 
+      // Batch this user's seats across all live rooms in one query instead of
+      // a SELECT per room (was N+1).
+      const roomIds = rooms.map(r => r.ID);
+      const seats = await SELECT.from(Players).where({ room_ID: { in: roomIds }, user });
+      const playerByRoom = Object.fromEntries(seats.map(p => [p.room_ID, p]));
+
       for (const room of rooms) {
-        const player = await SELECT.one.from(Players)
-          .where({ room_ID: room.ID, user });
+        const player = playerByRoom[room.ID];
         if (!player) continue;
 
         // Grace period in ANY status — a transient drop (network blip, tab
@@ -580,21 +585,32 @@ class PlayService extends cds.ApplicationService {
           game.pointsOf ? { pointsOf: u => game.pointsOf(result.end, u) } : {});
 
     for (const s of scores) {
-      const existing = await SELECT.one.from(Leaderboard).where({ user: s.user, game: room.game });
-      if (existing) {
-        await UPDATE(Leaderboard).set({
-          wins:   existing.wins   + (s.result === 'win'  ? 1 : 0),
-          losses: existing.losses + (s.result === 'loss' ? 1 : 0),
-          draws:  existing.draws  + (s.result === 'draw' ? 1 : 0),
-          points: existing.points + (s.points ?? 0),
-        }).where({ user: s.user, game: room.game });
-      } else {
+      // DB-side increments instead of read-modify-write: avoids a lost update
+      // if two matches for the same user/game finish concurrently. The
+      // returned affected-row count tells us whether a row existed to bump;
+      // if not, insert the first one. (Plain UPDATE against the db — not
+      // through a service — returns a bare number, not `{ affected }`.)
+      const winsDelta   = s.result === 'win'  ? 1 : 0;
+      const lossesDelta = s.result === 'loss' ? 1 : 0;
+      const drawsDelta  = s.result === 'draw' ? 1 : 0;
+      const pointsDelta = s.points ?? 0;
+
+      const affected = await UPDATE(Leaderboard)
+        .set({
+          wins:   { '+=': winsDelta },
+          losses: { '+=': lossesDelta },
+          draws:  { '+=': drawsDelta },
+          points: { '+=': pointsDelta },
+        })
+        .where({ user: s.user, game: room.game });
+
+      if (!affected) {
         await INSERT.into(Leaderboard).entries({
           user: s.user, game: room.game,
-          wins:   s.result === 'win'  ? 1 : 0,
-          losses: s.result === 'loss' ? 1 : 0,
-          draws:  s.result === 'draw' ? 1 : 0,
-          points: s.points ?? 0,
+          wins:   winsDelta,
+          losses: lossesDelta,
+          draws:  drawsDelta,
+          points: pointsDelta,
         });
       }
     }
