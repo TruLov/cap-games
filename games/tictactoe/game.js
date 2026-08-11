@@ -1,9 +1,9 @@
 /**
- * TicTacToe — pure game module (platform hook contract).
+ * TicTacToe - pure game module (platform hook contract).
  *
  * Implements meta, settingsSchema, init, applyMove; score is omitted so the
  * platform's defaultScore is used (W:3 D:1 L:0), and extendService is omitted
- * (no game-specific actions needed). Pure logic — no CAP imports. Registered
+ * (no game-specific actions needed). Pure logic - no CAP imports. Registered
  * with the platform by ./cds-plugin.js.
  *
  * The platform identifies players by `user` and assigns no symbols. X/O are a
@@ -30,6 +30,8 @@ export default {
     name:       'TicTacToe',
     minPlayers: 2,
     maxPlayers: 2,
+    help: 'The classic, for 2 players. Take turns placing your mark (X or O) on the 3x3 grid. First to line up three marks in a row, column, or diagonal wins. If the board fills up with no winner, it is a draw.',
+    gallery: ['gallery/cover-1.svg', 'gallery/cover-2.svg'],
   },
 
   settingsSchema: {
@@ -37,7 +39,7 @@ export default {
     firstPlayer: { type: 'enum', values: ['X', 'O', 'random'], default: 'X' },
   },
 
-  // Game-declared achievements — SINGLE-MATCH, pure. Aggregate feats (streaks,
+  // Game-declared achievements - SINGLE-MATCH, pure. Aggregate feats (streaks,
   // totals) are the platform's job (srv/achievements.js), not a game's.
   achievements: {
     underdog: { name: 'Underdog', desc: 'Win a match as O (the second player)' },
@@ -52,7 +54,7 @@ export default {
   },
 
   init(settings = {}, players = []) {
-    // player 0 (host) is X, player 1 is O — the platform passes them ordered
+    // player 0 (host) is X, player 1 is O - the platform passes them ordered
     const marks = {};
     if (players[0]) marks[players[0].user] = 'X';
     if (players[1]) marks[players[1].user] = 'O';

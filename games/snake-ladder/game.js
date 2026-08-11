@@ -1,20 +1,20 @@
 /**
- * Snake & Ladder — pure game module (platform hook contract).
+ * Snake & Ladder - pure game module (platform hook contract).
  *
- * Implements meta, init, applyMove — pure logic, no CAP imports (so it stays
+ * Implements meta, init, applyMove - pure logic, no CAP imports (so it stays
  * unit-testable without a DB). Ported from the standalone CAP tutorial app: the
  * dice/exact-100/snake/ladder rules that used to live in an OData service +
  * @flow state machine are now a single reducer the platform drives over its WS
  * PlayService, exactly like the other games.
  *
- * Adapted from the SAP CAP "July Developer Challenge — Snake & Ladder with
+ * Adapted from the SAP CAP "July Developer Challenge - Snake & Ladder with
  * status transition" tutorial by ajay_soreng:
  * https://community.sap.com/t5/sap-cap-blog-posts/july-developer-challenge-snake-amp-ladder-with-sap-cap-status-transition/ba-p/14429486
  * The tutorial models the game as an OData service with a @flow.status state
  * machine; this is a from-scratch reimplementation of the same board/dice rules
  * as a pure reducer for this platform's WS contract.
  *
- * The board (snakes/ladders) is NOT hardcoded here — it's this plugin's own
+ * The board (snakes/ladders) is NOT hardcoded here - it's this plugin's own
  * `snakeladder.BoardSquares` table, loaded once by ./extend.js and pushed in via
  * setBoard() before any match starts. Keeping the table as the single source of
  * truth is the whole point of shipping game-owned persistence (see ./schema.cds).
@@ -63,6 +63,20 @@ export default {
     name:       'Snake & Ladder',
     minPlayers: 2,
     maxPlayers: 4,
+    help: 'The classic board race for 2-4 players. Roll the dice and move your token along the 100-square board. Land on a ladder to climb up, or a snake to slide back down - some snakes have a double head that also skips your next turn. You must land exactly on square 100 to win; overshooting forfeits your move.',
+    gallery: ['gallery/cover-1.svg', 'gallery/cover-2.svg', 'board.png'],
+  },
+
+  // Game-declared achievements - SINGLE-MATCH, pure (see checkAchievements).
+  achievements: {
+    bullseye: { name: 'Bullseye', desc: 'Win with the exact roll needed - no ladder or snake assist' },
+  },
+
+  checkAchievements(_end, state, user) {
+    const earned = [];
+    const m = state.lastMove;
+    if (m && m.user === user && state.winner === user && m.from + m.roll === 100) earned.push('bullseye');
+    return earned;
   },
 
   init(_settings = {}, players = []) {
@@ -79,7 +93,7 @@ export default {
   },
 
   // The only move is a dice roll: move = { type: 'roll' } (payload ignored).
-  // Runs server-side in engine.js, so Math.random() here is authoritative — the
+  // Runs server-side in engine.js, so Math.random() here is authoritative - the
   // client never rolls.
   applyMove(state, _move, user) {
     if (!BOARD) return { error: 'board not loaded' };
@@ -95,7 +109,7 @@ export default {
 
     let to = from, event = 'normal';
     if (target > 100) {
-      event = 'overshoot';          // must land exactly on 100 — no move, turn passes
+      event = 'overshoot';          // must land exactly on 100 - no move, turn passes
     } else {
       to = target;
       const jump = BOARD[target];
