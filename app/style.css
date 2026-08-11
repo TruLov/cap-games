@@ -5,7 +5,7 @@
    everything (body::before), and UI surfaces are translucent + blurred
    (backdrop-filter) so that field shows through. The default palette is
    "Cold Brew" (kept unscoped so it also serves as the pre-JS/no-attribute
-   fallback) — other named palettes are selected via [data-palette] on
+   fallback) - other named palettes are selected via [data-palette] on
    <html> further down (app/palettes.js) and override these same variable
    names, so every rule below stays palette/theme-agnostic by construction.
    Surfaces/borders use higher alpha than a typical glass UI so panels and
@@ -64,7 +64,7 @@
   * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
-/* Light theme (default palette, "Cold Brew") — same variable names, flipped
+/* Light theme (default palette, "Cold Brew") - same variable names, flipped
    to a warm off-white glass. Applied via [data-theme="light"] on <html>,
    set before first paint (inline script in index.html/login.html/logout.html
    <head>) to avoid a flash of the wrong theme. Toggled + persisted from the
@@ -106,7 +106,7 @@
    gets one dark block and one [data-theme="light"] block. Add a new
    palette by adding its two blocks here and one entry in palettes.js. */
 
-/* Macchiato Contrast — a warm mid-roast dark (lighter/redder than Roasted
+/* Macchiato Contrast - a warm mid-roast dark (lighter/redder than Roasted
    Slate's near-black) with a dusty terracotta accent, and a crisper,
    higher-contrast light mode than it had before. */
 :root[data-palette="macchiato"] {
@@ -133,7 +133,7 @@
   --field-1: #E3CFB8; --field-2: #ecdcc8; --field-3: #f5ebdd; --field-4: #F0E4D6;
 }
 
-/* Straight Black — quietest: mid-tones stay near-monochrome with the
+/* Straight Black - quietest: mid-tones stay near-monochrome with the
    neutrals, accent barely warmer than the border color. */
 :root[data-palette="straight-black"] {
   --bg: #221710; --bg-elevated: rgba(72,55,42,.65);
@@ -159,9 +159,9 @@
   --field-1: #DBC8B8; --field-2: #e8dbcb; --field-3: #f2e7da; --field-4: #ECE0D0;
 }
 
-/* Cold Brew is the default palette — see the unscoped :root block above. */
+/* Cold Brew is the default palette - see the unscoped :root block above. */
 
-/* Oat Milk — softest: leans into the almond/cream side even in dark mode
+/* Oat Milk - softest: leans into the almond/cream side even in dark mode
    (a soft warm brown, not near-black), low-chroma honeyed-amber accent. */
 :root[data-palette="oat-milk"] {
   --bg: #2c2118; --bg-elevated: rgba(90,71,52,.65);
@@ -187,7 +187,7 @@
   --field-1: #e6d7c1; --field-2: #efe4d3; --field-3: #f7efe2; --field-4: #F6EEE1;
 }
 
-/* Roasted Slate — boldest: deep espresso-brown dark mode, crisp ivory light
+/* Roasted Slate - boldest: deep espresso-brown dark mode, crisp ivory light
    mode, a confident fully-saturated copper accent. */
 :root[data-palette="roasted-slate"] {
   --bg: #38220F; --bg-elevated: rgba(99,72,50,.7);
@@ -229,7 +229,7 @@ body {
 
 /* ── Liquid background field ────────────────────────────────
    Fixed, blurred, slowly-drifting color blobs behind every view. This is
-   what backdrop-filter on the glass surfaces above actually blurs — a flat
+   what backdrop-filter on the glass surfaces above actually blurs - a flat
    background wouldn't read as "glass". Kept on a pseudo-element (not a DOM
    node) so it never interferes with layout or hit-testing. */
 body::before {
@@ -252,7 +252,7 @@ body::before {
   100% { transform: translate3d(-2%, 2%, 0) scale(1.06); }
 }
 
-/* Faint tech grid-horizon over the color field — the sci-fi "HUD" layer.
+/* Faint tech grid-horizon over the color field - the sci-fi "HUD" layer.
    Perspective-tilted so it reads as a receding floor grid, not wallpaper. */
 body::after {
   content: "";
@@ -306,7 +306,7 @@ button.sh-ghost {
   position: relative;
   z-index: 10;
 }
-/* Header wordmark button — a reset container around the .gm-logo text mark. */
+/* Header wordmark button - a reset container around the .gm-logo text mark. */
 .sh-logo  {
   display: inline-flex; align-items: center;
   background: none; border: none; padding: 0;
@@ -316,11 +316,11 @@ button.sh-ghost {
 }
 .sh-logo::before, .sh-logo::after { content: none; }
 .sh-logo:hover { filter: brightness(1.2); }
-/* Pixel espresso-cup mascot — swaps source (idle/filling/steam) to reflect
+/* Pixel espresso-cup mascot - swaps source (idle/filling/steam) to reflect
    where you are: browsing = idle, waiting room = filling, in a match = steam.
    The artwork reserves headroom above the cup for steam to curl through
    (viewBox is 64×84, but the cup itself only occupies the bottom 36 units),
-   so the wrapper is sized to the cup alone — same trick as .gm-caret below —
+   so the wrapper is sized to the cup alone - same trick as .gm-caret below -
    while the taller <img> hangs off it via position:absolute and is free to
    paint its steam headroom above without affecting layout or alignment. */
 .sh-logo-cup-wrap {
@@ -330,7 +330,7 @@ button.sh-ghost {
   transform: translateY(.14em); /* same baseline offset as .gm-caret */
 }
 .sh-logo-cup { position: absolute; left: 0; bottom: 0; height: calc(1em * 84 / 36); width: auto; image-rendering: pixelated; }
-/* Terminal-token wordmark: gam[e]//bit[s] — letters in text, brackets muted
+/* Terminal-token wordmark: gam[e]//bit[s] - letters in text, brackets muted
    gray, slashes in accent orange. Replaces the procedural canvas wordmark;
    sizes via font-size so one markup serves header + hero. */
 .gm-logo { font-family: var(--font-mono); font-weight: 700; letter-spacing: .01em;
@@ -369,7 +369,7 @@ button.sh-ghost {
 }
 .sh-avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
 
-/* Palette picker (Appearance section, profile page) — a custom dropdown
+/* Palette picker (Appearance section, profile page) - a custom dropdown
    rather than a native <select> so each row can carry swatches and hovering
    can live-preview the palette on the whole page; see app/palettes.js. */
 .pal-swatches { display: flex; gap: .25rem; flex: none; }
@@ -409,7 +409,7 @@ button.sh-ghost {
 .pal-option:hover { background: var(--surface-hover); }
 .pal-option.on { border-color: var(--border-strong); color: var(--accent); }
 
-/* Solid gunmetal plate (not just tinted glass) — always dark regardless of
+/* Solid gunmetal plate (not just tinted glass) - always dark regardless of
    theme, so it reads clearly against whatever's behind it. */
 .sh-account-menu {
   position: absolute; right: 0; top: calc(100% + .5rem);
@@ -438,24 +438,24 @@ button.sh-ghost {
 /* ── Views ──────────────────────────────────────────────── */
 .sh-view  { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-5) var(--space-4); max-width: 900px; width: 100%; margin: 0 auto; }
 .sh-center { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); text-align: center; }
-/* [hidden] is only a UA-stylesheet rule — author rules like .sh-center/#view-room
+/* [hidden] is only a UA-stylesheet rule - author rules like .sh-center/#view-room
    that set `display` beat it on origin, not specificity. Force it explicitly. */
 .sh-view[hidden] { display: none; }
 
 /* #game-root is the ONLY area a game module ever touches (waiting-room
-   controls or the mounted game); the persistent room chrome — players, chat,
-   and the .gm-layout/.gm-aside split — lives once in index.html, owned by
+   controls or the mounted game); the persistent room chrome - players, chat,
+   and the .gm-layout/.gm-aside split - lives once in index.html, owned by
    platform.js, never duplicated per game. */
 #view-room:not([hidden])  { max-width: 100%; padding: 0; display: flex; flex-direction: column; min-height: 0; margin: 0; }
 #room-match-controls:empty { display: none; }
 #room-match-controls { padding: var(--space-3) var(--space-4) 0; }
 #game-root  { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
-/* ── Room layout (game + roster + chat) — see index.html ──────────────
+/* ── Room layout (game + roster + chat) - see index.html ──────────────
    A CSS grid with named areas so a game can reposition/resize roster and
    chat around its own board without the platform touching how they're
    rendered (mountPlayers/mountChat in platform.js own #room-players/
-   #room-chat exactly as before — only their grid placement changes).
+   #room-chat exactly as before - only their grid placement changes).
    Default matches the previous fixed layout: game left, players/chat
    stacked in a right-hand column. A game overrides the --gm-* custom
    properties via platform.js's applyRoomLayout() (driven by its own
@@ -480,10 +480,10 @@ button.sh-ghost {
 .gm-roster { grid-area: roster; }
 /* Chat scrolls internally (.sh-chat-messages) rather than as a whole aside,
    so #room-chat needs a definite flexed height for .sh-chat's height:100%
-   to resolve against — previously an inline height:300px on #room-chat did
+   to resolve against - previously an inline height:300px on #room-chat did
    this job; the grid row now supplies the height instead. */
 .gm-chat   { grid-area: chat; overflow: hidden; }
-/* flex-direction: column (not the row default) — #room-chat has one block
+/* flex-direction: column (not the row default) - #room-chat has one block
    child (.sh-chat); a row context would make that child a shrinkable-width
    flex item too (needing its own min-width:0), column avoids that: the
    child's width just comes from the normal cross-axis stretch. */
@@ -497,7 +497,7 @@ button.sh-ghost {
 /* ── Game-owned surface ─────────────────────────────────────
    A game board (mountGame) and its renderSettings panel (shell/host.js) are
    each mounted inside a shadow root, so the shell's global button/heading/HUD
-   theme physically cannot reach in and the game's own styles cannot leak out —
+   theme physically cannot reach in and the game's own styles cannot leak out -
    every game owns its entire look. No CSS opt-out needed here anymore. */
 
 h1 {
@@ -507,7 +507,7 @@ h1 {
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 0 10px var(--accent-soft));
 }
-/* Landing hero — the terminal wordmark, large (.gm-logo-hero). */
+/* Landing hero - the terminal wordmark, large (.gm-logo-hero). */
 .sh-hero-logo {
   background: none; -webkit-background-clip: initial; background-clip: initial;
   color: initial; filter: none; margin: 0 0 var(--space-2);
@@ -520,12 +520,12 @@ h3::before { content: "// "; color: var(--accent); opacity: .7; }
 /* ── Buttons ────────────────────────────────────────────── */
 /* Riveted-plate finish: two flathead (Schlitzschraube) screws punched into
    the surviving square corners (the other two are chamfered off by
-   clip-path below) — the slot is a thin dark line layered over the
+   clip-path below) - the slot is a thin dark line layered over the
    metallic radial gradient, painted first so it sits on top. Generous
    horizontal padding keeps label text clear of both screws; the text
    itself gets a light-below/dark-above shadow so it reads as debossed
    into the plate rather than flat print. */
-/* Modern, quiet button — flat accent fill, no clip-path notches or screw dots.
+/* Modern, quiet button - flat accent fill, no clip-path notches or screw dots.
    Games render their own controls inside a shadow root, so this only ever
    styles platform chrome. */
 button {
@@ -561,7 +561,7 @@ button.sh-ghost:hover { background: var(--surface-hover); border-color: var(--bo
 #sh-theme-toggle,
 .sh-icon-btn { display: inline-flex; align-items: center; justify-content: center; padding: .45rem; border-radius: var(--radius-sm); }
 
-/* Floating exit — bottom-left over the game (crazygames-style). Deliberately
+/* Floating exit - bottom-left over the game (crazygames-style). Deliberately
    plain (no screws/chamfer) so it reads as neutral platform chrome, not part
    of any game's look. */
 .sh-exit {
@@ -587,7 +587,7 @@ input, select {
 }
 input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), inset 0 1px 0 var(--glass-sheen); }
 
-/* File input — the outer control already picks up the glass surface from
+/* File input - the outer control already picks up the glass surface from
    the `input, select` rule above; only its native "Choose file" button
    (a browser shadow-root control, not reachable by ordinary rules) needs
    its own theming via ::file-selector-button. */
@@ -645,7 +645,7 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 /* Players */
 .sh-players  { list-style: none; display: flex; flex-direction: column; gap: var(--space-1); }
 /* wrap: the role/kick buttons are wide (clip-path notches + "→ spectator"
-   label) — in a 280px column they don't fit next to a gamertag on one
+   label) - in a 280px column they don't fit next to a gamertag on one
    line, and without wrap the name (min-width:0 above) gets squeezed down
    to an unreadable single character per line instead. */
 .sh-player   { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-2);
@@ -670,7 +670,7 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 .sh-chat-messages {
   flex: 1; overflow-y: auto;
   /* explicit cap so a long history scrolls INSIDE the panel rather than
-     stretching the rail — belt-and-braces for when the flex height chain in
+     stretching the rail - belt-and-braces for when the flex height chain in
      the rail doesn't resolve to a definite height. */
   max-height: 32vh;
   border-radius: var(--radius); padding: var(--space-3); display: flex;
@@ -680,7 +680,7 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 .sh-chat-msg    { font-size: .9rem; color: var(--text); overflow-wrap: anywhere; }
 .sh-chat-msg strong { color: var(--accent-hover); }
 .sh-chat-sys    { color: var(--muted); font-style: italic; font-size: .82rem; }
-/* min-width: 0 on both the row and the input — flex items default to a
+/* min-width: 0 on both the row and the input - flex items default to a
    content-based min width, so without it #sh-chat-text refuses to shrink
    below its intrinsic size and the row overflows the 280px chat column. */
 .sh-chat-input  { display: flex; gap: var(--space-2); margin-top: var(--space-2); min-width: 0; }
@@ -688,9 +688,9 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 
 /* Games render inside a shadow root and own their entire look; the platform
    shell (rail, roster, chat, buttons) keeps ONE consistent modern style
-   regardless of which game is mounted — no per-game reskin of shell chrome. */
+   regardless of which game is mounted - no per-game reskin of shell chrome. */
 
-/* ── Achievements page (Steam-style browse — owned shown, locked only
+/* ── Achievements page (Steam-style browse - owned shown, locked only
       counted; see app/achievements.js) ───────────────────────────── */
 .ach-game { margin-bottom: var(--space-4); }
 .ach-game h3 {
@@ -713,7 +713,7 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 .ach-name { font-weight: 600; }
 .ach-desc { color: var(--muted); font-size: .85rem; }
 
-/* Achievement badges — rail row + edit-profile pin picker. A themed circular
+/* Achievement badges - rail row + edit-profile pin picker. A themed circular
    chip: the icon's color is set inline per achievement (see
    app/achievement-icons.js), background/border derive from it via
    color-mix(currentColor) so one rule covers every game's color. */
@@ -754,11 +754,11 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 .lb-table tr.lb-me .lb-name::after { content: " (you)"; color: var(--muted); font-weight: 400; }
 
 /* ══════════════════════════════════════════════════════════════════
-   Concept C shell — persistent left rail + main column, collapsible.
+   Concept C shell - persistent left rail + main column, collapsible.
    (app/index.html #view-app, wired in app/platform.js)
    ════════════════════════════════════════════════════════════════ */
 
-/* Hamburger (header, far left) — quiet ghost square */
+/* Hamburger (header, far left) - quiet ghost square */
 .sh-ham {
   display: grid; place-items: center; width: 34px; height: 34px; padding: 0;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -831,10 +831,10 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 #room-waiting:empty, #room-match-controls:empty { display: none; }
 #rr-leave { align-self: stretch; }
 
-/* Library — page head + game cards */
+/* Library - page head + game cards */
 .sh-page-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-3); }
 .sh-page-head h2 { margin: 0; }
-/* Room-code field — the join code is case-insensitive server-side, so no forced
+/* Room-code field - the join code is case-insensitive server-side, so no forced
    uppercase/tracking (which made the "Room code" placeholder overflow). Typed
    value still reads clean; keep it a normal, comfortably sized input. */
 .sh-code-input { flex: 0 0 auto; width: 9.5rem; }

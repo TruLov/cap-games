@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Gambito</title>
-  <!-- Set the theme before first paint — avoids a flash of the wrong theme. -->
+  <!-- Set the theme before first paint - avoids a flash of the wrong theme. -->
   <script>(function(){var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.dataset.theme=t;document.documentElement.dataset.palette=localStorage.getItem('palette')||'cold-brew';})();</script>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%233b82f6'/%3E%3Ctext x='32' y='46' font-size='38' text-anchor='middle' fill='white'%3E%E2%99%9F%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
@@ -37,19 +37,19 @@
     </nav>
   </header>
 
-  <!-- ── Landing (public — shown to anonymous IAS visitors) ── -->
+  <!-- ── Landing (public - shown to anonymous IAS visitors) ── -->
   <main id="view-landing" class="sh-view sh-center" hidden>
     <h1 class="sh-hero-logo" aria-label="gambit">
       <span class="gm-logo gm-logo-hero">gam<span class="gm-opt">[e]</span><span class="gm-sl">//</span>bit<span class="gm-opt">[s]</span><span class="gm-caret"></span></span>
     </h1>
-    <p>Multiplayer browser games — play right in your browser with friends.</p>
+    <p>Multiplayer browser games - play right in your browser with friends.</p>
     <ul class="sh-landing-games">
-      <li><strong>TicTacToe</strong> — the classic, 2 players.</li>
-      <li><strong>Ultimate Tic-Tac-Toe</strong> — a 3×3 grid of tic-tac-toe boards, 2–8 players.</li>
-      <li><strong>Kaiten</strong> — a sushi-drafting card game, 2–6 players.</li>
-      <li><strong>Kaffee-Kwest</strong> — an AI-hosted co-op adventure, 2–6 players.</li>
-      <li><strong>Flip Fortune</strong> — a press-your-luck card game, 2–8 players.</li>
-      <li><strong>Kaperfahrt</strong> — a pirate press-your-luck dice game, 2–5 players.</li>
+      <li><strong>TicTacToe</strong> - the classic, 2 players.</li>
+      <li><strong>Ultimate Tic-Tac-Toe</strong> - a 3×3 grid of tic-tac-toe boards, 2–8 players.</li>
+      <li><strong>Kaiten</strong> - a sushi-drafting card game, 2–6 players.</li>
+      <li><strong>Kaffee-Kwest</strong> - an AI-hosted co-op adventure, 2–6 players.</li>
+      <li><strong>Flip Fortune</strong> - a press-your-luck card game, 2–8 players.</li>
+      <li><strong>Kaperfahrt</strong> - a pirate press-your-luck dice game, 2–5 players.</li>
     </ul>
     <p class="sh-small">Use <strong>Log in</strong> (top right) to start playing.</p>
   </main>
@@ -94,7 +94,7 @@
         </button>
       </nav>
 
-      <!-- Room panel — persistent for the room's whole lifetime, regardless of
+      <!-- Room panel - persistent for the room's whole lifetime, regardless of
            which page you're browsing in the main column. -->
       <div id="rail-room" class="sh-rail-room" hidden>
         <div class="sh-rr-head">
@@ -134,21 +134,21 @@
         <ul id="sh-room-list" class="sh-list"></ul>
       </main>
 
-  <!-- ── Edit profile — gamertag + avatar (own only) ─────────── -->
+  <!-- ── Edit profile - gamertag + avatar (own only) ─────────── -->
   <main id="view-profile" class="sh-view" hidden>
     <h2>Edit profile</h2>
     <div class="sh-row">
       <div id="profile-avatar-preview" class="sh-avatar-preview"></div>
       <div>
         <input type="file" id="profile-avatar-input" accept="image/png,image/jpeg,image/webp" />
-        <div class="sh-small">PNG/JPEG/WEBP — resized automatically, max 256 KB.</div>
+        <div class="sh-small">PNG/JPEG/WEBP - resized automatically, max 256 KB.</div>
       </div>
     </div>
     <div class="sh-row" style="margin-top:1rem">
       <input id="profile-gamertag-input" placeholder="Gamertag" maxlength="40" />
     </div>
     <h3 class="sh-sec-title">Pinned achievements</h3>
-    <div class="sh-small" style="margin-bottom:.5rem">Pick up to 5 to show on your rail badge row — otherwise your 5 latest are shown.</div>
+    <div class="sh-small" style="margin-bottom:.5rem">Pick up to 5 to show on your rail badge row - otherwise your 5 latest are shown.</div>
     <div id="profile-ach-picker" class="ach-picker"></div>
 
     <h3 class="sh-sec-title">Appearance</h3>
@@ -188,7 +188,7 @@
     <button id="game-info-back-btn" class="sh-ghost sh-small" style="margin-top:1rem">Back to lobby</button>
   </main>
 
-      <!-- ── Game stage — #game-root is the ONLY area a game module ever
+      <!-- ── Game stage - #game-root is the ONLY area a game module ever
            touches, once a match is actually starting/active. Roster, chat and
            host/match controls live in the left rail, not here. ── -->
       <main id="view-game" class="sh-view" hidden>
@@ -198,7 +198,7 @@
     </div><!-- /#sh-main -->
   </div><!-- /#view-app -->
 
-  <!-- Floating exit — bottom-left while a match is mounted, overlays any game/shadow content -->
+  <!-- Floating exit - bottom-left while a match is mounted, overlays any game/shadow content -->
   <button id="sh-btn-exit" class="sh-exit" hidden title="Exit game">← Exit</button>
 
   <script type="module" src="platform.js"></script>
