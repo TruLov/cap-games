@@ -1,11 +1,11 @@
 /**
- * Kaiten — Game flow engine.
+ * Kaiten - Game flow engine.
  *
  * Implements the platform game contract's stateful core:
  *   init(settings) -> state
  *   applyMove(state, move, symbol) -> { state, end } | { error }
  *
- * The platform's `move` handler does NOT enforce turn order — it delegates all
+ * The platform's `move` handler does NOT enforce turn order - it delegates all
  * validity to this module. Kaiten is a *simultaneous* game, so applyMove
  * buffers each player's selection into `state.pending` and only resolves the
  * turn once every active player has selected.
@@ -43,7 +43,7 @@ function init(settings = {}) {
 
   const state = {
     phase: 'playing',
-    turn: 'all',                       // sentinel — simultaneous game
+    turn: 'all',                       // sentinel - simultaneous game
     menu,
     playerCount,
     symbols,
@@ -99,7 +99,7 @@ function applyMove(state, move, symbol) {
   if (state.phase !== 'playing') return { error: 'game is not in progress' };
   if (!state.symbols.includes(symbol)) return { error: 'not a player in this game' };
 
-  // Menu — step 2: choosing one of the 4 offered cards
+  // Menu - step 2: choosing one of the 4 offered cards
   if (move && move.menuChoice != null) return resolveMenuChoice(state, symbol, move.menuChoice);
 
   // must finish an in-progress Menu before doing anything else
@@ -111,7 +111,7 @@ function applyMove(state, move, symbol) {
   const err = validateSelection(state, hand, move, symbol);
   if (err) return { error: err };
 
-  // Menu — step 1: reveal 4 cards from the draw pile for this player to choose from
+  // Menu - step 1: reveal 4 cards from the draw pile for this player to choose from
   if (move.bonus === 'menu') return offerMenu(state, symbol, move);
 
   state.pending[symbol] = move;

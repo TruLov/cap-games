@@ -1,5 +1,5 @@
 /**
- * Flip Fortune — Game UI ("Last Chance Saloon" theme).
+ * Flip Fortune - Game UI ("Last Chance Saloon" theme).
  *
  * A Wild-West saloon card table, deliberately NOT the stage+sidebar skeleton the
  * other pixel games use. Everyone sits around one green-felt table under a warm
@@ -9,7 +9,7 @@
  * ledger under the table keeps the round history.
  *
  * mount(rootEl, sdk) is called once the match is starting/active. The shell's
- * Players/Chat chrome is left untouched — every seat here already shows a
+ * Players/Chat chrome is left untouched - every seat here already shows a
  * player's avatar, name and score.
  *
  * Kept from the previous build: the card flies from the deck to the flipping
@@ -268,7 +268,7 @@ const STYLE = `
 
 export default {
   mount(rootEl, sdk) {
-    // @font-face must be registered on the document — it's ignored inside the
+    // @font-face must be registered on the document - it's ignored inside the
     // shadow root the platform mounts us in. Absolute URL via import.meta.url.
     sdk.loadFont(`@font-face{font-family:'Pixelify Sans';src:url('${new URL('./pixelify.ttf', import.meta.url).href}') format('truetype');font-weight:400 700;font-display:swap}`);
     const me = sdk.me.user;
@@ -313,7 +313,7 @@ export default {
     // Draw-and-place: a card lifts edge-on from the deck (as if drawn), flips
     // face-up while it rises, then settles into the seat's hand slot with a
     // little bounce; the real card pops in as the ghost lands. Two eased phases,
-    // no 3D — robust across browsers.
+    // no 3D - robust across browsers.
     function flyFromDeck(targetEl) {
       if (reduce || !targetEl) return;
       const deck = $('#ff-deck');
@@ -405,10 +405,10 @@ export default {
       const name = u => sdk.nameOf(u);
 
       $('#ff-status').textContent = st.winner
-        ? (st.winner === 'draw' ? 'The pot is split — a draw!' : `${name(st.winner)} takes the pot!`)
+        ? (st.winner === 'draw' ? 'The pot is split - a draw!' : `${name(st.winner)} takes the pot!`)
         : (st.pending
-            ? (st.pending.by === me ? 'Your action card — call your shot.' : `${name(st.pending.by)} is calling a shot…`)
-            : (myTurn() ? 'Your deal — Flip or Stay.' : `Waiting on ${name(st.turn)}…`));
+            ? (st.pending.by === me ? 'Your action card - call your shot.' : `${name(st.pending.by)} is calling a shot…`)
+            : (myTurn() ? 'Your deal - Flip or Stay.' : `Waiting on ${name(st.turn)}…`));
 
       const dealKey = st.lastCard ? `${st.round}|${st.lastCard.user}|${JSON.stringify(st.lastCard.card)}` : '';
       const opponents = st.players.filter(u => u !== me);
@@ -451,10 +451,10 @@ export default {
           : ACTION_META[p.type];
         picker.hidden = false;
         picker.innerHTML = `
-          <div class="ff-picker-title"><span class="ff-picon">${SPRITE[meta.icon] || ''}</span>${meta.label} — pick a target</div>
+          <div class="ff-picker-title"><span class="ff-picon">${SPRITE[meta.icon] || ''}</span>${meta.label} - pick a target</div>
           <div class="ff-picker-opts">${targets.map(u =>
             `<button class="ff-btn" data-t="${u}">${name(u)}${u === me ? ' (you)' : ''}</button>`).join('')
-            || '<span class="ff-wait">No eligible target — the card is discarded.</span>'}</div>`;
+            || '<span class="ff-wait">No eligible target - the card is discarded.</span>'}</div>`;
         picker.querySelectorAll('[data-t]').forEach(b =>
           b.addEventListener('click', () => send({ action: 'resolve', target: b.dataset.t })));
         return;

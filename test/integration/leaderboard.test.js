@@ -1,5 +1,5 @@
 /**
- * Integration test — Leaderboard read (ordering + gamertag resolution).
+ * Integration test - Leaderboard read (ordering + gamertag resolution).
  *
  * The Leaderboard OData entity resolves each row's display gamertag server-side
  * via ProfileService (a cds.connect.to binding). This drives the same GET the

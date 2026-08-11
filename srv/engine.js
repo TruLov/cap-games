@@ -17,11 +17,11 @@ import { get as registryGet } from './registry.js';
 
 const GRACE_MS = 60_000;
 
-// Transient board state (non-persistent, lost on restart — intentional)
+// Transient board state (non-persistent, lost on restart - intentional)
 // roomId → { game, state, turn }
 const boardState = {};
 
-// Reconnect grace timers — kept independent of board state so they work in
+// Reconnect grace timers - kept independent of board state so they work in
 // ANY room status (lobby/playing/paused/finished), not just while a board
 // exists. roomId → Map<userId, timer>
 const graceTimers = {};
@@ -80,7 +80,7 @@ function allGraceTimers(roomId) {
   return [...(graceTimers[roomId]?.keys() ?? [])];
 }
 
-// --- Default scoring — used if game.score() not provided ---
+// --- Default scoring - used if game.score() not provided ---
 // end.winner is a `user` id (or 'draw'); result keys on user (W/D/L). Points
 // default to W:3 D:1 L:0, but a game that carries its own tally can pass
 // `pointsOf(user) → number` to attach real points while reusing this W/D/L

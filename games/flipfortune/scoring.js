@@ -1,5 +1,5 @@
 /**
- * Flip Fortune — round scoring (pure, no CAP imports).
+ * Flip Fortune - round scoring (pure, no CAP imports).
  *
  * Scoring order for a surviving line: sum the number cards → double it if the ×2
  * modifier is held → add the flat +N modifiers → add 15 for a Flip 7. A busted
@@ -33,7 +33,7 @@ export function scoreRound(line) {
 
 /**
  * The winner once a round has ended, or null if the game continues. A player
- * wins only with a score that both reaches the target and is the sole highest —
+ * wins only with a score that both reaches the target and is the sole highest -
  * a tie at the top (even above the target) plays another round.
  */
 export function resolveWinner(scores, players, target) {

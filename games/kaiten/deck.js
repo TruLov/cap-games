@@ -1,5 +1,5 @@
 /**
- * Kaiten — Deck assembly, menus, and deterministic shuffling.
+ * Kaiten - Deck assembly, menus, and deterministic shuffling.
  *
  * Pure logic. No CAP imports, no game state.
  */
@@ -143,7 +143,7 @@ function menuTypes(menu) {
   return ['nigiri', menu.roll, ...menu.appetizers, ...menu.specials];
 }
 
-/** Build the base (non-dessert) deck for a menu — full counts of each type. */
+/** Build the base (non-dessert) deck for a menu - full counts of each type. */
 function baseDeck(menu) {
   return menuTypes(menu).flatMap(cardsOfType);
 }

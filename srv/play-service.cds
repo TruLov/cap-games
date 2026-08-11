@@ -1,7 +1,7 @@
 using { cap.games.GameStatus } from '../db/schema';
 
 /**
- * PlayService — WebSocket only.
+ * PlayService - WebSocket only.
  * All realtime gameplay: join, lobby management, moves, chat.
  */
 @protocol: 'ws'
@@ -15,8 +15,8 @@ service PlayService {
   action move(room: String, data: String);                    // game-specific JSON move
   action rematch(room: String);                               // host only, finished → playing
   action backToRoom(room: String);                            // host only → back to room's waiting state (lobby)
-  action switchGame(room: String, game: String);              // host only, lobby only — change the room's game
-  action setRole(room: String, user: String, spectator: Boolean); // host only, lobby only — player ↔ spectator
+  action switchGame(room: String, game: String);              // host only, lobby only - change the room's game
+  action setRole(room: String, user: String, spectator: Boolean); // host only, lobby only - player ↔ spectator
   action kick(room: String, user: String);                    // host only
   action leave(room: String);
   action chat(room: String, text: String);
@@ -33,10 +33,10 @@ service PlayService {
   event gameSwitched       { @ws.context room: String; game: String; name: String; minPlayers: Integer; maxPlayers: Integer; }
   event roleChanged        { @ws.context room: String; player: String; spectator: Boolean; }
   // Full current roster (JSON array of { user, spectator, isHost }), sent to
-  // (re)sync a client's player list — on join to an existing room and on
+  // (re)sync a client's player list - on join to an existing room and on
   // switchGame, when a client's game UI (re)initializes and would otherwise
   // only ever see *future* joined/playerLeft deltas, missing anyone already
-  // present. Generic platform capability — see shell/players.js.
+  // present. Generic platform capability - see shell/players.js.
   event roster             { @ws.context room: String; players: LargeString; }
   // Per-recipient private state slice (hidden information). Delivered only to a
   // single user via the `user` emit filter. NO @ws.context here on purpose:
@@ -44,7 +44,7 @@ service PlayService {
   // the whole room. User-only scoping guarantees the slice reaches just its owner.
   event privateState       { room: String; data: String; }
   // Achievement unlocks earned by ONE user in a just-finished match. Like
-  // privateState: NO @ws.context — delivered solely to its owner via the `user`
+  // privateState: NO @ws.context - delivered solely to its owner via the `user`
   // emit filter. `unlocked` is a JSON array of { id, game, name, desc }.
   event achievementUnlocked { unlocked: LargeString; }
   event playerLeft         { @ws.context room: String; player: String; newHost: String; }

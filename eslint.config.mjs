@@ -10,13 +10,13 @@ export default [
       createImageBitmap: 'readonly', FileReader: 'readonly',
     } },
   },
-  // scripts/ are CLI diagnostic tools — console output is the whole point.
+  // scripts/ are CLI diagnostic tools - console output is the whole point.
   {
     files: ['scripts/**/*.mjs', 'scripts/**/*.js'],
     rules: { 'no-console': 'off' },
   },
   // `_`-prefixed bindings are the destructure-to-omit-keys idiom (see
-  // publicState() in the game plugins) — intentionally unused.
+  // publicState() in the game plugins) - intentionally unused.
   {
     rules: {
       'no-unused-vars': ['warn', { varsIgnorePattern: '^_', argsIgnorePattern: '^_' }],

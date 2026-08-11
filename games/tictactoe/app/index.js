@@ -1,8 +1,8 @@
 /**
- * TicTacToe UI — mount(rootEl, sdk)
+ * TicTacToe UI - mount(rootEl, sdk)
  *
  * Called only once a match is actually starting/active (or reconnecting into
- * one) — players, chat and host controls (start/switch-game/rematch/back-to-
+ * one) - players, chat and host controls (start/switch-game/rematch/back-to-
  * room) all live in the platform's persistent room chrome, so this game only
  * ever renders the board. No settingsSchema, so no renderSettings() either.
  */
@@ -13,7 +13,7 @@ const WIN_LINES = [
   [0,4,8],[2,4,6],
 ];
 
-// Self-contained board styling — borrows the shell's design tokens
+// Self-contained board styling - borrows the shell's design tokens
 // (var(--accent) etc., still available as inherited custom properties)
 // rather than a from-scratch palette, but owns its own rules so it isn't
 // relying on the shared stylesheet.
@@ -84,15 +84,15 @@ export default {
     function setStatus(msg) { statusEl.textContent = msg; }
 
     const stopState = sdk.onState((s, ev, raw) => {
-      if (ev === 'started')        setStatus(`Playing — ${markOf(s, raw.firstTurn)} goes first`);
+      if (ev === 'started')        setStatus(`Playing - ${markOf(s, raw.firstTurn)} goes first`);
       else if (ev === 'moved')     setStatus(`Turn: ${markOf(s, s.turn)}`);
-      else if (ev === 'finished')  setStatus(`Game over — ${raw.winner === 'draw' ? 'Draw!' : `${markOf(s, raw.winner)} wins!`}`);
-      else if (ev === 'rematched') setStatus(`Rematch — ${markOf(s, raw.firstTurn)} goes first`);
+      else if (ev === 'finished')  setStatus(`Game over - ${raw.winner === 'draw' ? 'Draw!' : `${markOf(s, raw.winner)} wins!`}`);
+      else if (ev === 'rematched') setStatus(`Rematch - ${markOf(s, raw.firstTurn)} goes first`);
       renderBoard(s, boardEl, sdk);
     });
 
     function onDisconnected({ player }) {
-      setStatus(`${player} disconnected — waiting 60s…`);
+      setStatus(`${player} disconnected - waiting 60s…`);
     }
 
     function onReconnected({ player }) {

@@ -17,7 +17,7 @@ mta_archives/
 *_mta_build_tmp
 *.mtar
 
-# Approuter static shell — generated at build time from app/ (see mta.yaml)
+# Approuter static shell - generated at build time from app/ (see mta.yaml)
 app/router/resources/
 
 # Other

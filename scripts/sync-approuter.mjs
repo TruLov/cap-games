@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * sync-approuter.mjs — copies app/* (excluding app/router itself) into
+ * sync-approuter.mjs - copies app/* (excluding app/router itself) into
  * app/router/resources/, which is what the approuter actually serves.
  *
  * Why this exists: app/router/resources/ used to be hand-mirrored file by
  * file for every UI change, and had already silently drifted (logout.html
  * differed between the two copies) before this script existed. Single
- * source of truth is app/ — never edit app/router/resources/ directly.
+ * source of truth is app/ - never edit app/router/resources/ directly.
  *
  * Run: node scripts/sync-approuter.mjs   (also wired as npm run sync:approuter)
  */

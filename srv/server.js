@@ -1,5 +1,5 @@
 /**
- * Custom server bootstrap — serves the UI of every registered game.
+ * Custom server bootstrap - serves the UI of every registered game.
  *
  * Games self-register onto cds.games via their cds-plugin.js (see
  * srv/registry.js). Each registration carries the game package's cds-plugin.js

@@ -1,4 +1,4 @@
-# Implementation Plan — Kaiten Party! (CAP Game Plugin)
+# Implementation Plan - Kaiten Party! (CAP Game Plugin)
 
 This is a step-by-step, test-driven plan to implement Kaiten Party! as a self-registering
 CAP game plugin inside the `cap-games` platform. It follows the platform's game contract
@@ -16,15 +16,15 @@ The platform's reference game (TicTacToe) is **turn-based, single-mover**: one p
 
 | Concern | TicTacToe (reference) | Kaiten Party! |
 |---|---|---|
-| Turn model | Sequential, one mover | **Simultaneous** — everyone picks, then reveal |
+| Turn model | Sequential, one mover | **Simultaneous** - everyone picks, then reveal |
 | Rounds | 1 | **3 rounds** + menu-selection phase |
 | Hand state | none | Each player holds a hand that **rotates** to a neighbor each turn |
 | Mid-game scoring | none | Uramaki scores mid-round; desserts score at game end |
 | Bonus actions | none | Chopsticks / Spoon / Menu / Special Order / Takeout Box |
 | End result | win/draw | **Ranking** of N players → map to leaderboard |
 
-**Design decision — buffer simultaneous selections inside game state.**
-The platform's `move` handler does **not** enforce whose turn it is — it delegates entirely to
+**Design decision - buffer simultaneous selections inside game state.**
+The platform's `move` handler does **not** enforce whose turn it is - it delegates entirely to
 `game.applyMove(state, move, symbol)`. So Kaiten's `applyMove` will:
 
 1. Record the calling player's card selection into `state.pending[symbol]`.
@@ -40,7 +40,7 @@ The platform's `move` handler does **not** enforce whose turn it is — it deleg
 
 **State redaction.** `applyMove` returns the full authoritative `state`, but the platform broadcasts
 it to all clients via the `moved` event. Because hands are hidden information, the game must expose a
-**view-projection** step so each client only sees its own hand. Two options — pick one in Step 6:
+**view-projection** step so each client only sees its own hand. Two options - pick one in Step 6:
 - **(A) Server-side per-player projection** via `extendService` custom events (recommended), or
 - **(B) Ship only public state in `moved`** and deliver private hands through a dedicated
   `handDealt` event addressed per socket.
@@ -68,7 +68,7 @@ games/kaiten/
 - Activate the game: add `"@cap-games/kaiten": "*"` to the **root** `package.json` dependencies,
   then run `npm install` so CAP auto-discovers the plugin.
 
-**Do not touch `srv/`, `db/`, or `app/`** — the platform stays generic (per AGENTS.md).
+**Do not touch `srv/`, `db/`, or `app/`** - the platform stays generic (per AGENTS.md).
 
 **Checkpoint:** `npm install` → start server → game appears in the `/Games` lobby catalogue.
 
@@ -90,7 +90,7 @@ Every card strategy (Step 4) and every game-flow transition (Steps 5–8) gets a
 
 ## 3. Card catalogue & deck model
 
-Create `games/kaiten/cards/catalogue.js` — the static data for all 181 cards.
+Create `games/kaiten/cards/catalogue.js` - the static data for all 181 cards.
 
 - Define each card **type** with: `id`, `displayName`, `category`
   (`nigiri | roll | appetizer | special | dessert`), count in the full pool, and any per-card
@@ -104,7 +104,7 @@ Create `games/kaiten/deck.js`:
   (Nigiri always + 1 roll + 3 appetizers + 2 specials + 1 dessert).
 - `dealCounts(playerCount)` → hand size per player (10/9/8/7).
 - `dessertCounts(playerCount, round)` → desserts shuffled in per round (5/3/2 or 7/5/3).
-- `shuffle(array, rng)` — inject a seedable RNG so tests are deterministic.
+- `shuffle(array, rng)` - inject a seedable RNG so tests are deterministic.
 
 **Tests first:** deck composition per menu, correct card counts, deal sizes, dessert counts,
 menu restrictions (Menu/Special Order banned at 7–8p; Spoon/Edamame banned at 2p).
@@ -162,7 +162,7 @@ meta: { name: 'Kaiten Party!', minPlayers: 2, maxPlayers: 8 }
 `settingsSchema` drives the host's pre-game configuration (via the platform `configure` action).
 Model the menu selection here:
 - `preset`: enum of the 8 predefined menus + `'custom'`.
-- For `custom`: `roll`, `appetizers` (3), `specials` (2), `dessert` — each an enum of valid types.
+- For `custom`: `roll`, `appetizers` (3), `specials` (2), `dessert` - each an enum of valid types.
 - Validate player-count restrictions at `start` time (Step 7), not just in the schema.
 
 **Tests first:** each preset resolves to the correct card-type set; custom validation rejects
@@ -170,14 +170,14 @@ illegal combinations and player-count-restricted cards.
 
 ---
 
-## 6. `init(settings)` — game state shape
+## 6. `init(settings)` - game state shape
 
 `init` builds the initial authoritative state for the whole 3-round game:
 
 ```js
 {
   phase: 'playing',           // 'playing' | 'roundScoring' | 'gameOver'
-  turn: 'all',                // sentinel — simultaneous game
+  turn: 'all',                // sentinel - simultaneous game
   menu: {...},                // resolved card types in play
   round: 1,                   // 1..3
   players: [                  // ordered ring for neighbor passing
@@ -190,13 +190,13 @@ illegal combinations and player-count-restricted cards.
 }
 ```
 
-> **Superseded:** resolved at the platform level, not via either option below —
+> **Superseded:** resolved at the platform level, not via either option below -
 > `init(settings, players)` now receives the ordered roster directly as a
 > second argument (see `srv/engine.js`). No `extendService` roster-injection
 > needed. Left below as historical record of the design question.
 
 - Deal opening hands per Step 3.
-- Because `init` runs on `start`, the concrete player symbols must be known — the platform passes
+- Because `init` runs on `start`, the concrete player symbols must be known - the platform passes
   only `settings` to `init`. **Resolve players lazily on the first `start`/reveal**, or use
   `extendService` to hook `start` and seed the roster. Decide here and document it. *(Recommended:
   add a tiny `extendService` that, on `started`, injects the real player symbols into board state,
@@ -207,17 +207,17 @@ illegal combinations and player-count-restricted cards.
 
 ---
 
-## 7. `applyMove` — the turn engine
+## 7. `applyMove` - the turn engine
 
 This is the heart of the plugin. `applyMove(state, move, symbol)` returns
 `{ state, end }` or `{ error }`.
 
 Move shapes (game-specific JSON):
-- `{ pick: <handIndex> }` — normal selection.
-- `{ pick, bonus: 'chopsticks', pick2: <handIndex> }` — play a 2nd card via Chopsticks.
-- `{ pick, bonus: 'spoon', cardType }` — Spoon request.
+- `{ pick: <handIndex> }` - normal selection.
+- `{ pick, bonus: 'chopsticks', pick2: <handIndex> }` - play a 2nd card via Chopsticks.
+- `{ pick, bonus: 'spoon', cardType }` - Spoon request.
 - `{ pick, menuChoice }` / `{ pick, specialOrderTarget }` / `{ pick, takeoutFlips: [...] }`
-  — special cards needing extra input.
+  - special cards needing extra input.
 
 Algorithm:
 1. **Guard**: game in `playing` phase; `symbol` is an active player; player hasn't already
@@ -236,7 +236,7 @@ Algorithm:
 5. **End of game**: run `scoreGame` (desserts), sum totals, compute **ranking** with the dessert-count
    tie-breaker. Return `{ state: {...gameOver}, end: { ranking, winner } }`.
 
-`end.winner` must satisfy the engine contract (a symbol or `'draw'`) — set it to the top-ranked
+`end.winner` must satisfy the engine contract (a symbol or `'draw'`) - set it to the top-ranked
 player's symbol (or `'draw'` on a true tie). Carry the full `ranking` array alongside for `score()`.
 
 **Tests first** for: buffering until all pick; hand rotation direction; round rollover; dessert
@@ -250,7 +250,7 @@ carry-over; Uramaki mid-round threshold; full 3-round game producing a determini
 Chopsticks, Spoon, Menu, Special Order, Takeout Box need input beyond a single `pick`. Two paths:
 
 - **Preferred:** encode them as fields on the normal `move` payload (Step 7) so they flow through the
-  existing `move` action — no new server actions, keeps the platform generic.
+  existing `move` action - no new server actions, keeps the platform generic.
 - **If richer round-trips are needed** (e.g. Menu's "draw 4, choose 1"), use the game's
   `extendService(srv)` hook to register **game-specific actions/events** on `PlayService`
   (the platform calls `game.extendService(this)` on `served`). Emit custom events like
@@ -261,7 +261,7 @@ one card left, Spoon naming an absent card type).
 
 ---
 
-## 9. `score(end, players)` — leaderboard mapping
+## 9. `score(end, players)` - leaderboard mapping
 
 The platform upserts `Leaderboard` (wins/losses/draws/points) from `score()`'s return.
 Map Kaiten's final ranking:
@@ -281,7 +281,7 @@ score(end, players) {
 
 ---
 
-## 10. Frontend — `ui/index.js` (`mount(rootEl, sdk)`)
+## 10. Frontend - `ui/index.js` (`mount(rootEl, sdk)`)
 
 Build the full game UI; the shell only owns login/lobby/header. Reuse shell components via DI
 (`/shell/chat.js`, `/shell/players.js`, `/shell/host.js`), exactly like tictactoe.
@@ -310,7 +310,7 @@ state decided in Step 0). Never trust the client to hide cards it received.
   2-player and a 4-player game through all 3 rounds, exercising each menu and each special card.
 - Verify reconnect grace (disconnect mid-round → rejoin within 60s → hand restored).
 - Verify a completed game writes `Matches` + updates `Leaderboard` correctly.
-- Confirm **no `srv/` or `db/` files were modified** — the game is a pure plugin.
+- Confirm **no `srv/` or `db/` files were modified** - the game is a pure plugin.
 
 ---
 
@@ -318,7 +318,7 @@ state decided in Step 0). Never trust the client to hide cards it received.
 
 1. Steps 1–2: scaffold + test harness (green "hello game" in lobby).
 2. Steps 3–4: catalogue, deck, and **all card strategies** with unit tests (bulk of the logic).
-3. Steps 5–7: game flow (`meta`/settings/`init`/`applyMove`) — simultaneous engine + 3 rounds.
+3. Steps 5–7: game flow (`meta`/settings/`init`/`applyMove`) - simultaneous engine + 3 rounds.
 4. Step 8: bonus-action cards.
 5. Step 9: leaderboard scoring.
 6. Step 10: UI.
@@ -330,6 +330,6 @@ state decided in Step 0). Never trust the client to hide cards it received.
 
 - **State projection strategy** (Step 0): server-side per-player events vs. public-only `moved`.
 - **Roster injection** into `init` state (Step 6): `extendService` `started` hook vs. lazy resolve.
-  *Superseded — see the note in Step 6; `init(settings, players)` gets the roster directly.*
+  *Superseded - see the note in Step 6; `init(settings, players)` gets the roster directly.*
 - **Bonus actions transport** (Step 8): fields on `move` vs. dedicated `extendService` actions.
 - **Rematch semantics**: reshuffle a fresh 3-round game with the same menu (reuse `init`).

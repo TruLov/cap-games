@@ -1,5 +1,5 @@
 /**
- * shell/util.js — small shared UI helpers.
+ * shell/util.js - small shared UI helpers.
  */
 
 /**

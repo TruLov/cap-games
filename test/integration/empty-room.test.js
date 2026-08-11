@@ -1,5 +1,5 @@
 /**
- * Integration test — empty room (no game chosen yet).
+ * Integration test - empty room (no game chosen yet).
  *
  * A room can be created without a game ("Open empty room"); players join and
  * wait, then the host picks a game (switchGame) and starts. Verifies the
@@ -42,7 +42,7 @@ before(async () => {
   const { server, url } = await cdst;
   port = server.address().port;
 
-  // create an EMPTY room — no game in the body
+  // create an EMPTY room - no game in the body
   const res = await fetch(`${url}/odata/v4/lobby/createRoom`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: basic('alice') },

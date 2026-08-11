@@ -1,5 +1,5 @@
 /**
- * Kaiten — Card scoring strategies (Strategy pattern).
+ * Kaiten - Card scoring strategies (Strategy pattern).
  *
  * Each card type maps to a strategy object. A strategy may implement:
  *   scoreRound(player, ctx) -> number   end-of-round points for this player
@@ -84,7 +84,7 @@ const STRATEGIES = {
 
       let pts = 0;
       if (mine === max && max > 0) pts += 4;
-      // fewest loses 4 — but not in a 2-player game, and only if there's a spread
+      // fewest loses 4 - but not in a 2-player game, and only if there's a spread
       if (playerCount > 2 && mine === min && min < max) pts -= 4;
       return pts;
     },
@@ -202,7 +202,7 @@ const STRATEGIES = {
       const mine = countOf(player);
       let pts = 0;
       if (mine === max) pts += 6;
-      if (mine === min && min < max) pts -= 6; // zero counts as least too — no 2-player exception
+      if (mine === min && min < max) pts -= 6; // zero counts as least too - no 2-player exception
       return pts;
     },
   },

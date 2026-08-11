@@ -1,5 +1,5 @@
 /**
- * Flip Fortune — the deck (pure, no CAP imports).
+ * Flip Fortune - the deck (pure, no CAP imports).
  *
  * 94 cards, faithful to the press-your-luck game that inspired it:
  *   - Number cards 0-12 where each value's count equals the value, plus one 0

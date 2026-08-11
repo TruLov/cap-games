@@ -1,45 +1,45 @@
 /**
- * sdk.js — Platform SDK factory
+ * sdk.js - Platform SDK factory
  *
  * Shell calls makeSdk({ room, me, players, wsSend, emitter, toastFn, leaveFn,
  * nameOf, avatarUrl }) once per room session. Game receives sdk via
- * mount(rootEl, sdk) — called only once a match is actually starting/active
- * — and uses it freely.
+ * mount(rootEl, sdk) - called only once a match is actually starting/active
+ * - and uses it freely.
  *
  * sdk = {
  *   room     { id, game }
  *   me       { user, spectator, isHost }
- *   players  live roster array [{ user, spectator, isHost }] — the platform
+ *   players  live roster array [{ user, spectator, isHost }] - the platform
  *            keeps this current for the room's whole lifetime (joins, leaves,
  *            kicks, role changes, game switches); games read it directly
  *            instead of tracking their own copy.
- *   send(action, data)      — send any WS action to PlayService
- *   on(event, fn)           — subscribe to any server event
- *   off(event, fn)          — unsubscribe
- *   onState(cb)             — subscribe to the state lifecycle (started/moved/
+ *   send(action, data)      - send any WS action to PlayService
+ *   on(event, fn)           - subscribe to any server event
+ *   off(event, fn)          - unsubscribe
+ *   onState(cb)             - subscribe to the state lifecycle (started/moved/
  *                             finished/rematched/privateState) with the state
  *                             pre-parsed: cb(state, event, raw). Absorbs the
  *                             state-vs-data field split; returns an unsubscribe
  *                             fn. Prefer this over hand-wiring each event.
- *   onError(cb)             — subscribe to the `gameError` broadcast:
+ *   onError(cb)             - subscribe to the `gameError` broadcast:
  *                             cb({ message }). Returns an unsubscribe fn.
- *   toast(msg)              — show brief status in shell header
- *   leave()                 — leave room (shell handles routing)
- *   nameOf(user)            — gamertag for a user id, falling back to the id
+ *   toast(msg)              - show brief status in shell header
+ *   leave()                 - leave room (shell handles routing)
+ *   nameOf(user)            - gamertag for a user id, falling back to the id
  *                             itself if none is set; resolved via the
  *                             platform's profile cache (never fetch this
- *                             yourself — a game never talks to ProfileService
+ *                             yourself - a game never talks to ProfileService
  *                             directly, only through sdk)
- *   avatarUrl(user)         — avatar image URL for a user id, or null if
+ *   avatarUrl(user)         - avatar image URL for a user id, or null if
  *                             they haven't set one (render your own fallback,
  *                             e.g. initials, in that case)
- *   chat                    — chat hook: the platform owns the transport (and,
+ *   chat                    - chat hook: the platform owns the transport (and,
  *                             later, history); a game that renders its own chat
  *                             UI (meta.ownsChat = true) drives it through here
  *                             instead of the platform's default chat panel.
  *                             .send(text) / .onMessage(fn) / .offMessage(fn),
  *                             fn receives { room, player, text, ts }.
- *   loadFont(css)           — inject a document-level <style> (e.g. @font-face).
+ *   loadFont(css)           - inject a document-level <style> (e.g. @font-face).
  *                             A game's own styles live in its shadow root, but
  *                             @font-face is ignored inside a shadow root, so
  *                             fonts must be registered on the document. Use an
@@ -63,7 +63,7 @@ export function makeSdk({ room, me, players, wsSend, emitter, toastFn, leaveFn, 
       // carries `.state` vs `.data`. cb(state, event, raw): `event` is the
       // event name and `raw` the untouched payload (for the extra public
       // fields some events add, e.g. started.firstTurn, finished.winner).
-      // Returns an unsubscribe fn — call it from your mount cleanup.
+      // Returns an unsubscribe fn - call it from your mount cleanup.
       const evs = ['started', 'moved', 'finished', 'rematched', 'privateState'];
       const subs = evs.map(ev => {
         const h = e => cb(JSON.parse(e.state ?? e.data), ev, e);
@@ -98,7 +98,7 @@ export function makeSdk({ room, me, players, wsSend, emitter, toastFn, leaveFn, 
 }
 
 /**
- * Simple event emitter — distributes WS server events to
+ * Simple event emitter - distributes WS server events to
  * game + shell components without tight coupling.
  */
 export function makeEmitter() {

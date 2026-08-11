@@ -1,5 +1,5 @@
 /**
- * Kaperfahrt — dice faces + scoring (pure, no CAP imports).
+ * Kaperfahrt - dice faces + scoring (pure, no CAP imports).
  *
  * Eight dice, six faces. Sets of identical symbols score by size; gold coins
  * and diamonds each also score +100 individually; scoring on all dice at once
@@ -32,7 +32,7 @@ export function symbolCounts(dice, card) {
   return counts;
 }
 
-// Largest identical-symbol group — used to detect a 9-of-a-kind instant win.
+// Largest identical-symbol group - used to detect a 9-of-a-kind instant win.
 export function maxSet(dice, card) {
   return Object.values(symbolCounts(dice, card)).reduce((m, n) => Math.max(m, n), 0);
 }
@@ -44,7 +44,7 @@ export const skullCount = dice => dice.filter(d => d.face === 'skull').length;
  * Itemised score for the given dice. Caller decides *which* dice are eligible
  * (all current dice on a clean stop, or only chest-protected dice on a bust).
  * Skulls among them are ignored for scoring but do block the full-chest bonus.
- * Returns `{ lines: [{ label, points }], total }` — the lines drive the
+ * Returns `{ lines: [{ label, points }], total }` - the lines drive the
  * turn-end summary; `scoreDice` is just the total.
  */
 export function scoreBreakdown(dice, card) {

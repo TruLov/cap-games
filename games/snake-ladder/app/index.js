@@ -1,5 +1,5 @@
 /**
- * Snake & Ladder UI — mount(rootEl, sdk)
+ * Snake & Ladder UI - mount(rootEl, sdk)
  *
  * Mounted only once a match is starting/active. Players, chat and host controls
  * (start / rematch / back-to-room) live in the platform's room chrome, so this
@@ -7,11 +7,11 @@
  * renderSettings() (the platform's waiting room gives the host a Start button).
  *
  * The board is a pre-rendered PNG with a transparent <canvas> overlay for player
- * tokens — ported from the old standalone index.html, but state now arrives via
+ * tokens - ported from the old standalone index.html, but state now arrives via
  * sdk.onState (the platform WS) instead of OData polling.
  */
 
-// Adapted from the SAP CAP "July Developer Challenge — Snake & Ladder with
+// Adapted from the SAP CAP "July Developer Challenge - Snake & Ladder with
 // status transition" tutorial by ajay_soreng. Credited in the UI footer.
 const CREDIT_URL = 'https://community.sap.com/t5/sap-cap-blog-posts/july-developer-challenge-snake-amp-ladder-with-sap-cap-status-transition/ba-p/14429486';
 
@@ -32,8 +32,8 @@ const initials = name => (name || '?').substring(0, 2).toUpperCase();
 const EVENT_TEXT = {
   ladder:      to => `climbed a ladder to ${to} 🪜`,
   snake:       to => `hit a snake down to ${to} 🐍`,
-  doubleSnake: to => `hit a double snake to ${to} 🐍🐍 — skips next turn`,
-  overshoot:   () => `overshot 100 — no move`,
+  doubleSnake: to => `hit a double snake to ${to} 🐍🐍 - skips next turn`,
+  overshoot:   () => `overshot 100 - no move`,
   win:         () => `reached 100 and wins! 🏆`,
   normal:      to => `moved to ${to}`,
 };
@@ -167,13 +167,13 @@ export default {
       } else if (sdk.me.spectator) {
         statusEl.innerHTML = `Turn: <b>${sdk.nameOf(turn)}</b> (spectating)`;
       } else {
-        statusEl.innerHTML = myTurn ? '<b>Your turn</b> — roll the dice!'
+        statusEl.innerHTML = myTurn ? '<b>Your turn</b> - roll the dice!'
           : `Waiting for <b>${sdk.nameOf(turn)}</b>…`;
       }
 
       if (lastMove) {
         const desc = (EVENT_TEXT[lastMove.event] ?? EVENT_TEXT.normal)(lastMove.to);
-        lastEl.textContent = `${sdk.nameOf(lastMove.user)} rolled ${lastMove.roll} — ${desc}`;
+        lastEl.textContent = `${sdk.nameOf(lastMove.user)} rolled ${lastMove.roll} - ${desc}`;
       }
     }
 

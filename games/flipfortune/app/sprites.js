@@ -1,5 +1,5 @@
 /**
- * Flip Fortune — pixel-art sprites (Last Chance Saloon theme).
+ * Flip Fortune - pixel-art sprites (Last Chance Saloon theme).
  *
  * Same hand-authored 16×16-grid technique as Kaperfahrt's sprites.js: a row of
  * chars keyed into a palette, merged into <rect>s for a crisp scalable SVG
@@ -105,7 +105,7 @@ const star = grid([
   '................',
 ], { G: '#f5c542' });
 
-// A single poker chip — stacked N-high by the scoreboard.
+// A single poker chip - stacked N-high by the scoreboard.
 const chip = grid([
   '......BBBB......',
   '....BBGGGGBB....',

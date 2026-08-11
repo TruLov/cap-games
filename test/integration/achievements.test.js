@@ -1,5 +1,5 @@
 /**
- * Integration test — achievement slice (end-to-end through the real WS path).
+ * Integration test - achievement slice (end-to-end through the real WS path).
  *
  * Boots the CAP server in-memory, plays a full TicTacToe match to a win by the
  * SECOND player (bob = O), and asserts:
@@ -10,7 +10,7 @@
  *   - the loser (alice) unlocks nothing.
  */
 
-// cds.test() must be first — before any cds submodule access (docs requirement)
+// cds.test() must be first - before any cds submodule access (docs requirement)
 import cds from '@sap/cds';
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';

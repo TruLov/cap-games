@@ -1,9 +1,9 @@
 /**
- * Ultimate Tic-Tac-Toe — CAP-touching service extension.
+ * Ultimate Tic-Tac-Toe - CAP-touching service extension.
  *
  * Registers this game's pre-start WS actions/events (see srv/extend.cds):
  *   - `chooseTeam`      self-service team picking (each player picks their own,
- *                       pre-start — the platform's own `configure` is host-only
+ *                       pre-start - the platform's own `configure` is host-only
  *                       and blindly overwrites Rooms.settings, so team picks
  *                       need their own merge-safe action)
  *   - `configureBlitz`  host-only per-move timer config, pre-start
@@ -12,7 +12,7 @@
  *
  * This is the documented exception to the pure-function game contract: it needs
  * DB access for the pre-start picks (same as srv/play-service.js). The blitz
- * timer itself is NOT here — it's a pure reducer (game.js's onTick), driven by
+ * timer itself is NOT here - it's a pure reducer (game.js's onTick), driven by
  * the platform's generic server-tick loop, so this extension no longer reaches
  * into engine.js's board state. ./cds-plugin.js composes this onto the pure
  * ./game.js module before registering the game with the platform.
@@ -38,7 +38,7 @@ export function extendService(srv) {
     });
   };
 
-  // CDS-native `req.error(...)` only delivers via an ack callback — this
+  // CDS-native `req.error(...)` only delivers via an ack callback - this
   // platform's client (`sdk.send`/`wsSend`) never registers one, so it
   // would silently swallow every validation error. The platform's own
   // handlers surface errors via a `gameError` broadcast instead

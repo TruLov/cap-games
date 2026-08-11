@@ -1,9 +1,9 @@
 /**
- * leaderboard.js — the per-game Leaderboard page.
+ * leaderboard.js - the per-game Leaderboard page.
  *
  * Reads the platform's Leaderboard OData entity (LobbyService), which already
  * resolves each row's display gamertag server-side via ProfileService (a
- * cds.connect.to service binding — see srv/lobby-service.js). The page just
+ * cds.connect.to service binding - see srv/lobby-service.js). The page just
  * picks a game, orders by points, and renders a ranked table. Extracted like
  * profile-edit.js / achievements.js; wired via initLeaderboard(ctx).
  */

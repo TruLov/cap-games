@@ -41,7 +41,7 @@ describe('ultimate tic-tac-toe', () => {
 
   it('init: auto-balances any player who never picked a team', () => {
     const s = game.init({ teams: { X: ['alice'], O: [] } }, players);
-    // bob and carol never picked — balanced by size (ties favor X): bob to
+    // bob and carol never picked - balanced by size (ties favor X): bob to
     // O (smaller), then carol to X (tied at 1-1).
     expect(s.teams.X).to.deep.equal(['alice', 'carol']);
     expect(s.teams.O).to.deep.equal(['bob']);
@@ -77,7 +77,7 @@ describe('ultimate tic-tac-toe', () => {
     expect(r.state.blitz).to.deep.equal({ enabled: true, seconds: 15 });
   });
 
-  // --- server-driven blitz (onTick, a pure reducer — no timers/WS) ---------
+  // --- server-driven blitz (onTick, a pure reducer - no timers/WS) ---------
   it('meta declares a server tick', () => {
     expect(game.meta.tick).to.deep.equal({ everyMs: 1000 });
   });
@@ -97,7 +97,7 @@ describe('ultimate tic-tac-toe', () => {
     const r = game.onTick(s, 10_000);               // exactly at the limit
     expect(r.state.turn).to.equal('bob');           // O team, move 1
     expect(r.state.moveCount).to.equal(1);
-    expect(r.state.cells).to.deep.equal(s.cells);   // board untouched — only a skip
+    expect(r.state.cells).to.deep.equal(s.cells);   // board untouched - only a skip
     expect(r.end).to.equal(undefined);              // a skip never ends the game
     expect(r.sys).to.match(/alice.*timed out/i);
   });
@@ -152,7 +152,7 @@ describe('ultimate tic-tac-toe', () => {
   it('winning the outer board ends the game with the team roster attached', () => {
     const boardWinners = ['X', 'X', null, null, null, null, null, null, null];
     const cells = Array(81).fill(null);
-    cells[18] = 'X'; cells[19] = 'X'; // board 2, two of a row — cell 20 completes it
+    cells[18] = 'X'; cells[19] = 'X'; // board 2, two of a row - cell 20 completes it
     const s = mkState({
       cells, boardWinners, activeBoard: 2, turn: 'alice', moveCount: 4,
       teams: { X: ['alice', 'dave'], O: ['bob'] },
@@ -181,7 +181,7 @@ describe('ultimate tic-tac-toe', () => {
 
   it('three drawn boards in a line do NOT end the game early', () => {
     // boards 0 and 1 (outer top row) are already drawn; this move fills
-    // board 2 with a no-line pattern, drawing it too — completing a "line"
+    // board 2 with a no-line pattern, drawing it too - completing a "line"
     // of three draws in the outer row. Boards 3-8 are still open, so the
     // game must NOT end: a draw never counts toward an outer-board line.
     const boardWinners = ['draw', 'draw', null, null, null, null, null, null, null];
@@ -193,7 +193,7 @@ describe('ultimate tic-tac-toe', () => {
     const r = game.applyMove(s, { cell: 26 }, 'alice'); // last cell of board 2 (relative index 8)
     expect(r.state.boardWinners[2]).to.equal('draw');
     expect(r.state.boardWinners.slice(0, 3)).to.deep.equal(['draw', 'draw', 'draw']);
-    expect(r.state.winner).to.equal(null); // a line of draws is not a win — game continues
+    expect(r.state.winner).to.equal(null); // a line of draws is not a win - game continues
     expect(r.end).to.equal(null);
   });
 
@@ -207,7 +207,7 @@ describe('ultimate tic-tac-toe', () => {
     // move regardless of size; within a team, turns cycle by member index.
     // Each iteration constructs a fresh state at a given moveCount (playing a
     // distinct, always-free-choice board) purely to observe the resulting
-    // `state.turn` — isolated from the active-board forcing rule, which is
+    // `state.turn` - isolated from the active-board forcing rule, which is
     // covered by its own tests above.
     const teams = { X: ['alice', 'dave'], O: ['bob'] };
     const expectedTurnAfter = ['bob', 'dave', 'bob', 'alice']; // after moveCount 0,1,2,3 respectively
