@@ -9,7 +9,7 @@
  * Card shapes:
  *   { type: 'sorceress' }                once per turn, reroll any dice incl. a skull
  *   { type: 'captain'   }                final turn score is doubled
- *   { type: 'seabattle', need, bonus }   collect >= `need` sabers → +bonus, else −bonus
+ *   { type: 'seabattle', need, bonus }   collect >= `need` sabers → +bonus, else -bonus
  *   { type: 'chest'     }                dice moved into the chest survive a bust
  *   { type: 'coin'      }                start with a 9th die showing a coin
  *   { type: 'diamond'   }                start with a 9th die showing a diamond

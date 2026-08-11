@@ -702,7 +702,7 @@ function gameCard(g) {
       <span class="sh-card-art ${art.cls}">${art.glyph}</span>
       <span class="sh-card-meta">
         <span class="sh-card-title">${g.name}</span>
-        <span class="sh-card-sub">${g.minPlayers}–${g.maxPlayers} players</span>
+        <span class="sh-card-sub">${g.minPlayers}-${g.maxPlayers} players</span>
       </span>
     </button>`;
 }

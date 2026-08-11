@@ -38,7 +38,7 @@ describe('kaiten deck', () => {
       expect(() => validateMenu({ roll: 'maki', appetizers: ['tempura','sashimi','tofu'], specials: ['spoon','tea'],  dessert: 'pudding' }, 2)).to.throw();
     });
 
-    it('Menu/Special Order banned at 7–8 players', () => {
+    it('Menu/Special Order banned at 7-8 players', () => {
       expect(() => validateMenu({ roll: 'maki', appetizers: ['tempura','sashimi','tofu'], specials: ['menu','tea'],          dessert: 'pudding' }, 7)).to.throw();
       expect(() => validateMenu({ roll: 'maki', appetizers: ['tempura','sashimi','tofu'], specials: ['special_order','tea'], dessert: 'pudding' }, 8)).to.throw();
     });

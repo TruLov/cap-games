@@ -97,12 +97,12 @@ function cardPoints(type) {
   switch (type) {
     case 'nigiri':              return 'Egg 1 · Salmon 2 · Squid 3 (×3 on Wasabi)';
     case 'maki':                return 'Most icons: 6pts (2nd: 3)';
-    case 'temaki':              return 'Most: +4 · Fewest: −4';
+    case 'temaki':              return 'Most: +4 · Fewest: -4';
     case 'uramaki':             return 'Top 3 in game: 8 / 5 / 2';
     case 'tempura':             return 'Set of 2 = 5';
     case 'sashimi':             return 'Set of 3 = 10';
-    case 'dumpling':            return '1/3/6/10/15 (1–5 cards)';
-    case 'eel':                 return '1 card = −3 · 2+ = 7';
+    case 'dumpling':            return '1/3/6/10/15 (1-5 cards)';
+    case 'eel':                 return '1 card = -3 · 2+ = 7';
     case 'tofu':                return '1 = 2 · 2 = 6 · 3+ = 0';
     case 'onigiri':             return 'Unique shape sets: 1/4/9/16';
     case 'edamame':             return '1pt per opponent with Edamame';
@@ -115,9 +115,9 @@ function cardPoints(type) {
     case 'menu':                return 'Pick 1 of 4 from draw pile';
     case 'special_order':       return 'Copy any card you played';
     case 'takeout_box':         return 'Flip cards for 2pts each';
-    case 'pudding':             return 'Game end: Most +6 · Fewest −6';
+    case 'pudding':             return 'Game end: Most +6 · Fewest -6';
     case 'green_tea_ice_cream': return 'Game end: Set of 4 = 12';
-    case 'fruit':               return 'Game end: icons per type −2/0/1/3/6/10';
+    case 'fruit':               return 'Game end: icons per type -2/0/1/3/6/10';
     default:                    return '';
   }
 }

@@ -73,7 +73,7 @@ function dessertCount(playerCount, round) {
 
 /**
  * Cards restricted by player count.
- * Menu & Special Order: not usable at 7–8 players.
+ * Menu & Special Order: not usable at 7-8 players.
  * Spoon & Edamame: not usable at 2 players.
  */
 function restrictedTypes(playerCount) {
@@ -166,7 +166,7 @@ function makeRng(seed = Date.now()) {
   };
 }
 
-/** Fisher–Yates shuffle. Returns a new array; does not mutate input. */
+/** Fisher-Yates shuffle. Returns a new array; does not mutate input. */
 function shuffle(array, rng = Math.random) {
   const a = [...array];
   for (let i = a.length - 1; i > 0; i--) {

@@ -20,14 +20,14 @@ function renderRows(rows, meId) {
       <td class="lb-rank tnum">${i + 1}</td>
       <td class="lb-name">${esc(r.gamertag || r.user)}</td>
       <td class="lb-pts tnum">${r.points}</td>
-      <td class="lb-wld tnum">${r.wins}<span>–</span>${r.losses}<span>–</span>${r.draws}</td>
+      <td class="lb-wld tnum">${r.wins}<span>-</span>${r.losses}<span>-</span>${r.draws}</td>
     </tr>`).join('');
 
   return `
     <table class="lb-table">
       <thead><tr>
         <th class="lb-rank">#</th><th class="lb-name">Player</th>
-        <th class="lb-pts">Points</th><th class="lb-wld">W–L–D</th>
+        <th class="lb-pts">Points</th><th class="lb-wld">W-L-D</th>
       </tr></thead>
       <tbody>${body}</tbody>
     </table>`;

@@ -605,7 +605,7 @@ export default {
       $('#kf-logrows').innerHTML = rows.length ? rows.map(e => {
         const dice = e.dice.map(d => `<span>${sprite(d.face)}</span>`).join('');
         let res, cls;
-        if (e.island) { res = `−${(e.skulls || 0) * 100}`; cls = 'isl'; }
+        if (e.island) { res = `-${(e.skulls || 0) * 100}`; cls = 'isl'; }
         else if (e.busted) { res = 'BUST'; cls = 'neg'; }
         else if (e.points > 0) { res = `+${e.points}`; cls = 'pos'; }
         else if (e.points < 0) { res = `${e.points}`; cls = 'neg'; }

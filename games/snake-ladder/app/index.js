@@ -20,7 +20,7 @@ const PLAYER_COLORS = ['#E8106E', '#7B2FBE', '#0070F2', '#F97316'];
 const SIZE = 520;
 const CELL = SIZE / 10;
 
-// Square number (1–100) → canvas centre, boustrophedon from bottom-left.
+// Square number (1-100) → canvas centre, boustrophedon from bottom-left.
 function cellXY(n) {
   const idx = n - 1, row = Math.floor(idx / 10), col = idx % 10;
   const bRow = 9 - row, bCol = row % 2 === 0 ? col : 9 - col;

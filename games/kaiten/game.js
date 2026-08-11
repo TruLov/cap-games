@@ -35,7 +35,7 @@ export default {
   meta: {
     name: 'Kaiten',
     minPlayers: 2,
-    // Menu rules are defined for up to 8 players; kept at 6 until 7–8p is
+    // Menu rules are defined for up to 8 players; kept at 6 until 7-8p is
     // play-tested. No longer capped by the platform (which used to hand out a
     // fixed set of symbols) — players are keyed by `user`.
     maxPlayers: 6,
