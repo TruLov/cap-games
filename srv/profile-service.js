@@ -4,7 +4,7 @@ const LOG = cds.log('profile');
 
 const MAX_AVATAR_BYTES = 256 * 1024;
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
-// Letters, numbers, spaces, and a few common punctuation marks — enough for
+// Letters, numbers, spaces, and a few common punctuation marks - enough for
 // most gamertags, no HTML/markup, no leading/trailing whitespace surprises.
 const GAMERTAG_RE = /^[\p{L}\p{N} _.-]{2,40}$/u;
 
@@ -35,7 +35,7 @@ class ProfileService extends cds.ApplicationService {
 
       if (!buf.length) return req.error(400, 'Empty image data');
       if (buf.length > MAX_AVATAR_BYTES)
-        return req.error(400, `Image too large — max ${MAX_AVATAR_BYTES / 1024} KB`);
+        return req.error(400, `Image too large - max ${MAX_AVATAR_BYTES / 1024} KB`);
 
       await UPSERT.into(Profiles).entries({ user: req.user.id, avatar: buf, mediaType });
       LOG.info('AVATAR', req.user.id, `${buf.length} bytes, ${mediaType}`);
@@ -45,10 +45,45 @@ class ProfileService extends cds.ApplicationService {
     // ----------------------------------------------------------- myProfile
     this.on('myProfile', async (req) => {
       // CAP omits LargeBinary/media columns from a bare "select *" (to avoid
-      // pulling blobs into ordinary reads) — request `avatar` explicitly or
+      // pulling blobs into ordinary reads) - request `avatar` explicitly or
       // hasAvatar is silently always false.
-      const p = await SELECT.one.from(Profiles).columns('user', 'gamertag', 'avatar').where({ user: req.user.id });
-      return { gamertag: p?.gamertag ?? '', hasAvatar: !!p?.avatar };
+      const p = await SELECT.one.from(Profiles).columns('user', 'gamertag', 'avatar', 'pinned').where({ user: req.user.id });
+      return { gamertag: p?.gamertag ?? '', hasAvatar: !!p?.avatar, pinned: p?.pinned ?? '' };
+    });
+
+    // --------------------------------------------------- setPinnedAchievements
+    this.on('setPinnedAchievements', async (req) => {
+      const { Unlocks } = cds.entities('cap.games');
+      let items;
+      try { items = JSON.parse(req.data.pinned || '[]'); }
+      catch { return req.error(400, 'pinned must be a JSON array'); }
+      if (!Array.isArray(items)) return req.error(400, 'pinned must be a JSON array');
+      if (items.length > 5) return req.error(400, 'you can pin at most 5 achievements');
+
+      // De-dupe and shape-check before touching the DB.
+      const seen = new Set();
+      const clean = [];
+      for (const it of items) {
+        if (!it || typeof it.game !== 'string' || typeof it.id !== 'string') continue;
+        const key = `${it.game} ${it.id}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        clean.push({ game: it.game, id: it.id });
+      }
+
+      // Only allow pinning achievements the caller has actually unlocked -
+      // otherwise a crafted request could show off unearned badges.
+      if (clean.length) {
+        const owned = await SELECT.from(Unlocks).columns('id', 'game').where({ user: req.user.id });
+        const ownedKeys = new Set(owned.map(o => `${o.game} ${o.id}`));
+        const unearned = clean.find(c => !ownedKeys.has(`${c.game} ${c.id}`));
+        if (unearned) return req.error(400, `not unlocked: ${unearned.game || 'platform'}/${unearned.id}`);
+      }
+
+      const json = JSON.stringify(clean);
+      await UPSERT.into(Profiles).entries({ user: req.user.id, pinned: json });
+      LOG.info('PINNED', req.user.id, json);
+      return json;
     });
 
     // ---------------------------------------------------------- profilesOf
