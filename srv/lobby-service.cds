@@ -1,22 +1,28 @@
 using { cap.games as db } from '../db/schema';
 
 /**
- * LobbyService — OData/REST, no WebSocket.
+ * LobbyService - OData/REST, no WebSocket.
  * Browse games, create/list rooms, view leaderboard.
  */
 @path: 'lobby'
 service LobbyService {
 
-  // Game catalogue — derived from the cds.games registry at runtime
+  // Game catalogue - derived from the cds.games registry at runtime, decorated
+  // with the rating aggregate from db.Ratings (see lobby-service.js).
   @readonly entity Games {
     key id          : String(50);
         name        : String;
         minPlayers  : Integer;
         maxPlayers  : Integer;
+        help        : LargeString;   // how-to-play text, from the game's meta.help
+        gallery     : LargeString;   // JSON array of screenshot URLs
+        avgStars    : Double;        // null if nobody has rated it yet
+        ratingCount : Integer;
+        myStars     : Integer;       // the caller's own rating, null if none
   }
 
-  // Active rooms — created via createRoom action. gameName/playerCount/
-  // maxPlayers are virtual — populated in an `after READ` handler from the
+  // Active rooms - created via createRoom action. gameName/playerCount/
+  // maxPlayers are virtual - populated in an `after READ` handler from the
   // game registry + a Players count query (see lobby-service.js), so the
   // start page can list open rooms with a headcount without exposing the
   // full roster (Players is not a top-level entity here).
@@ -28,7 +34,7 @@ service LobbyService {
     virtual null as isMember    : Boolean,
   } excluding { createdBy, modifiedBy, createdAt, modifiedAt };
 
-  // Leaderboard — gamertag is virtual, resolved in an `after READ` handler by
+  // Leaderboard - gamertag is virtual, resolved in an `after READ` handler by
   // consuming ProfileService through `cds.connect.to` (see lobby-service.js),
   // so a ranking lists display names without leaking the ProfileService's
   // location: in-process today, a remote binding tomorrow, same call site.
@@ -40,8 +46,12 @@ service LobbyService {
   // Create a room and become its host
   action createRoom(game: String) returns String;  // returns room ID
 
+  // Rate a game 1-5 stars - upsert, one rating per (caller, game). Returns the
+  // game's updated aggregate so the UI can refresh without a full reload.
+  action rateGame(game: String, stars: Integer) returns { avgStars: Double; ratingCount: Integer; };
+
   // Achievements the caller has unlocked, grouped by game ('' = platform-wide).
-  // Deliberately returns ONLY owned entries plus a `total` per game — locked
+  // Deliberately returns ONLY owned entries plus a `total` per game - locked
   // achievement definitions are never disclosed (Steam-style hidden), so the
   // UI can show "3 / 8" and how many are left without revealing what they are.
   function myAchievements() returns many {
@@ -56,7 +66,7 @@ service LobbyService {
     };
   };
 
-  // The caller's platform identity (req.user.id) — the authoritative id the
+  // The caller's platform identity (req.user.id) - the authoritative id the
   // frontend must key on so it matches every gameplay comparison. Under IAS
   // this is the token subject; under mocked auth it's the basic-auth user.
   function whoami() returns String;
