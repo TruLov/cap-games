@@ -3,32 +3,36 @@
 /* ── Design tokens ─────────────────────────────────────────
    Liquid-glass system: a colorful blurred gradient field sits fixed behind
    everything (body::before), and UI surfaces are translucent + blurred
-   (backdrop-filter) so that field shows through. Dark is the default
-   palette; :root[data-theme="light"] flips to the same variable names with
-   a lighter field + white-glass surfaces, so every rule below stays
-   theme-agnostic by construction — nothing here should hardcode a color
-   that should flip with the theme. */
+   (backdrop-filter) so that field shows through. The default palette is
+   "Cold Brew" (kept unscoped so it also serves as the pre-JS/no-attribute
+   fallback) — other named palettes are selected via [data-palette] on
+   <html> further down (app/palettes.js) and override these same variable
+   names, so every rule below stays palette/theme-agnostic by construction.
+   Surfaces/borders use higher alpha than a typical glass UI so panels and
+   dividers stay legible against warm, lower-contrast neutrals; --muted is
+   a lightened/darkened tint (not a raw palette stop) so secondary text
+   clears ~4.5:1 contrast on both themes. */
 :root {
-  --bg:           #0b0b0c;
-  --bg-elevated:  rgba(22, 21, 20, .6);
-  --surface:      rgba(210, 200, 185, .05);
-  --surface-hover:rgba(210, 200, 185, .1);
-  --border:       rgba(255, 170, 80, .16);
-  --border-strong:rgba(255, 170, 80, .34);
-  --text:         #ece8e0;
-  --muted:        #8c8880;
-  --accent:       #ff9a2e;
-  --accent-hover: #ffb457;
-  --accent-soft:  rgba(255,154,46,.2);
-  --accent-2:     #5c6570;
-  --danger:       #d4423f;
-  --danger-soft:  rgba(212,66,63,.2);
-  --success:      #6fbf73;
-  --success-soft: rgba(111,191,115,.18);
-  --on-accent:    #1a0f00;
+  --bg:           #221f1c;
+  --bg-elevated:  rgba(70, 66, 58, .65);
+  --surface:      rgba(190, 182, 172, .08);
+  --surface-hover:rgba(190, 182, 172, .14);
+  --border:       rgba(140, 130, 118, .26);
+  --border-strong:rgba(140, 130, 118, .46);
+  --text:         #E3DCD1;
+  --muted:        #a79f92;
+  --accent:       #8a9a6b;
+  --accent-hover: #a0b083;
+  --accent-soft:  rgba(138,154,107,.22);
+  --accent-2:     #5c6350;
+  --danger:       #c1544f;
+  --danger-soft:  rgba(193,84,79,.2);
+  --success:      #8bc06c;
+  --success-soft: rgba(139,192,108,.18);
+  --on-accent:    #1a1e12;
 
   --glass-blur:   18px;
-  --glass-sheen:  rgba(255,220,180,.12);
+  --glass-sheen:  rgba(227,220,209,.12);
   --glow: 0 0 12px var(--accent-soft);
 
   --radius-sm: 4px;
@@ -45,14 +49,14 @@
   --shadow-md: 0 8px 30px rgba(0,0,0,.45);
   --shadow-lg: 0 20px 60px rgba(0,0,0,.6);
 
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace, Menlo, Consolas, monospace;
   --font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace, Menlo, Consolas, monospace;
   --transition: .18s ease;
 
-  --field-1: #262320;
-  --field-2: #1c1f22;
-  --field-3: #2a1c14;
-  --field-4: #050505;
+  --field-1: #403c34;
+  --field-2: #2c2924;
+  --field-3: #4d5a3d;
+  --field-4: #141310;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -60,39 +64,153 @@
   * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
-/* Light theme — same variable names, flipped to white-glass over a
-   pastel gradient field. Applied via [data-theme="light"] on <html>, set
-   before first paint (inline script in index.html/login.html/logout.html
-   <head>) to avoid a flash of the wrong theme. Toggled + persisted from
-   the header account menu (platform.js). */
+/* Light theme (default palette, "Cold Brew") — same variable names, flipped
+   to a warm off-white glass. Applied via [data-theme="light"] on <html>,
+   set before first paint (inline script in index.html/login.html/logout.html
+   <head>) to avoid a flash of the wrong theme. Toggled + persisted from the
+   header account menu (platform.js). */
 :root[data-theme="light"] {
-  --bg:           #e8e5df;
-  --bg-elevated:  rgba(255, 255, 255, .6);
-  --surface:      rgba(255, 255, 255, .5);
-  --surface-hover:rgba(255, 255, 255, .78);
-  --border:       rgba(70, 50, 30, .16);
-  --border-strong:rgba(70, 50, 30, .3);
-  --text:         #1c1913;
-  --muted:        #5c5748;
-  --accent:       #c96a17;
-  --accent-hover: #a8580f;
-  --accent-soft:  rgba(201,106,23,.16);
-  --accent-2:     #5c6570;
-  --danger:       #b3302d;
-  --danger-soft:  rgba(179,48,45,.14);
-  --success:      #2f7d4f;
-  --success-soft: rgba(47,125,79,.13);
-  --on-accent:    #ffffff;
-  --glass-sheen:  rgba(255,255,255,.55);
+  --bg:           #E7E1D6;
+  --bg-elevated:  rgba(253, 251, 247, .7);
+  --surface:      rgba(90, 85, 75, .05);
+  --surface-hover:rgba(90, 85, 75, .1);
+  --border:       rgba(90, 85, 75, .18);
+  --border-strong:rgba(90, 85, 75, .32);
+  --text:         #26241f;
+  --muted:        #6e6a5f;
+  --accent:       #5f7548;
+  --accent-hover: #4c5e39;
+  --accent-soft:  rgba(95,117,72,.16);
+  --accent-2:     #8b8577;
+  --danger:       #a8443f;
+  --danger-soft:  rgba(168,68,63,.14);
+  --success:      #3f6e2f;
+  --success-soft: rgba(63,110,47,.13);
+  --on-accent:    #E7E1D6;
+  --glass-sheen:  rgba(255,255,255,.6);
   --glow: 0 0 12px var(--accent-soft);
-  --shadow-sm: 0 1px 2px rgba(30,25,15,.08);
-  --shadow-md: 0 8px 30px rgba(30,25,15,.12);
-  --shadow-lg: 0 20px 60px rgba(30,25,15,.18);
+  --shadow-sm: 0 1px 2px rgba(38,36,31,.08);
+  --shadow-md: 0 8px 30px rgba(38,36,31,.12);
+  --shadow-lg: 0 20px 60px rgba(38,36,31,.18);
 
-  --field-1: #d2c9b8;
-  --field-2: #c7cdd2;
-  --field-3: #ddc4a8;
-  --field-4: #f1efe9;
+  --field-1: #d6d0c2;
+  --field-2: #e2ddd0;
+  --field-3: #e8e6d8;
+  --field-4: #E7E1D6;
+}
+
+/* ── Named color palettes (Appearance section, profile page) ──────────
+   Selected via [data-palette] on <html> (app/palettes.js), same variable
+   names as the default theme above (which IS "cold-brew", kept unscoped
+   so it also serves as the pre-JS/no-attribute fallback). Each palette
+   gets one dark block and one [data-theme="light"] block. Add a new
+   palette by adding its two blocks here and one entry in palettes.js. */
+
+/* Macchiato Contrast — a warm mid-roast dark (lighter/redder than Roasted
+   Slate's near-black) with a dusty terracotta accent, and a crisper,
+   higher-contrast light mode than it had before. */
+:root[data-palette="macchiato"] {
+  --bg: #43301f; --bg-elevated: rgba(122,90,58,.68);
+  --surface: rgba(219,193,172,.11); --surface-hover: rgba(219,193,172,.19);
+  --border: rgba(170,128,95,.34); --border-strong: rgba(170,128,95,.56);
+  --text: #F1E6D8; --muted: #cbae90;
+  --accent: #b9765a; --accent-hover: #cc8b70; --accent-soft: rgba(185,118,90,.22); --accent-2: #7a5b41;
+  --danger: #c85850; --danger-soft: rgba(200,88,80,.2);
+  --success: #86b968; --success-soft: rgba(134,185,104,.18);
+  --on-accent: #2a160c; --glass-sheen: rgba(241,230,216,.14);
+  --field-1: #7a5a3a; --field-2: #5c4327; --field-3: #8f6b45; --field-4: #241609;
+}
+:root[data-palette="macchiato"][data-theme="light"] {
+  --bg: #F0E4D6; --bg-elevated: rgba(255,253,249,.75);
+  --surface: rgba(122,90,58,.06); --surface-hover: rgba(122,90,58,.12);
+  --border: rgba(122,90,58,.22); --border-strong: rgba(122,90,58,.38);
+  --text: #2b1a10; --muted: #74553c;
+  --accent: #a8563a; --accent-hover: #8a4429; --accent-soft: rgba(168,86,58,.18); --accent-2: #967259;
+  --danger: #a8433a; --danger-soft: rgba(168,67,58,.15);
+  --success: #3f6e2f; --success-soft: rgba(63,110,47,.13);
+  --on-accent: #F6ECE0; --glass-sheen: rgba(255,255,255,.66);
+  --shadow-sm: 0 1px 2px rgba(43,26,16,.1); --shadow-md: 0 8px 30px rgba(43,26,16,.14); --shadow-lg: 0 20px 60px rgba(43,26,16,.2);
+  --field-1: #E3CFB8; --field-2: #ecdcc8; --field-3: #f5ebdd; --field-4: #F0E4D6;
+}
+
+/* Straight Black — quietest: mid-tones stay near-monochrome with the
+   neutrals, accent barely warmer than the border color. */
+:root[data-palette="straight-black"] {
+  --bg: #221710; --bg-elevated: rgba(72,55,42,.65);
+  --surface: rgba(202,187,175,.08); --surface-hover: rgba(202,187,175,.14);
+  --border: rgba(160,140,120,.24); --border-strong: rgba(160,140,120,.42);
+  --text: #ECE0D0; --muted: #b49b85;
+  --accent: #9c6b52; --accent-hover: #b98567; --accent-soft: rgba(156,107,82,.2); --accent-2: #6b5442;
+  --danger: #c1443f; --danger-soft: rgba(193,68,63,.2);
+  --success: #7fae5f; --success-soft: rgba(127,174,95,.18);
+  --on-accent: #221710; --glass-sheen: rgba(236,224,209,.12);
+  --field-1: #483729; --field-2: #332619; --field-3: #5a4331; --field-4: #150e09;
+}
+:root[data-palette="straight-black"][data-theme="light"] {
+  --bg: #ECE0D0; --bg-elevated: rgba(255,251,246,.7);
+  --surface: rgba(107,71,59,.05); --surface-hover: rgba(107,71,59,.1);
+  --border: rgba(107,71,59,.2); --border-strong: rgba(107,71,59,.36);
+  --text: #2c1f15; --muted: #6b4f3d;
+  --accent: #7a4f3a; --accent-hover: #623d2c; --accent-soft: rgba(122,79,58,.16); --accent-2: #8a7362;
+  --danger: #a8362f; --danger-soft: rgba(168,54,47,.14);
+  --success: #4f7d3f; --success-soft: rgba(79,125,63,.13);
+  --on-accent: #ECE0D0; --glass-sheen: rgba(255,255,255,.6);
+  --shadow-sm: 0 1px 2px rgba(42,26,14,.08); --shadow-md: 0 8px 30px rgba(42,26,14,.12); --shadow-lg: 0 20px 60px rgba(42,26,14,.18);
+  --field-1: #DBC8B8; --field-2: #e8dbcb; --field-3: #f2e7da; --field-4: #ECE0D0;
+}
+
+/* Cold Brew is the default palette — see the unscoped :root block above. */
+
+/* Oat Milk — softest: leans into the almond/cream side even in dark mode
+   (a soft warm brown, not near-black), low-chroma honeyed-amber accent. */
+:root[data-palette="oat-milk"] {
+  --bg: #2c2118; --bg-elevated: rgba(90,71,52,.65);
+  --surface: rgba(238,224,208,.09); --surface-hover: rgba(238,224,208,.16);
+  --border: rgba(180,155,130,.26); --border-strong: rgba(180,155,130,.46);
+  --text: #F3E9DA; --muted: #c9b299;
+  --accent: #cf9a5c; --accent-hover: #e0af76; --accent-soft: rgba(207,154,92,.22); --accent-2: #8a7159;
+  --danger: #c1544f; --danger-soft: rgba(193,84,79,.2);
+  --success: #8bc06c; --success-soft: rgba(139,192,108,.18);
+  --on-accent: #2c2118; --glass-sheen: rgba(243,233,218,.14);
+  --field-1: #5a4732; --field-2: #453423; --field-3: #7a6040; --field-4: #1c140d;
+}
+:root[data-palette="oat-milk"][data-theme="light"] {
+  --bg: #F6EEE1; --bg-elevated: rgba(255,252,247,.72);
+  --surface: rgba(120,95,70,.05); --surface-hover: rgba(120,95,70,.1);
+  --border: rgba(120,95,70,.18); --border-strong: rgba(120,95,70,.32);
+  --text: #3a2c1e; --muted: #8a7259;
+  --accent: #a8763f; --accent-hover: #8c5f30; --accent-soft: rgba(168,118,63,.16); --accent-2: #9c8a72;
+  --danger: #a8362f; --danger-soft: rgba(168,54,47,.14);
+  --success: #4f7d3f; --success-soft: rgba(79,125,63,.13);
+  --on-accent: #F6EEE1; --glass-sheen: rgba(255,255,255,.62);
+  --shadow-sm: 0 1px 2px rgba(58,44,30,.08); --shadow-md: 0 8px 30px rgba(58,44,30,.12); --shadow-lg: 0 20px 60px rgba(58,44,30,.18);
+  --field-1: #e6d7c1; --field-2: #efe4d3; --field-3: #f7efe2; --field-4: #F6EEE1;
+}
+
+/* Roasted Slate — boldest: deep espresso-brown dark mode, crisp ivory light
+   mode, a confident fully-saturated copper accent. */
+:root[data-palette="roasted-slate"] {
+  --bg: #38220F; --bg-elevated: rgba(99,72,50,.7);
+  --surface: rgba(219,193,172,.1); --surface-hover: rgba(219,193,172,.18);
+  --border: rgba(150,114,89,.32); --border-strong: rgba(150,114,89,.55);
+  --text: #ECE0D1; --muted: #c4a88e;
+  --accent: #d97f3f; --accent-hover: #eb9856; --accent-soft: rgba(217,127,63,.22); --accent-2: #967259;
+  --danger: #d4534e; --danger-soft: rgba(212,83,78,.22);
+  --success: #8bc06c; --success-soft: rgba(139,192,108,.2);
+  --on-accent: #2a1608; --glass-sheen: rgba(236,224,209,.14);
+  --field-1: #634832; --field-2: #4a3420; --field-3: #7a5a3a; --field-4: #1c0f06;
+}
+:root[data-palette="roasted-slate"][data-theme="light"] {
+  --bg: #ECE0D0; --bg-elevated: rgba(255,252,247,.75);
+  --surface: rgba(90,60,40,.06); --surface-hover: rgba(90,60,40,.12);
+  --border: rgba(90,60,40,.22); --border-strong: rgba(90,60,40,.4);
+  --text: #1a120b; --muted: #6b4f3d;
+  --accent: #8a4419; --accent-hover: #6f3512; --accent-soft: rgba(138,68,25,.18); --accent-2: #967259;
+  --danger: #b3392f; --danger-soft: rgba(179,57,47,.16);
+  --success: #3f6e2f; --success-soft: rgba(63,110,47,.15);
+  --on-accent: #ECE0D0; --glass-sheen: rgba(255,255,255,.65);
+  --shadow-sm: 0 1px 2px rgba(26,18,11,.08); --shadow-md: 0 8px 30px rgba(26,18,11,.12); --shadow-lg: 0 20px 60px rgba(26,18,11,.18);
+  --field-1: #DBC1AC; --field-2: #e8d9c5; --field-3: #f3e8da; --field-4: #ECE0D0;
 }
 
 html, body { height: 100%; }
@@ -188,9 +306,7 @@ button.sh-ghost {
   position: relative;
   z-index: 10;
 }
-/* Header wordmark — a procedurally sprayed-on-metal "GAMBITO" tag
-   (app/brand-logo.js draws it into #sh-logo-canvas on load), not text.
-   The button itself is just a reset container sized to the canvas. */
+/* Header wordmark button — a reset container around the .gm-logo text mark. */
 .sh-logo  {
   display: inline-flex; align-items: center;
   background: none; border: none; padding: 0;
@@ -200,7 +316,32 @@ button.sh-ghost {
 }
 .sh-logo::before, .sh-logo::after { content: none; }
 .sh-logo:hover { filter: brightness(1.2); }
-#sh-logo-canvas { display: block; height: 32px; width: auto; }
+/* Pixel espresso-cup mascot — swaps source (idle/filling/steam) to reflect
+   where you are: browsing = idle, waiting room = filling, in a match = steam.
+   The artwork reserves headroom above the cup for steam to curl through
+   (viewBox is 64×84, but the cup itself only occupies the bottom 36 units),
+   so the wrapper is sized to the cup alone — same trick as .gm-caret below —
+   while the taller <img> hangs off it via position:absolute and is free to
+   paint its steam headroom above without affecting layout or alignment. */
+.sh-logo-cup-wrap {
+  display: inline-block; position: relative; overflow: visible;
+  font-size: 1.15rem; /* match .sh-logo .gm-logo so 1em below = the wordmark's cap height */
+  height: 1em; width: calc(1em * 64 / 36); margin-right: .3em;
+  transform: translateY(.14em); /* same baseline offset as .gm-caret */
+}
+.sh-logo-cup { position: absolute; left: 0; bottom: 0; height: calc(1em * 84 / 36); width: auto; image-rendering: pixelated; }
+/* Terminal-token wordmark: gam[e]//bit[s] — letters in text, brackets muted
+   gray, slashes in accent orange. Replaces the procedural canvas wordmark;
+   sizes via font-size so one markup serves header + hero. */
+.gm-logo { font-family: var(--font-mono); font-weight: 700; letter-spacing: .01em;
+  color: var(--text); line-height: 1; white-space: nowrap; user-select: none; }
+.gm-logo .gm-opt { color: var(--muted); font-weight: 700; }
+.gm-logo .gm-sl  { color: var(--accent); font-weight: 800; margin: 0 .04em; }
+.gm-caret { display: inline-block; width: .5em; height: 1em; background: var(--accent);
+  margin-left: .14em; transform: translateY(.14em); animation: gm-blink 1.1s steps(1) infinite; }
+@keyframes gm-blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .gm-caret { animation: none; } }
+.sh-logo .gm-logo { font-size: 1.15rem; }
 .sh-nav   { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-left: auto; }
 .sh-toast {
   border-radius: 999px; padding: .3rem .8rem; font-size: .82rem;
@@ -227,6 +368,46 @@ button.sh-ghost {
   box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-sheen);
 }
 .sh-avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
+
+/* Palette picker (Appearance section, profile page) — a custom dropdown
+   rather than a native <select> so each row can carry swatches and hovering
+   can live-preview the palette on the whole page; see app/palettes.js. */
+.pal-swatches { display: flex; gap: .25rem; flex: none; }
+.pal-swatches i {
+  width: 14px; height: 14px; border-radius: 4px; flex: none;
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.pal-picker { position: relative; max-width: 22rem; }
+.pal-picker-btn {
+  display: flex; align-items: center; gap: .65rem; width: 100%;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: .55rem .8rem; font-family: var(--font); font-size: .88rem; font-weight: 600;
+  text-align: left; box-shadow: inset 0 1px 0 var(--glass-sheen);
+}
+.pal-picker-btn:hover { background: var(--surface-hover); border-color: var(--border-strong); }
+.pal-picker-btn .pal-swatches i { width: 18px; height: 18px; border-radius: 5px; }
+.pal-caret { margin-left: auto; color: var(--muted); flex: none; }
+.pal-picker-menu {
+  position: absolute; left: 0; right: 0; top: calc(100% + .4rem); z-index: 20;
+  background: var(--bg-elevated);
+  backdrop-filter: blur(var(--glass-blur)) saturate(120%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(120%);
+  border: 1px solid var(--border-strong); border-radius: var(--radius);
+  padding: .3rem; display: flex; flex-direction: column; gap: 2px;
+  box-shadow: var(--shadow-lg);
+}
+.pal-picker-menu[hidden] { display: none; }
+.pal-option {
+  display: flex; align-items: center; gap: .65rem; width: 100%; text-align: left;
+  background: none; color: var(--text);
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  padding: .5rem .6rem; font-family: var(--font); font-size: .85rem; font-weight: 500;
+  box-shadow: none; clip-path: none;
+}
+.pal-option::before, .pal-option::after { content: none; }
+.pal-option:hover { background: var(--surface-hover); }
+.pal-option.on { border-color: var(--border-strong); color: var(--accent); }
 
 /* Solid gunmetal plate (not just tinted glass) — always dark regardless of
    theme, so it reads clearly against whatever's behind it. */
@@ -326,47 +507,12 @@ h1 {
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 0 10px var(--accent-soft));
 }
-/* Landing hero — same sprayed-metal plate as the concept sketch: a
-   rusted, riveted card the wordmark canvas sits on, tilted like it's
-   bolted up slightly crooked. Fixed dark artwork, not theme-tokenized —
-   see brand-logo.js header comment. */
+/* Landing hero — the terminal wordmark, large (.gm-logo-hero). */
 .sh-hero-logo {
   background: none; -webkit-background-clip: initial; background-clip: initial;
   color: initial; filter: none; margin: 0 0 var(--space-2);
 }
-.sh-hero-plate {
-  position: relative;
-  display: block;
-  width: min(480px, 90vw);
-  aspect-ratio: 1400 / 480;
-  margin: 0 auto;
-  border-radius: 12px;
-  transform: rotate(-1.1deg);
-  box-shadow: 0 20px 46px rgba(0,0,0,.5), 0 2px 0 rgba(255,255,255,.03),
-              inset 0 2px 0 rgba(255,255,255,.09), inset 0 -3px 10px rgba(0,0,0,.6),
-              inset 0 0 0 1px rgba(0,0,0,.5);
-  overflow: hidden;
-  animation: sh-hero-flicker 7s ease-in-out infinite;
-}
-.sh-hero-plate canvas { display: block; width: 100%; height: 100%; }
-.sh-hero-rivet {
-  position: absolute; width: 13px; height: 13px; border-radius: 50%;
-  background:
-    linear-gradient(90deg, transparent calc(50% - 1px), rgba(0,0,0,.85) calc(50% - 1px), rgba(0,0,0,.85) calc(50% + 1px), transparent calc(50% + 1px)),
-    radial-gradient(circle at 35% 35%, #d8d2c4, #2a241c 78%);
-  box-shadow: 0 1px 2px rgba(0,0,0,.7), inset 0 0 2px rgba(0,0,0,.6);
-}
-.sh-hero-rivet.tl { top: 12px; left: 12px; transform: rotate(12deg); }
-.sh-hero-rivet.tr { top: 12px; right: 12px; transform: rotate(-30deg); }
-.sh-hero-rivet.bl { bottom: 12px; left: 12px; transform: rotate(-8deg); }
-.sh-hero-rivet.br { bottom: 12px; right: 12px; transform: rotate(50deg); }
-@keyframes sh-hero-flicker {
-  0%, 100% { filter: brightness(1); } 42% { filter: brightness(1); }
-  43% { filter: brightness(.93); } 44% { filter: brightness(1.04); }
-  45% { filter: brightness(1); } 78% { filter: brightness(1); }
-  79% { filter: brightness(.96); } 80% { filter: brightness(1); }
-}
-@media (prefers-reduced-motion: reduce) { .sh-hero-plate { animation: none; } }
+.gm-logo-hero { font-size: clamp(2.4rem, 9vw, 5rem); font-weight: 800; }
 h2 { font-family: var(--font-mono); font-size: 1.25rem; letter-spacing: .03em; margin-bottom: var(--space-3); font-weight: 700; }
 h3 { font-family: var(--font-mono); font-size: .8rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin: var(--space-4) 0 var(--space-2); }
 h3::before { content: "// "; color: var(--accent); opacity: .7; }
@@ -440,6 +586,22 @@ input, select {
   transition: border-color var(--transition), box-shadow var(--transition);
 }
 input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), inset 0 1px 0 var(--glass-sheen); }
+
+/* File input — the outer control already picks up the glass surface from
+   the `input, select` rule above; only its native "Choose file" button
+   (a browser shadow-root control, not reachable by ordinary rules) needs
+   its own theming via ::file-selector-button. */
+input[type="file"] { padding: .35rem; font-size: .82rem; color: var(--muted); }
+input[type="file"]::file-selector-button,
+input[type="file"]::-webkit-file-upload-button {
+  background: var(--accent); color: var(--on-accent);
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  padding: .45rem .9rem; margin-right: .75rem;
+  font-family: var(--font); font-weight: 600; font-size: .82rem;
+  cursor: pointer; transition: background var(--transition);
+}
+input[type="file"]::file-selector-button:hover,
+input[type="file"]::-webkit-file-upload-button:hover { background: var(--accent-hover); }
 
 code {
   font-family: var(--font-mono);
@@ -545,10 +707,34 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
   margin-bottom: var(--space-1);
 }
 .ach-row.ach-locked { opacity: .55; }
-.ach-icon { font-size: 1.5rem; line-height: 1; flex: none; }
-.ach-owned .ach-icon { filter: drop-shadow(var(--glow)); }
+.ach-icon { font-size: 1.5rem; line-height: 1; flex: none; display: flex; align-items: center; }
+.ach-icon svg { display: block; }
+.ach-owned .ach-icon { filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 55%, transparent)); }
 .ach-name { font-weight: 600; }
 .ach-desc { color: var(--muted); font-size: .85rem; }
+
+/* Achievement badges — rail row + edit-profile pin picker. A themed circular
+   chip: the icon's color is set inline per achievement (see
+   app/achievement-icons.js), background/border derive from it via
+   color-mix(currentColor) so one rule covers every game's color. */
+.ach-badge {
+  --ach-size: 26px;
+  width: var(--ach-size); height: var(--ach-size); border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 45%, transparent);
+}
+.ach-badge svg { width: 55%; height: 55%; display: block; }
+.ach-badge-sm { --ach-size: 22px; }
+
+.ach-picker { display: flex; flex-wrap: wrap; gap: .5rem; max-width: 420px; margin-bottom: 1rem; }
+.ach-badge-pick {
+  --ach-size: 34px;
+  cursor: pointer; padding: 0; border-radius: 50%; box-shadow: none; filter: none;
+  opacity: .5; transition: opacity var(--transition), transform var(--transition), background var(--transition);
+}
+.ach-badge-pick:hover { opacity: .8; transform: translateY(-1px); background: color-mix(in srgb, currentColor 22%, transparent); }
+.ach-badge-pick.on { opacity: 1; box-shadow: 0 0 0 2px currentColor; }
 
 /* ── Leaderboard page (per-game ranking; see app/leaderboard.js) ─── */
 .lb-table { width: 100%; border-collapse: collapse; margin-top: var(--space-3); }
@@ -607,20 +793,22 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 .sh-rp-av img { width: 100%; height: 100%; object-fit: cover; }
 .sh-rp-meta { min-width: 0; }
 .sh-rp-name { font-weight: 700; font-size: .95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sh-rp-sub  { font-size: .74rem; color: var(--muted); margin-top: 1px; }
+.sh-rp-sub  { font-size: .74rem; color: var(--muted); margin-top: 3px; display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; }
+.sh-rp-sub svg { display: block; flex: 0 0 auto; }
 
 /* Rail nav */
 .sh-rail-nav { display: flex; flex-direction: column; gap: 2px; }
 .sh-nav-item {
   display: flex; align-items: center; gap: var(--space-2); width: 100%; text-align: left;
   padding: .55rem .7rem; background: none; border: 1px solid transparent; border-radius: var(--radius-sm);
-  color: var(--muted); font-family: var(--font); font-weight: 500; font-size: .9rem;
+  color: var(--text); font-family: var(--font); font-weight: 600; font-size: .9rem;
   letter-spacing: 0; text-shadow: none; box-shadow: none; clip-path: none;
 }
 .sh-nav-item::before, .sh-nav-item::after { content: none; }
-.sh-nav-item:hover { background: var(--surface); color: var(--text); filter: none; }
+.sh-nav-item:hover { background: var(--surface); filter: none; }
 .sh-nav-item.on { background: var(--accent-soft); color: var(--accent); border-color: var(--border-strong); }
-.sh-nav-ico { width: 1.2em; text-align: center; }
+.sh-nav-ico { width: 1.2em; display: inline-flex; align-items: center; justify-content: center; }
+.sh-nav-ico svg { display: block; }
 
 /* Rail room panel */
 .sh-rail-room {
@@ -670,10 +858,42 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 .sh-card:hover { transform: translateY(-2px); filter: none; border-color: var(--accent); box-shadow: var(--glow); }
 .sh-card-active { border-color: var(--accent); box-shadow: var(--glow); }
 .sh-card-art { display: grid; place-items: center; aspect-ratio: 16 / 10; font-size: 2.6rem; }
-.sh-card-meta { padding: .6rem .75rem; }
+.sh-card-meta { padding: .6rem .75rem; display: flex; flex-direction: column; gap: 3px; }
 .sh-card-title { display: block; font-weight: 700; font-size: .95rem; }
-.sh-card-sub { display: block; font-size: .76rem; color: var(--muted); margin-top: 2px; }
 .sh-card-active .sh-card-title::after { content: " · in your room"; color: var(--accent); font-weight: 400; font-size: .74rem; }
+
+.sh-card-players {
+  display: flex; align-items: center; gap: .3rem; font-size: .76rem; color: var(--muted);
+}
+.sh-card-icon { flex: 0 0 auto; }
+
+.sh-card-rating { display: flex; align-items: center; gap: 1px; color: var(--accent); }
+.sh-star { display: inline-flex; width: 14px; height: 14px; position: relative; }
+.sh-star svg { display: block; }
+.sh-star-half-fill { position: absolute; inset: 0; width: 50%; overflow: hidden; }
+
+.sh-card-wrap { position: relative; }
+.sh-card-wrap .sh-card { width: 100%; }
+.sh-card-info {
+  position: absolute; top: .4rem; right: .4rem; width: 1.6rem; height: 1.6rem;
+  display: grid; place-items: center; padding: 0; border-radius: 50%;
+  background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.35); color: #fff;
+  font-size: .85rem; line-height: 1; cursor: pointer; transition: background var(--transition);
+}
+.sh-card-info:hover { background: rgba(0,0,0,.7); }
+.sh-card-info svg { display: block; }
+
+.gi-rating-summary { display: flex; align-items: baseline; gap: .6rem; margin: .4rem 0 1rem; }
+.gi-avg-stars { color: var(--accent); font-size: 1.1rem; letter-spacing: 1px; }
+.gi-help { white-space: pre-wrap; line-height: 1.5; max-width: 60ch; }
+.gi-gallery { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); margin-top: var(--space-2); }
+.gi-gallery img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.gi-star-picker { display: flex; gap: .2rem; }
+.gi-star-picker button {
+  background: none; border: none; padding: 0; font-size: 1.8rem; line-height: 1; color: var(--accent);
+  cursor: pointer; box-shadow: none; filter: none;
+}
+.gi-star-picker button:hover { background: none; transform: scale(1.1); }
 
 .art-a1 { background: linear-gradient(135deg, #3a2a5a, #6d3fa3); }
 .art-a2 { background: linear-gradient(135deg, #5a2a2a, #a33f3f); }
