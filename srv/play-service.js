@@ -1,5 +1,6 @@
 import cds from '@sap/cds';
 import * as eng from './engine.js';
+import * as presence from './presence.js';
 import * as reg from './registry.js';
 import * as ach from './achievements.js';
 
@@ -32,27 +33,24 @@ class PlayService extends cds.ApplicationService {
 
       await req.context.ws.service.enter(roomId);
 
-      // -- reconnect: had grace timer running
-      if (eng.hasGraceTimer(roomId, user)) {
-        eng.clearGraceTimer(roomId, user);
-        // If the disconnect announcement was still pending (i.e. this is a
-        // quick refresh), it never went out - so stay silent on reconnect too.
-        const announced = !eng.clearAnnounceTimer(roomId, user);
+      // -- reconnect: had a grace clock running
+      if (presence.isPending(roomId, user)) {
+        // Resolves the refresh-vs-drop debounce: 'silent' if the disconnect
+        // was never broadcast (quick refresh), 'announce' if it was.
+        const decision = presence.reconnect(roomId, user);
         const player = await SELECT.one.from(Players)
           .where({ room_ID: roomId, user });
         if (room.status === 'paused') {
           await UPDATE(Rooms, roomId).with({ status: 'playing' });
         }
         // 'joined' is what the reconnecting client itself waits on to (re)build
-        // its room UI (app/platform.js's onFirstJoin) — 'playerReconnected' alone
+        // its room UI (app/platform.js's onFirstJoin) - 'playerReconnected' alone
         // only reaches OTHER clients already in the room, never this one.
         await this.emit('joined', {
           room: roomId, player: user, spectator: player?.spectator ?? true,
           host: player?.isHost ?? false, status: room.status,
         });
-        // Only announce the reconnect if the disconnect was actually broadcast;
-        // a quick refresh (announce still pending) is invisible to the room.
-        if (announced) {
+        if (decision === 'announce') {
           await this.emit('playerReconnected', { room: roomId, player: user });
           await this._sysMsg(roomId, `${user} reconnected.`);
         }
@@ -323,15 +321,12 @@ class PlayService extends cds.ApplicationService {
         if (room.status === 'playing' && !player.spectator) {
           await UPDATE(Rooms, room.ID).with({ status: 'paused' });
         }
-        eng.setGraceTimer(room.ID, user, () => {
-          this._doLeave(user, room.ID, true).catch(() => {});
-        });
-        // Debounce the "disconnected" broadcast: a page refresh reconnects
-        // within a few hundred ms, so only a drop that outlasts the announce
-        // window ever reaches the other players (a quick refresh stays silent).
-        eng.setAnnounceTimer(room.ID, user, () => {
-          this.emit('playerDisconnected', { room: room.ID, player: user }).catch(() => {});
-          this._sysMsg(room.ID, `${user} disconnected.`).catch(() => {});
+        presence.disconnect(room.ID, user, {
+          onDrop:     () => this._doLeave(user, room.ID, true).catch(() => {}),
+          onAnnounce: () => {
+            this.emit('playerDisconnected', { room: room.ID, player: user }).catch(() => {});
+            this._sysMsg(room.ID, `${user} disconnected.`).catch(() => {});
+          },
         });
         LOG.info('DISCONNECT', room.ID, user, `→ status=${room.status} (60s grace, 3s announce)`);
       }
@@ -529,8 +524,7 @@ class PlayService extends cds.ApplicationService {
   async _doLeave(user, roomId, fromTimeout = false) {
     const { Rooms, Players } = cds.entities('cap.games');
 
-    eng.clearGraceTimer(roomId, user);
-    eng.clearAnnounceTimer(roomId, user);   // no stale "disconnected" after they're gone
+    presence.leave(roomId, user);   // no stale "disconnected" after they're gone
 
     const room = await SELECT.one.from(Rooms, roomId)
       .columns('status','host','game','settings');
@@ -577,7 +571,7 @@ class PlayService extends cds.ApplicationService {
   async _autoDelete(roomId) {
     const { Rooms, Players } = cds.entities('cap.games');
     const count = await SELECT.one.from(Players).where({ room_ID: roomId }).columns('count(*) as n');
-    const gracePending = eng.allGraceTimers(roomId).length > 0;
+    const gracePending = presence.pendingUsers(roomId).length > 0;
     if ((count?.n ?? 0) === 0 && !gracePending) {
       await DELETE.from(Rooms, roomId);
       eng.deleteBoard(roomId);

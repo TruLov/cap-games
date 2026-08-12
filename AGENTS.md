@@ -47,7 +47,8 @@ flowchart TB
     subgraph CAP["CAP Server (Node.js)"]
         Lobby["LobbyService<br/>/odata/v4/lobby<br/>browse games · create rooms · leaderboard"]
         Play["PlayService<br/>/ws/play<br/>join · play · chat · host controls (realtime)"]
-        Engine["engine.js<br/>transient board state + grace timers"]
+        Engine["engine.js<br/>transient board state + scoring"]
+        Presence["presence.js<br/>reconnect grace + disconnect-announce debounce"]
         Registry["registry.js<br/>thin view over cds.games<br/>(games self-register via cds-plugin.js)"]
     end
 
@@ -56,6 +57,7 @@ flowchart TB
     Approuter --> Lobby
     Approuter --> Play
     Play --> Engine
+    Play --> Presence
     Play --> Registry
 ```
 
@@ -70,7 +72,8 @@ flowchart TB
 | `db/schema.cds` | Persistent entities: Rooms, Players, Matches, Leaderboard |
 | `srv/lobby-service.cds/.js` | OData service - game catalogue, rooms, leaderboard, createRoom |
 | `srv/play-service.cds/.js` | WebSocket service - all realtime actions + events |
-| `srv/engine.js` | Transient board state, reconnect grace timers, default scoring, server-tick driver support |
+| `srv/engine.js` | Transient board state, status/host guards, default scoring, server-tick driver support |
+| `srv/presence.js` | Reconnect grace clock + disconnect-announce debounce (a refresh stays silent; only a drop that outlasts the announce window is broadcast) |
 | `srv/registry.js` | Thin helpers over the `cds.games` facade registry (`get`/`entry`/`all`/`ids`/`validate`) - games self-register, nothing is scanned |
 | `srv/server.js` | Custom bootstrap - serves each game's `app/` at `/games/<id>` from its registered dir |
 | `app/` | Shell: login, lobby, header/nav. Static files served by CAP. |

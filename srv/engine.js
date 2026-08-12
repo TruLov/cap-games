@@ -8,32 +8,17 @@
  *   - Status transition guard
  *   - Host guard
  *   - Host succession
- *   - Reconnect grace timers
  *   - Transient board state (current move state, per room)
  *   - Scoring dispatch
+ *
+ * Reconnect grace + disconnect-announce debounce live in presence.js.
  */
 
 import { get as registryGet } from './registry.js';
 
-const GRACE_MS = 60_000;
-// How long to wait before telling the OTHER players that someone dropped. A
-// page refresh reconnects within a few hundred ms, so debouncing the
-// announcement collapses the refresh into a silent no-op; only a real dropout
-// that outlasts this window is broadcast as "disconnected".
-const ANNOUNCE_MS = 3_000;
-
 // Transient board state (non-persistent, lost on restart - intentional)
 // roomId → { game, state, turn }
 const boardState = {};
-
-// Reconnect grace timers - kept independent of board state so they work in
-// ANY room status (lobby/playing/paused/finished), not just while a board
-// exists. roomId → Map<userId, timer>
-const graceTimers = {};
-
-// Disconnect-announce timers - the debounce that hides refresh churn from
-// other players (see ANNOUNCE_MS). roomId → Map<userId, timer>
-const announceTimers = {};
 
 // --- Status transitions ---
 const TRANSITIONS = {
@@ -67,53 +52,6 @@ function initBoard(roomId, game, settings, players = []) {
   return boardState[roomId];
 }
 
-// --- Reconnect grace ---
-function setGraceTimer(roomId, userId, callback) {
-  const timer = setTimeout(callback, GRACE_MS);
-  (graceTimers[roomId] ??= new Map()).set(userId, timer);
-}
-
-function clearGraceTimer(roomId, userId) {
-  const m = graceTimers[roomId];
-  if (!m) return;
-  clearTimeout(m.get(userId));
-  m.delete(userId);
-  if (m.size === 0) delete graceTimers[roomId];
-}
-
-function hasGraceTimer(roomId, userId) {
-  return graceTimers[roomId]?.has(userId) ?? false;
-}
-
-function allGraceTimers(roomId) {
-  return [...(graceTimers[roomId]?.keys() ?? [])];
-}
-
-// --- Disconnect-announce debounce ---
-// Schedule the "player disconnected" broadcast. The timer removes itself when
-// it fires, so clearAnnounceTimer() can tell whether the announcement already
-// went out.
-function setAnnounceTimer(roomId, userId, callback, delay = ANNOUNCE_MS) {
-  const timer = setTimeout(() => {
-    announceTimers[roomId]?.delete(userId);
-    if (announceTimers[roomId]?.size === 0) delete announceTimers[roomId];
-    callback();
-  }, delay);
-  (announceTimers[roomId] ??= new Map()).set(userId, timer);
-}
-
-// Cancel a pending announce. Returns true if it was still pending (i.e. the
-// disconnect was NOT yet broadcast - so a reconnect can stay silent); false if
-// it had already fired (the room was told, so a reconnect must be announced).
-function clearAnnounceTimer(roomId, userId) {
-  const m = announceTimers[roomId];
-  if (!m || !m.has(userId)) return false;
-  clearTimeout(m.get(userId));
-  m.delete(userId);
-  if (m.size === 0) delete announceTimers[roomId];
-  return true;
-}
-
 // --- Default scoring - used if game.score() not provided ---
 // end.winner is a `user` id (or 'draw'); result keys on user (W/D/L). Points
 // default to W:3 D:1 L:0, but a game that carries its own tally can pass
@@ -135,7 +73,5 @@ function defaultScore(end, players, { pointsOf } = {}) {
 export {
   guardStatus, guardHost,
   getBoard, deleteBoard, initBoard,
-  setGraceTimer, clearGraceTimer, hasGraceTimer, allGraceTimers,
-  setAnnounceTimer, clearAnnounceTimer,
   defaultScore,
 };

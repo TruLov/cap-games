@@ -36,55 +36,6 @@ describe('engine', () => {
 
   });
 
-  describe('grace timers (independent of board state)', () => {
-
-    it('can be set/checked/cleared for a room with no board (e.g. lobby status)', () => {
-      const roomId = 'room-no-board';
-      expect(eng.getBoard(roomId)).to.equal(undefined);   // no board exists
-      expect(eng.hasGraceTimer(roomId, 'alice')).to.be.false;
-
-      eng.setGraceTimer(roomId, 'alice', () => {});
-      expect(eng.hasGraceTimer(roomId, 'alice')).to.be.true;
-      expect(eng.allGraceTimers(roomId)).to.deep.equal(['alice']);
-
-      eng.clearGraceTimer(roomId, 'alice');
-      expect(eng.hasGraceTimer(roomId, 'alice')).to.be.false;
-      expect(eng.allGraceTimers(roomId)).to.deep.equal([]);
-    });
-
-    it('clearGraceTimer on an unknown room/user is a no-op', () => {
-      expect(() => eng.clearGraceTimer('nope', 'nobody')).not.to.throw();
-    });
-
-  });
-
-  describe('announce-timer debounce (hides refresh churn)', () => {
-
-    it('clearAnnounceTimer returns true while pending, false once fired', async () => {
-      const roomId = 'room-announce';
-      let fired = false;
-
-      // Short delay so the test can observe the timer firing.
-      eng.setAnnounceTimer(roomId, 'alice', () => { fired = true; }, 10);
-
-      // Cleared before it fires → still pending → true, and callback suppressed.
-      expect(eng.clearAnnounceTimer(roomId, 'alice')).to.be.true;
-      await new Promise(r => setTimeout(r, 25));
-      expect(fired).to.be.false;
-
-      // Let a second one fire, then clearing reports it already went out.
-      eng.setAnnounceTimer(roomId, 'bob', () => { fired = true; }, 10);
-      await new Promise(r => setTimeout(r, 25));
-      expect(fired).to.be.true;
-      expect(eng.clearAnnounceTimer(roomId, 'bob')).to.be.false;   // already fired
-    });
-
-    it('clearAnnounceTimer on an unknown room/user returns false', () => {
-      expect(eng.clearAnnounceTimer('nope', 'nobody')).to.equal(false);
-    });
-
-  });
-
   describe('defaultScore', () => {
 
     it('winner gets win/3, loser gets loss/0', () => {
