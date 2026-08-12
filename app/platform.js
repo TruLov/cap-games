@@ -13,18 +13,18 @@
  * configuration (e.g. a menu preset), shown inside the platform's waiting
  * room, host-only.
  */
-import { makeSdk, makeEmitter } from './sdk.js';
+import { makeSdk, makeEmitter } from './modules/sdk.js';
 import { mountPlayers } from './shell/players.js';
 import { mountChat } from './shell/chat.js';
 import { mountWaitingRoom } from './shell/host.js';
 import { openRoomSession } from './shell/room-session.js';
-import { initTheme } from './theme.js';
-import { initPalette } from './palettes.js';
-import { initProfileEditing } from './profile-edit.js';
-import { initAchievements } from './achievements.js';
-import { initLeaderboard } from './leaderboard.js';
-import { initGameInfo } from './game-info.js';
-import { achievementIcon, achievementColor } from './achievement-icons.js';
+import { initTheme } from './modules/theme.js';
+import { initPalette } from './modules/palettes.js';
+import { initProfileEditing } from './modules/profile-edit.js';
+import { initAchievements } from './modules/achievements.js';
+import { initLeaderboard } from './modules/leaderboard.js';
+import { initGameInfo } from './modules/game-info.js';
+import { achievementIcon, achievementColor } from './modules/achievement-icons.js';
 
 // ── State ────────────────────────────────────────────────────
 const shell = {

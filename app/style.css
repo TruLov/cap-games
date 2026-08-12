@@ -6,7 +6,7 @@
    (backdrop-filter) so that field shows through. The default palette is
    "Cold Brew" (kept unscoped so it also serves as the pre-JS/no-attribute
    fallback) - other named palettes are selected via [data-palette] on
-   <html> further down (app/palettes.js) and override these same variable
+   <html> further down (app/modules/palettes.js) and override these same variable
    names, so every rule below stays palette/theme-agnostic by construction.
    Surfaces/borders use higher alpha than a typical glass UI so panels and
    dividers stay legible against warm, lower-contrast neutrals; --muted is
@@ -100,7 +100,7 @@
 }
 
 /* ── Named color palettes (Appearance section, profile page) ──────────
-   Selected via [data-palette] on <html> (app/palettes.js), same variable
+   Selected via [data-palette] on <html> (app/modules/palettes.js), same variable
    names as the default theme above (which IS "cold-brew", kept unscoped
    so it also serves as the pre-JS/no-attribute fallback). Each palette
    gets one dark block and one [data-theme="light"] block. Add a new
@@ -382,7 +382,7 @@ button.sh-ghost {
 
 /* Palette picker (Appearance section, profile page) - a custom dropdown
    rather than a native <select> so each row can carry swatches and hovering
-   can live-preview the palette on the whole page; see app/palettes.js. */
+   can live-preview the palette on the whole page; see app/modules/palettes.js. */
 .pal-swatches { display: flex; gap: .25rem; flex: none; }
 .pal-swatches i {
   width: 14px; height: 14px; border-radius: 4px; flex: none;
@@ -719,7 +719,7 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
    regardless of which game is mounted - no per-game reskin of shell chrome. */
 
 /* ── Achievements page (Steam-style browse - owned shown, locked only
-      counted; see app/achievements.js) ───────────────────────────── */
+      counted; see app/modules/achievements.js) ───────────────────────────── */
 .ach-game { margin-bottom: var(--space-4); }
 .ach-game h3 {
   display: flex; align-items: baseline; gap: var(--space-2);
@@ -743,7 +743,7 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 
 /* Achievement badges - rail row + edit-profile pin picker. A themed circular
    chip: the icon's color is set inline per achievement (see
-   app/achievement-icons.js), background/border derive from it via
+   app/modules/achievement-icons.js), background/border derive from it via
    color-mix(currentColor) so one rule covers every game's color. */
 .ach-badge {
   --ach-size: 26px;
@@ -764,7 +764,7 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 .ach-badge-pick:hover { opacity: .8; transform: translateY(-1px); background: color-mix(in srgb, currentColor 22%, transparent); }
 .ach-badge-pick.on { opacity: 1; box-shadow: 0 0 0 2px currentColor; }
 
-/* ── Leaderboard page (per-game ranking; see app/leaderboard.js) ─── */
+/* ── Leaderboard page (per-game ranking; see app/modules/leaderboard.js) ─── */
 .lb-table { width: 100%; border-collapse: collapse; margin-top: var(--space-3); }
 .lb-table th {
   text-align: left; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;

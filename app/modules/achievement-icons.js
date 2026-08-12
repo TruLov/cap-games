@@ -6,8 +6,8 @@
  * distinct from EACH OTHER regardless of which UI palette is active, unlike
  * the star rating or nav icons which intentionally follow the palette.
  *
- * Consumed by app/platform.js (rail badges), app/profile-edit.js (pin
- * picker), and app/achievements.js (browse page) - one source of truth so
+ * Consumed by app/platform.js (rail badges), app/modules/profile-edit.js (pin
+ * picker), and app/modules/achievements.js (browse page) - one source of truth so
  * the same achievement always renders identically everywhere.
  */
 
