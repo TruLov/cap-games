@@ -21,8 +21,10 @@
  *                        cleanup, in registration order. Idempotent no-op if
  *                        called twice.
  */
+import { subscribeMany } from './subscriptions.js';
+
 export function openRoomSession(emitter, pairs) {
-  pairs.forEach(([ev, fn]) => emitter.on(ev, fn));
+  const unsubscribe = subscribeMany(emitter, pairs);
   const cleanups = [];
   let closed = false;
   return {
@@ -30,7 +32,7 @@ export function openRoomSession(emitter, pairs) {
     close() {
       if (closed) return;
       closed = true;
-      pairs.forEach(([ev, fn]) => emitter.off(ev, fn));
+      unsubscribe();
       cleanups.splice(0).forEach(fn => fn());
     },
   };

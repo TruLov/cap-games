@@ -7,6 +7,7 @@
  */
 
 import { initials } from '/shell/util.js';
+import { subscribeMany } from './subscriptions.js';
 
 export function mountPlayers(el, sdk, initialPlayers = []) {
   const players = [...initialPlayers];
@@ -67,21 +68,16 @@ export function mountPlayers(el, sdk, initialPlayers = []) {
     render();
   }
 
-  sdk.on('joined',       onJoined);
-  sdk.on('playerLeft',   onLeft);
-  sdk.on('playerKicked', onKicked);
-  sdk.on('roleChanged',  onRoleChanged);
-  sdk.on('roster',       onRoster);
-  sdk.on('profilesUpdated', render); // gamertag/avatar can resolve after initial render
+  const unsubscribe = subscribeMany(sdk, [
+    ['joined',          onJoined],
+    ['playerLeft',      onLeft],
+    ['playerKicked',    onKicked],
+    ['roleChanged',     onRoleChanged],
+    ['roster',          onRoster],
+    ['profilesUpdated', render], // gamertag/avatar can resolve after initial render
+  ]);
 
   render();
 
-  return () => {
-    sdk.off('joined',       onJoined);
-    sdk.off('playerLeft',   onLeft);
-    sdk.off('playerKicked', onKicked);
-    sdk.off('roleChanged',  onRoleChanged);
-    sdk.off('roster',       onRoster);
-    sdk.off('profilesUpdated', render);
-  };
+  return unsubscribe;
 }
