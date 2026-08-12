@@ -7,19 +7,68 @@
 
 const REPO_URL = 'https://github.com/mschleeweiss/mttt';
 
-/* Self-contained Tokyo-neon skin, independent of the shell's gunmetal
-   theme - this board is meant to read like a night-market arcade cabinet,
-   so it hardcodes its own cyan/magenta/violet palette rather than
-   inheriting the shell's var(--accent) etc. */
+/* Two zones, two themes:
+ *  - .mt-set (renderSettings, pre-start): rendered inside the shell's rail
+ *    waiting-room panel - a narrow sidebar full of shell chrome (players,
+ *    chat, host controls). It's shadow-isolated for style *safety*, not
+ *    style *independence* - it deliberately pulls the shell's own var()
+ *    design tokens (they pierce the shadow boundary same as any inherited
+ *    CSS property) so the team-picker reads as part of that chrome instead
+ *    of a foreign island. tictactoe/snake-ladder's settings panels already
+ *    follow this pattern; mttt was the outlier hardcoding its own palette.
+ *  - .mt-root (mount, in-match): the actual play area in the main content
+ *    column - this is where the game gets to look like a game. Full
+ *    self-contained Tokyo-neon skin, hardcoded cyan/magenta/violet,
+ *    independent of the shell's theme - a night-market arcade cabinet.
+ */
 const STYLE = `
+  .mt-credit { font-family: var(--font-mono); font-size: .72rem; margin-top: .75rem; letter-spacing: .02em; }
+  .mt-credit-board { color: #9a8fc2; }
+  .mt-credit-board a { color: var(--mt-cyan); }
+  .mt-credit-set { color: var(--muted); }
+  .mt-credit-set a { color: var(--accent); }
+
+  /* ── Settings panel (pre-start, shell-styled) ─────────────────────── */
+  .mt-set { font-family: var(--font); color: var(--text); }
+  .mt-set-hint { font-size: .82rem; color: var(--muted); margin-bottom: .5rem; }
+  .mt-set-teams { display: flex; gap: var(--space-2); margin: var(--space-2) 0; }
+  .mt-set-team { flex: 1; min-width: 0; border-radius: var(--radius-lg); padding: var(--space-2);
+                 background: var(--surface); box-shadow: inset 0 1px 0 var(--glass-sheen); }
+  .mt-set-team h4 { margin: 0 0 .4rem; font-family: var(--font-mono); font-size: .74rem;
+                     text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .mt-set-team ul { list-style: none; margin: 0 0 .5rem; padding: 0; font-size: .85rem;
+                     display: flex; flex-direction: column; gap: 2px; }
+  .mt-set-team li { border-radius: var(--radius-sm); padding: .25rem .5rem; background: var(--bg-elevated); overflow-wrap: anywhere; }
+  .mt-set-empty { color: var(--muted); font-size: .78rem; background: none !important; padding: 0 !important; }
+  .mt-set-row { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; margin-top: .5rem; }
+  .mt-set label { display: flex; align-items: center; gap: .4rem; font-size: .82rem; color: var(--muted); }
+  .mt-set input[type="checkbox"] { accent-color: var(--accent); width: 1rem; height: 1rem; }
+  .mt-set input[type="number"] { width: 4.5rem; border: 1px solid var(--border); background: var(--surface);
+                                  border-radius: var(--radius-sm); padding: .3rem .5rem; }
+  .mt-set button { cursor: pointer; background: var(--accent); color: var(--on-accent);
+                    border: 1px solid transparent; border-radius: var(--radius-sm);
+                    padding: .5rem 1rem; font-size: .82rem; font-family: var(--font); font-weight: 600;
+                    transition: background var(--transition), transform var(--transition); }
+  .mt-set button:hover:not(:disabled) { background: var(--accent-hover); }
+  .mt-set button:active:not(:disabled) { transform: translateY(1px); }
+  .mt-set button:disabled { background: var(--border); color: var(--muted); cursor: default; }
+  .mt-set button.mt-set-ghost { background: var(--surface); color: var(--text); border-color: var(--border); }
+  .mt-set button.mt-set-ghost:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--border-strong); }
+
+  /* ── Game board (in-match, neon-themed) ───────────────────────────── */
   .mt-root {
     --mt-cyan: #00f0ff; --mt-cyan-soft: rgba(0,240,255,.25);
     --mt-pink: #ff2fd8; --mt-pink-soft: rgba(255,47,216,.25);
     --mt-violet: #8b2fff; --mt-violet-soft: rgba(139,47,255,.22);
     --mt-void: #07030f;
+    flex: 1; min-height: 0; display: flex; flex-direction: column;
+    padding: 1rem;
+    background:
+      radial-gradient(ellipse at 15% -10%, rgba(139,47,255,.2), transparent 55%),
+      radial-gradient(ellipse at 90% 110%, rgba(0,240,255,.14), transparent 55%),
+      var(--mt-void);
   }
-  .mt-credit { font-family: var(--font-mono); font-size: .72rem; color: #9a8fc2; margin-top: .75rem; letter-spacing: .02em; }
-  .mt-credit a { color: var(--mt-cyan); }
+  .mt-board-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
   .mt-teams { display: flex; gap: 1rem; margin: .75rem 0; }
   .mt-team { flex: 1; border: 1px solid rgba(139,47,255,.35); border-radius: var(--radius-sm); padding: .6rem;
              background: linear-gradient(160deg, rgba(139,47,255,.08), rgba(7,3,15,.4)); }
@@ -27,6 +76,7 @@ const STYLE = `
                 text-transform: uppercase; letter-spacing: .1em; color: var(--mt-cyan);
                 text-shadow: 0 0 6px var(--mt-cyan-soft); }
   .mt-team ul { list-style: none; margin: 0 0 .5rem; padding: 0; font-size: .85rem; }
+  .mt-team-empty { color: #9a8fc2; font-size: .78rem; }
   /* aspect-ratio lives ONLY on the outermost grid - its height is then
      immediately derivable from its own width, so nothing below needs a
      second layout pass to converge (a chained aspect-ratio at every nesting
@@ -41,7 +91,7 @@ const STYLE = `
      max-width alone, which still leans on stretch to fill up to it)
      sidesteps that: the browser can compute it directly from CSS. */
   .mt-outer { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
-              gap: 8px; width: min(420px, 100%); aspect-ratio: 1; margin: 0 auto;
+              gap: 8px; width: min(420px, 100%, 68vh); aspect-ratio: 1; margin: 0 auto;
               padding: 8px; border-radius: var(--radius);
               background: var(--mt-void);
               border: 1px solid var(--mt-violet-soft);
@@ -76,9 +126,14 @@ const STYLE = `
   .mt-cell.mt-mark-O { color: var(--mt-pink); text-shadow: 0 0 8px var(--mt-pink), 0 0 16px var(--mt-pink-soft); }
   .mt-cell:not(:disabled):hover { background: rgba(0,240,255,.08); border-color: var(--mt-cyan); }
   .mt-cell:disabled { cursor: default; }
-  .mt-status { margin-bottom: .5rem; font-family: var(--font-mono); letter-spacing: .02em; color: #d8cfff; }
-  .mt-status #mt-clock { color: var(--mt-pink); text-shadow: 0 0 8px var(--mt-pink-soft); }
-  .mt-status #mt-turn-counter { color: var(--mt-cyan); text-shadow: 0 0 6px var(--mt-cyan-soft); margin-right: .5rem; }
+  .mt-status { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; margin-bottom: .6rem;
+               font-family: var(--font-mono); letter-spacing: .02em; color: #d8cfff; }
+  #mt-status-text { flex: 1; min-width: 0; }
+  .mt-chip { font-size: .72rem; letter-spacing: .04em; border-radius: var(--radius-sm); padding: .18rem .55rem;
+             border: 1px solid rgba(139,47,255,.3); background: rgba(139,47,255,.08); white-space: nowrap; }
+  .mt-chip:empty { display: none; }
+  #mt-turn-counter { color: var(--mt-cyan); border-color: rgba(0,240,255,.35); text-shadow: 0 0 6px var(--mt-cyan-soft); }
+  #mt-clock { color: var(--mt-pink); border-color: rgba(255,47,216,.35); text-shadow: 0 0 8px var(--mt-pink-soft); }
   .mt-avg-times { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .75rem; }
   .mt-avg-chip { font-family: var(--font-mono); font-size: .72rem; color: #9a8fc2; letter-spacing: .02em;
                  border: 1px solid rgba(139,47,255,.3); border-radius: var(--radius-sm); padding: .15rem .5rem; }
@@ -100,9 +155,10 @@ function markOfUser(teams, user) {
   return null;
 }
 
-function creditFooter(sdk) {
+// variant: 'board' (neon, in-match) or 'set' (shell-styled, pre-start panel).
+function creditFooter(sdk, variant) {
   const el = document.createElement('div');
-  el.className = 'mt-credit';
+  el.className = `mt-credit mt-credit-${variant}`;
   el.innerHTML = `♟ Ultimate Tic-Tac-Toe design by <a href="${REPO_URL}" target="_blank" rel="noopener">mschleeweiss</a>`;
   el.querySelector('a').addEventListener('click', () => sdk.toast('Design by Marc - thanks! 🙌'));
   return el;
@@ -113,15 +169,15 @@ function renderTeamPanel(el, sdk, teams) {
   const listOf = mark => (teams[mark] ?? []).map(u => `<li>${sdk.nameOf(u)}${u === sdk.me.user ? ' (you)' : ''}</li>`).join('');
 
   el.querySelector('#mt-teams').innerHTML = `
-    <div class="mt-team">
+    <div class="mt-set-team">
       <h4>Team X</h4>
-      <ul>${listOf('X') || '<li class="sh-small">empty</li>'}</ul>
-      <button class="sh-small" id="mt-join-x" ${myMark === 'X' ? 'disabled' : ''}>Join X</button>
+      <ul>${listOf('X') || '<li class="mt-set-empty">empty</li>'}</ul>
+      <button id="mt-join-x" ${myMark === 'X' ? 'disabled' : ''}>Join X</button>
     </div>
-    <div class="mt-team">
+    <div class="mt-set-team">
       <h4>Team O</h4>
-      <ul>${listOf('O') || '<li class="sh-small">empty</li>'}</ul>
-      <button class="sh-small" id="mt-join-o" ${myMark === 'O' ? 'disabled' : ''}>Join O</button>
+      <ul>${listOf('O') || '<li class="mt-set-empty">empty</li>'}</ul>
+      <button id="mt-join-o" ${myMark === 'O' ? 'disabled' : ''}>Join O</button>
     </div>
   `;
   el.querySelector('#mt-join-x').addEventListener('click', () => sdk.send('chooseTeam', { room: sdk.room.id, team: 'X' }));
@@ -136,12 +192,12 @@ function renderTeamPanel(el, sdk, teams) {
 function renderBlitzPanel(el, sdk, blitz) {
   const host = sdk.me.isHost;
   el.querySelector('#mt-blitz').innerHTML = `
-    <label class="sh-small">
+    <label>
       <input type="checkbox" id="mt-blitz-enabled" ${blitz.enabled ? 'checked' : ''} ${host ? '' : 'disabled'}>
       Blitz - per-move timer
     </label>
     <input type="number" id="mt-blitz-seconds" value="${blitz.seconds}" min="5" max="120"
-           style="width:4.5rem" ${host ? '' : 'disabled'}> sec/move
+           ${host ? '' : 'disabled'}> sec/move
   `;
   if (!host) return;
 
@@ -159,20 +215,20 @@ export default {
   renderSettings(el, sdk) {
     let teams = { X: [], O: [] };
 
-    el.classList.add('mt-root');
+    el.classList.add('mt-set');
     el.innerHTML = `
       <style>${STYLE}</style>
-      <p class="sh-small">Pick a team - you can switch until the host starts.</p>
-      <div id="mt-teams" class="mt-teams"></div>
-      <div class="sh-row" id="mt-blitz"></div>
-      <div class="sh-row" style="margin-top:.5rem">
-        <button class="sh-small sh-ghost" id="mt-leave">Leave team</button>
+      <p class="mt-set-hint">Pick a team - you can switch until the host starts.</p>
+      <div id="mt-teams" class="mt-set-teams"></div>
+      <div class="mt-set-row" id="mt-blitz"></div>
+      <div class="mt-set-row" style="margin-top:.5rem">
+        <button class="mt-set-ghost" id="mt-leave">Leave team</button>
         ${sdk.me.isHost ? '<button id="mt-start">Start game</button>' : ''}
       </div>
     `;
     renderTeamPanel(el, sdk, teams);
     renderBlitzPanel(el, sdk, { enabled: false, seconds: 30 });
-    el.appendChild(creditFooter(sdk));
+    el.appendChild(creditFooter(sdk, 'set'));
 
     el.querySelector('#mt-leave').addEventListener('click',
       () => sdk.send('chooseTeam', { room: sdk.room.id, team: 'none' }));
@@ -201,10 +257,10 @@ export default {
     rootEl.innerHTML = `
       <style>${STYLE}</style>
       <div class="mt-status" id="mt-status">
-        <span id="mt-turn-counter"></span><span id="mt-status-text"></span><span id="mt-clock"></span>
+        <span id="mt-turn-counter" class="mt-chip"></span><span id="mt-status-text"></span><span id="mt-clock" class="mt-chip"></span>
       </div>
       <div class="mt-avg-times" id="mt-avg-times"></div>
-      <div class="mt-outer" id="mt-outer"></div>
+      <div class="mt-board-wrap"><div class="mt-outer" id="mt-outer"></div></div>
       <div class="mt-results" id="mt-results"></div>
     `;
     const statusEl  = rootEl.querySelector('#mt-status-text');
@@ -338,7 +394,7 @@ export default {
       if (!winner) { resultsEl.innerHTML = ''; return; }
       const listOf = mark => (teams[mark] ?? [])
         .map(u => `<li>${sdk.nameOf(u)}${u === sdk.me.user ? ' (you)' : ''}</li>`).join('')
-        || '<li class="sh-small">empty</li>';
+        || '<li class="mt-team-empty">empty</li>';
       resultsEl.innerHTML = `
         <div class="mt-banner">${winMsg}</div>
         <div class="mt-teams">
@@ -355,7 +411,7 @@ export default {
     sdk.on('playerReconnected',   onReconnected);
 
     setStatus('Loading…');
-    rootEl.appendChild(creditFooter(sdk));
+    rootEl.appendChild(creditFooter(sdk, 'board'));
 
     return () => {
       clearInterval(clockInterval);

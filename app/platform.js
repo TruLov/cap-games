@@ -747,6 +747,7 @@ function onStartedTopLevel(payload) {
   setRailStatus('playing');
   if (shell.waitingUnmount) {
     shell.waitingUnmount(); shell.waitingUnmount = null;
+    $('room-waiting').innerHTML = '';   // drop the settings panel's stale markup, not just its listeners
     mountGame();
     // The 'started' event fired before the freshly-mounted game registered its
     // own listener - replay it so the game's onStarted sees its first state.
