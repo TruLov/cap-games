@@ -1,6 +1,9 @@
 /**
  * game-info.js - per-game "info" page: how-to-play help text, a screenshot
- * gallery, and a 1-5 star rating widget. Extracted from platform.js like
+ * gallery, and a single star row that doubles as the rating DISPLAY (shows
+ * the current average when not interacting) and the rating INPUT (click a
+ * star to submit your own, which re-fetches the freshly recalculated
+ * average and repaints in place). Extracted from platform.js like
  * achievements.js/leaderboard.js; wired via initGameInfo(ctx) with the shell
  * services it needs.
  *
@@ -11,8 +14,6 @@
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-
-const starGlyphs = (v) => Array.from({ length: 5 }, (_, i) => i < Math.round(v) ? '★' : '☆').join('');
 
 const ratingSummary = (g) =>
   `${g.avgStars != null ? g.avgStars.toFixed(1) : '-'} average · ${g.ratingCount} rating${g.ratingCount === 1 ? '' : 's'}`;
@@ -29,15 +30,13 @@ function render(g) {
 
   return `
     <h2>${esc(g.name)}</h2>
-    <div class="gi-rating-summary">
-      <span class="gi-avg-stars">${starGlyphs(g.avgStars ?? 0)}</span>
+    <div class="gi-rating-row">
+      <div id="gi-star-picker" class="gi-star-picker"></div>
       <span class="sh-small gi-summary-text">${ratingSummary(g)}</span>
     </div>
+    <div id="gi-rate-status" class="sh-small"></div>
     <div class="gi-help">${esc(g.help || 'No instructions yet.')}</div>
-    ${galleryHtml}
-    <h3 class="sh-sec-title">Rate this game</h3>
-    <div id="gi-star-picker" class="gi-star-picker"></div>
-    <div id="gi-rate-status" class="sh-small"></div>`;
+    ${galleryHtml}`;
 }
 
 function wireStars(g, ctx) {
@@ -45,11 +44,17 @@ function wireStars(g, ctx) {
   const picker = document.getElementById('gi-star-picker');
   const status = document.getElementById('gi-rate-status');
 
+  // Resting state shows the current AVERAGE (rounded) - this is a display
+  // *and* an input at once, so hovering previews a click and leaving without
+  // clicking falls back to whatever the average currently is, not your own
+  // past rating.
+  let restingValue = Math.round(g.avgStars ?? 0);
+
   const paint = (value) => picker.querySelectorAll('button').forEach(b =>
     b.textContent = Number(b.dataset.v) <= value ? '★' : '☆');
 
-  const setStatus = (stars) => {
-    status.textContent = stars ? `You rated this ${stars} star${stars > 1 ? 's' : ''}.` : 'Not rated yet.';
+  const setStatus = () => {
+    status.textContent = g.myStars ? `You rated this ${g.myStars} star${g.myStars > 1 ? 's' : ''}.` : 'Click a star to rate this game.';
   };
 
   picker.innerHTML = Array.from({ length: 5 }, (_, i) => {
@@ -57,12 +62,12 @@ function wireStars(g, ctx) {
     return `<button type="button" class="gi-star" data-v="${v}" title="${v} star${v > 1 ? 's' : ''}">☆</button>`;
   }).join('');
 
-  paint(g.myStars ?? 0);
-  setStatus(g.myStars);
+  paint(restingValue);
+  setStatus();
 
   picker.querySelectorAll('button').forEach(b => {
     b.onmouseenter = () => paint(Number(b.dataset.v));
-    b.onmouseleave = () => paint(g.myStars ?? 0);
+    b.onmouseleave = () => paint(restingValue);
     b.onclick = async () => {
       const stars = Number(b.dataset.v);
       try {
@@ -70,9 +75,9 @@ function wireStars(g, ctx) {
         g.myStars = stars;
         g.avgStars = result.avgStars;
         g.ratingCount = result.ratingCount;
-        paint(stars);
-        setStatus(stars);
-        document.querySelector('.gi-avg-stars').textContent = starGlyphs(g.avgStars ?? 0);
+        restingValue = Math.round(g.avgStars ?? 0);
+        paint(restingValue);
+        setStatus();
         document.querySelector('.gi-summary-text').textContent = ratingSummary(g);
         toast('Thanks for rating!');
       } catch (e) {

@@ -308,14 +308,25 @@ button.sh-ghost {
 }
 /* Header wordmark button - a reset container around the .gm-logo text mark. */
 .sh-logo  {
-  display: inline-flex; align-items: center;
+  display: inline-flex; align-items: center; position: relative;
   background: none; border: none; padding: 0;
   border-radius: 0; box-shadow: none; clip-path: none;
   cursor: pointer;
   transition: filter var(--transition);
 }
-.sh-logo::before, .sh-logo::after { content: none; }
-.sh-logo:hover { filter: brightness(1.2); }
+.sh-logo::before { content: none; }
+/* Invisible hit-area extension - the mascot's steam curls above the button's
+   own layout box (see .sh-logo-cup below), so without this the top of the
+   visible icon isn't actually clickable/hoverable. Generated content, no
+   fill, just a bigger box for pointer/hover purposes. */
+.sh-logo::after {
+  content: ''; position: absolute; top: -14px; right: -8px; bottom: -6px; left: -8px;
+}
+/* background: none (not just the button base's implicit lack of one) -
+   without restating it here, the generic `button:hover` rule elsewhere
+   (same specificity tier, later in source) wins on hover and flashes the
+   accent fill behind the wordmark. */
+.sh-logo:hover { background: none; filter: brightness(1.2); }
 /* Pixel espresso-cup mascot - swaps source (idle/filling/steam) to reflect
    where you are: browsing = idle, waiting room = filling, in a match = steam.
    The artwork reserves headroom above the cup for steam to curl through
@@ -883,9 +894,8 @@ a.sh-user-btn { text-decoration: none; display: inline-block; }
 .sh-card-info:hover { background: rgba(0,0,0,.7); }
 .sh-card-info svg { display: block; }
 
-.gi-rating-summary { display: flex; align-items: baseline; gap: .6rem; margin: .4rem 0 1rem; }
-.gi-avg-stars { color: var(--accent); font-size: 1.1rem; letter-spacing: 1px; }
-.gi-help { white-space: pre-wrap; line-height: 1.5; max-width: 60ch; }
+.gi-rating-row { display: flex; align-items: center; gap: .6rem; margin: .4rem 0 .2rem; }
+.gi-help { white-space: pre-wrap; line-height: 1.5; max-width: 60ch; margin-top: 1rem; }
 .gi-gallery { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); margin-top: var(--space-2); }
 .gi-gallery img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border); }
 .gi-star-picker { display: flex; gap: .2rem; }
