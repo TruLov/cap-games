@@ -201,6 +201,17 @@
   <!-- Floating exit - bottom-left while a match is mounted, overlays any game/shadow content -->
   <button id="sh-btn-exit" class="sh-exit" hidden title="Exit game">← Exit</button>
 
+  <!-- Lightweight confirm dialog - used before leaving a room via the Back button -->
+  <div id="sh-confirm" class="sh-confirm-backdrop" hidden>
+    <div class="sh-confirm" role="dialog" aria-modal="true" aria-labelledby="sh-confirm-msg">
+      <p id="sh-confirm-msg" class="sh-confirm-msg"></p>
+      <div class="sh-confirm-actions">
+        <button id="sh-confirm-cancel" class="sh-ghost">Cancel</button>
+        <button id="sh-confirm-ok" class="danger">Leave</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="platform.js"></script>
 </body>
 </html>

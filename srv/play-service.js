@@ -35,6 +35,9 @@ class PlayService extends cds.ApplicationService {
       // -- reconnect: had grace timer running
       if (eng.hasGraceTimer(roomId, user)) {
         eng.clearGraceTimer(roomId, user);
+        // If the disconnect announcement was still pending (i.e. this is a
+        // quick refresh), it never went out - so stay silent on reconnect too.
+        const announced = !eng.clearAnnounceTimer(roomId, user);
         const player = await SELECT.one.from(Players)
           .where({ room_ID: roomId, user });
         if (room.status === 'paused') {
@@ -47,8 +50,12 @@ class PlayService extends cds.ApplicationService {
           room: roomId, player: user, spectator: player?.spectator ?? true,
           host: player?.isHost ?? false, status: room.status,
         });
-        await this.emit('playerReconnected', { room: roomId, player: user });
-        await this._sysMsg(roomId, `${user} reconnected.`);
+        // Only announce the reconnect if the disconnect was actually broadcast;
+        // a quick refresh (announce still pending) is invisible to the room.
+        if (announced) {
+          await this.emit('playerReconnected', { room: roomId, player: user });
+          await this._sysMsg(roomId, `${user} reconnected.`);
+        }
         await this._snapshotTo(roomId, room.game, user, player?.spectator ?? true);
         await this._rosterBroadcast(roomId);
         LOG.info('RECONNECT', roomId, user);
@@ -319,11 +326,14 @@ class PlayService extends cds.ApplicationService {
         eng.setGraceTimer(room.ID, user, () => {
           this._doLeave(user, room.ID, true).catch(() => {});
         });
-        await this.emit('playerDisconnected', {
-          room: room.ID, player: user,
+        // Debounce the "disconnected" broadcast: a page refresh reconnects
+        // within a few hundred ms, so only a drop that outlasts the announce
+        // window ever reaches the other players (a quick refresh stays silent).
+        eng.setAnnounceTimer(room.ID, user, () => {
+          this.emit('playerDisconnected', { room: room.ID, player: user }).catch(() => {});
+          this._sysMsg(room.ID, `${user} disconnected.`).catch(() => {});
         });
-        await this._sysMsg(room.ID, `${user} disconnected.`);
-        LOG.info('DISCONNECT', room.ID, user, `→ status=${room.status} (60s grace)`);
+        LOG.info('DISCONNECT', room.ID, user, `→ status=${room.status} (60s grace, 3s announce)`);
       }
     });
 
@@ -520,6 +530,7 @@ class PlayService extends cds.ApplicationService {
     const { Rooms, Players } = cds.entities('cap.games');
 
     eng.clearGraceTimer(roomId, user);
+    eng.clearAnnounceTimer(roomId, user);   // no stale "disconnected" after they're gone
 
     const room = await SELECT.one.from(Rooms, roomId)
       .columns('status','host','game','settings');

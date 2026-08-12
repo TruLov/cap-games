@@ -154,6 +154,8 @@ function logout() {
   if (shell.user?.authHeader) {                 // local dev
     document.cookie = 'X-Authorization=; path=/; max-age=0';
     sessionStorage.removeItem('user');
+    sessionStorage.removeItem('room');
+    sessionStorage.removeItem('pendingJoin');
     if (ws) wsClose();
     shell.user = null;
     shell.mode = 'mocked';
@@ -161,7 +163,7 @@ function logout() {
     closeRailRoom();
     $('sh-hamburger').hidden = true;
     renderAccount();
-    showView('landing');
+    navigate('#/landing', { replace: true });
   } else {                                       // IAS: approuter clears the session
     window.location = '/logout';
   }
@@ -230,6 +232,144 @@ function showView(name) {
   showApp();
   showPage(name === 'lobby' ? 'library' : name);
 }
+
+// ── Hash router ───────────────────────────────────────────────
+// The URL hash is the single source of truth for which page is showing and
+// which room (if any) we're in. `navigate()` is the ONLY writer to history;
+// `render()` is a pure dispatcher that reconciles room state toward the URL
+// and reveals the page - it never writes history. A single popstate listener
+// drives Back/Forward through `render()`. User actions push (via navigate);
+// Back/Forward only render. Room lives in the hash as `#/room/<CODE>/<page>`
+// so a refresh restores it (rejoin within the server's 60s grace window).
+const ROUTER_PAGES = ['library', 'achievements', 'leaderboard', 'profile', 'game'];
+let currentRoute = null;
+let joining = false;   // guard: a joinByCode/joinRoom is in flight
+
+function routeFor(page) {
+  const p = ROUTER_PAGES.includes(page) ? page : 'library';
+  return shell.room ? `#/room/${shell.room.code}/${p}` : `#/${p}`;
+}
+
+// Parse a hash route into { roomCode, page }. Unknown/empty → library.
+function parseRoute(route) {
+  const h = (route || '').replace(/^#/, '');
+  let m = h.match(/^\/room\/([A-Za-z0-9]{3,})(?:\/([a-z-]+))?$/);
+  if (m) return { roomCode: m[1].toUpperCase(), page: ROUTER_PAGES.includes(m[2]) ? m[2] : 'library' };
+  m = h.match(/^\/([a-z-]+)$/);
+  if (m && m[1] === 'landing') return { roomCode: null, page: 'landing' };
+  if (m && ROUTER_PAGES.includes(m[1])) return { roomCode: null, page: m[1] };
+  return { roomCode: null, page: 'library' };
+}
+
+function locationToRoute() {
+  return location.hash.startsWith('#/') ? location.hash : '#/library';
+}
+
+function navigate(route, { replace = false } = {}) {
+  if (route !== currentRoute) {
+    if (replace) history.replaceState({ route }, '', route);
+    else         history.pushState({ route }, '', route);
+  } else if (replace) {
+    history.replaceState({ route }, '', route);
+  }
+  render(route);   // always render, so repeat clicks / same-route mounts reveal
+}
+
+// Pure dispatcher - NEVER writes history. Reconciles the room dimension toward
+// the URL, then reveals the page.
+function render(route) {
+  currentRoute = route;                     // set first: re-entrant same-route navigate() won't re-push
+  const { roomCode, page } = parseRoute(route);
+  if (page === 'landing') { showLanding(); return; }
+  if (!shell.user) return;                  // not logged in - nothing app-level to reveal
+
+  if (roomCode && shell.room?.code !== roomCode) {
+    if (!joining) joinByCode(roomCode);     // URL names a room we're not in - join (page revealed on join)
+    return;
+  }
+  if (!roomCode && shell.room) {            // Back crossed the join boundary - confirm before leaving
+    confirmLeaveRoom(page);
+    return;
+  }
+  revealPage(page);                         // room dimension already matches (or both absent)
+}
+
+function revealPage(page) {
+  showApp();
+  switch (page) {
+    case 'achievements': showAchievementsPage(); break;
+    case 'leaderboard':  showLeaderboardPage();  break;
+    case 'profile':      showProfilePage();      break;
+    case 'game':
+      if (shell.matchUnmount) showPage('game');           // a match is mounted
+      else navigate(routeFor('library'), { replace: true }); // nothing to show - fall back
+      break;
+    case 'library':
+    default:             showPage('library'); loadOpenRooms(); break;
+  }
+}
+
+// Back pressed past the point we joined - keep the user in the room unless they
+// confirm. The URL is already off-room (popstate moved the pointer); on cancel
+// we re-assert the room in the URL so state stays consistent.
+async function confirmLeaveRoom(page) {
+  const ok = await showConfirm('Leave the room?');
+  if (ok) {
+    leaveRoom({ fromRoute: true });   // tears down room; URL already off-room
+    revealPage(page);
+  } else if (shell.room) {
+    const route = `#/room/${shell.room.code}/${shell.matchUnmount ? 'game' : 'library'}`;
+    currentRoute = route;
+    history.pushState({ route }, '', route);
+  }
+}
+
+// Promise-based in-app confirm (native confirm() blocks the WS/event loop).
+function showConfirm(message, { okLabel = 'Leave', cancelLabel = 'Cancel' } = {}) {
+  return new Promise(resolve => {
+    const back = $('sh-confirm');
+    $('sh-confirm-msg').textContent = message;
+    const ok = $('sh-confirm-ok'), cancel = $('sh-confirm-cancel');
+    ok.textContent = okLabel; cancel.textContent = cancelLabel;
+    back.hidden = false;
+    const done = (v) => {
+      back.hidden = true;
+      ok.onclick = cancel.onclick = null;
+      document.removeEventListener('keydown', onKey, true);
+      resolve(v);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); done(false); }
+      else if (e.key === 'Enter') { e.stopPropagation(); e.preventDefault(); done(true); }
+    };
+    ok.onclick = () => done(true);
+    cancel.onclick = () => done(false);
+    document.addEventListener('keydown', onKey, true);
+  });
+}
+
+window.addEventListener('popstate', (e) => {
+  render((e.state && e.state.route) || locationToRoute());   // no push
+});
+
+// Keyboard navigation - Alt+Left/Right and Backspace drive in-app history
+// (which drives popstate → render). Kept separate; only touches History API.
+function initKeyboardNav() {
+  document.addEventListener('keydown', (e) => {
+    if (!$('sh-confirm').hidden) return;    // a confirm dialog owns the keys
+    const t = e.target;
+    const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+    // A mounted game lives in a shadow root that retargets events to #game-root -
+    // don't hijack Backspace from it (games may use Backspace themselves).
+    const inGame = t && t.closest && t.closest('#game-root');
+    if ((e.altKey && e.key === 'ArrowLeft') || (e.key === 'Backspace' && !typing && !inGame)) {
+      e.preventDefault(); history.back();
+    } else if (e.altKey && e.key === 'ArrowRight') {
+      e.preventDefault(); history.forward();
+    }
+  });
+}
+initKeyboardNav();
 
 // ── Theme (light/dark) - see theme.js ─────────────────────────
 initTheme();
@@ -438,14 +578,22 @@ function toast(msg) {
 // ── Room lifecycle ────────────────────────────────────────────
 async function joinByCode(input) {
   // Accept either a 4-char code or a full UUID (backwards compat)
-  const isCode = /^[A-Z0-9]{4}$/i.test(input.trim());
-  const filter = isCode
-    ? `code eq '${input.trim().toUpperCase()}'`
-    : `ID eq '${input.trim()}'`;
-  const data = await odata('GET', `Rooms?$filter=${filter}`).catch(() => null);
-  const room = data?.value?.[0];
-  if (!room) { toast('Room not found'); return; }
-  await joinRoom(room.ID, room.code, room.game);
+  const raw = input.trim();
+  const isCode = /^[A-Z0-9]{4}$/i.test(raw);
+  if (isCode && shell.room?.code === raw.toUpperCase()) return;  // already in this room
+  if (joining) return;                                            // a join is already in flight
+  joining = true;
+  try {
+    const filter = isCode
+      ? `code eq '${raw.toUpperCase()}'`
+      : `ID eq '${raw}'`;
+    const data = await odata('GET', `Rooms?$filter=${filter}`).catch(() => null);
+    const room = data?.value?.[0];
+    if (!room) { toast('Room not found'); return; }
+    await joinRoom(room.ID, room.code, room.game);
+  } finally {
+    joining = false;
+  }
 }
 
 // ── Roster maintenance - the canonical sdk.players array, kept correct for
@@ -573,7 +721,7 @@ function mountGame() {
   const root = document.createElement('div');
   shadow.appendChild(root);
   shell.matchUnmount = shell.gameModule.mount(root, shell.sdk) ?? null;
-  showPage('game');
+  navigate(routeFor('game'));
   $('sh-btn-exit').hidden = false;
 }
 
@@ -591,7 +739,7 @@ async function showWaitingRoom() {
   slot.innerHTML = '';
   shell.waitingUnmount = await mountWaitingRoom(slot, shell.sdk, shell.gameModule) ?? null;
   updateSwitchHint();
-  showPage('library');                    // browse while waiting
+  navigate(routeFor('library'));          // browse while waiting
 }
 
 function onStartedTopLevel(payload) {
@@ -633,6 +781,7 @@ async function joinRoom(roomId, code, game) {
     game = room.game ?? '';
   }
   shell.room = { id: roomId, code: code ?? roomId, game: game || '' };
+  sessionStorage.setItem('room', shell.room.code);   // survive a refresh (URL is primary; this is the fallback)
 
   // update header - show short code
   $('sh-room-id').textContent = shell.room.code;
@@ -705,8 +854,9 @@ async function createRoom(game) {
   await joinRoom(roomId);  // joinRoom fetches code+game since they're not passed
 }
 
-function leaveRoom() {
+function leaveRoom({ fromRoute = false } = {}) {
   if (shell.room) wsSend('leave', { room: shell.room.id });
+  sessionStorage.removeItem('room');
   shell.matchUnmount?.();   shell.matchUnmount = null;
   shell.waitingUnmount?.(); shell.waitingUnmount = null;
   shell.playersUnmount?.(); shell.playersUnmount = null;
@@ -739,9 +889,11 @@ function leaveRoom() {
   $('sh-btn-invite').hidden = true;
   $('sh-btn-exit').hidden = true;
   showApp();
-  showPage('library');
   updateSwitchHint();
   loadLobby();
+  // fromRoute: called by the router's confirm-leave; the URL is already
+  // off-room and confirmLeaveRoom reveals the page, so don't write history here.
+  if (!fromRoute) navigate('#/library');
 }
 
 // ── Library (game cards) ──────────────────────────────────────
@@ -885,27 +1037,43 @@ function enterLobby(id) {
   renderAccount();                    // header avatar
   renderRailProfile();                // rail mini-profile
   showApp();
-  showPage('library');
+  showPage('library');                // baseline paint before route restore
   loadLobby();
   ensureProfiles([id]);
-  consumePendingJoin();
+  restoreInitialRoute();
+}
+
+// Restore the view/room the URL (or a saved fallback) points at, and seed a
+// duplicate history entry so the first Back never escapes the site.
+function restoreInitialRoute() {
+  let initial   = locationToRoute();
+  // 'landing' is anonymous-only; once logged in, an /landing (or empty) hash
+  // means "go to the library", not back to the public landing page.
+  if (parseRoute(initial).page === 'landing') initial = '#/library';
+  const { roomCode } = parseRoute(initial);
+  const pending   = sessionStorage.getItem('pendingJoin');
+  const savedRoom = sessionStorage.getItem('room');
+
+  const base = pending ? '#/library' : initial;
+  history.replaceState({ route: base }, '', base);
+  history.pushState({ route: base }, '', base);   // sentinel: first Back lands here
+  currentRoute = base;
+
+  if (pending)  { consumePendingJoin(); render(base); return; }  // invite wins
+  if (roomCode) { render(initial); return; }                     // refresh into room → render joins
+  if (savedRoom) { joinByCode(savedRoom); return; }              // fallback if the hash was lost
+  render(base);
 }
 
 $('sh-logo-btn').onclick = () => {
-  if (shell.room) leaveRoom();          // same as the Leave button - tears down room state
-  else if (shell.user) { showApp(); showPage('library'); loadLobby(); }
-  else showView('landing');
+  if (shell.room) leaveRoom();                       // same as the Leave button - tears down room state
+  else if (shell.user) navigate(routeFor('library'));
+  else navigate('#/landing', { replace: true });
 };
 
 // Rail navigation - Library / Achievements / Leaderboard / Edit profile.
-document.querySelectorAll('#rail-nav .sh-nav-item').forEach(b => b.onclick = () => {
-  switch (b.dataset.page) {
-    case 'library':      showApp(); showPage('library'); loadOpenRooms(); break;
-    case 'achievements': showAchievementsPage(); break;
-    case 'leaderboard':  showLeaderboardPage();  break;
-    case 'profile':      showProfilePage();      break;
-  }
-});
+document.querySelectorAll('#rail-nav .sh-nav-item').forEach(b => b.onclick = () =>
+  navigate(routeFor(b.dataset.page)));
 $('sh-hamburger').onclick    = () => $('view-app').classList.toggle('rail-collapsed');
 $('sh-btn-empty-room').onclick = () => createRoom();   // no game → empty room, pick later
 $('rr-leave').onclick        = leaveRoom;
@@ -931,20 +1099,32 @@ $('sh-btn-join').onclick = () => {
 };
 $('sh-btn-refresh-rooms').onclick = () => loadOpenRooms();
 
+// The sub-modules call showView('<ownName>') to open themselves and
+// showView('lobby') for their back button. Route the back button through the
+// router (real history entry) while keeping self-opens as pure renders (no
+// history entry, no render→navigate cycle). One wrapper, zero edits inside the
+// modules. game-info stays transient (opened with a gameId arg) - it keeps the
+// pure render and only its back button routes to the library.
+function navShowView(name) {
+  if (name === 'lobby')   return navigate(routeFor('library'));
+  if (name === 'landing') return navigate('#/landing', { replace: true });
+  showView(name);   // self-reveal: pure render
+}
+
 // ── Edit profile (gamertag + avatar) - see profile-edit.js ──────
 ({ showProfilePage } = initProfileEditing({
   $, serviceCall, profiles, ensureProfiles, nameOf, avatarUrlOf, initials,
-  getUserId: () => shell.user?.id, toast, showView,
+  getUserId: () => shell.user?.id, toast, showView: navShowView,
   onSaved: () => loadRailStats(true),
 }));
 
-({ showAchievementsPage } = initAchievements({ $, serviceCall, showView }));
+({ showAchievementsPage } = initAchievements({ $, serviceCall, showView: navShowView }));
 
 ({ showLeaderboardPage } = initLeaderboard({
-  $, serviceCall, showView, getUserId: () => shell.user?.id,
+  $, serviceCall, showView: navShowView, getUserId: () => shell.user?.id,
 }));
 
-({ showGameInfo } = initGameInfo({ $, serviceCall, showView, toast }));
+({ showGameInfo } = initGameInfo({ $, serviceCall, showView: navShowView, toast }));
 
 async function boot() {
   // In local dev, restore a previously-picked mock user so whoami passes.
@@ -959,7 +1139,10 @@ async function boot() {
     shell.user = null;
     shell.mode = auth.mocked ? 'mocked' : 'ias';
     renderAccount();
-    showView('landing');
+    history.replaceState({ route: '#/landing' }, '', '#/landing');
+    history.pushState({ route: '#/landing' }, '', '#/landing');   // sentinel Back entry
+    currentRoute = '#/landing';
+    showLanding();
   }
 }
 
