@@ -17,6 +17,7 @@ import { makeSdk, makeEmitter } from './sdk.js';
 import { mountPlayers } from './shell/players.js';
 import { mountChat } from './shell/chat.js';
 import { mountWaitingRoom } from './shell/host.js';
+import { openRoomSession } from './shell/room-session.js';
 import { initTheme } from './theme.js';
 import { initPalette } from './palettes.js';
 import { initProfileEditing } from './profile-edit.js';
@@ -37,8 +38,8 @@ const shell = {
   gameModule:     null, // currently loaded game module ({ mount, renderSettings? })
   matchUnmount:   null, // cleanup for an active game.mount()
   waitingUnmount: null, // cleanup for the waiting-room controls (shell/host.js)
-  playersUnmount: null, // cleanup for the persistent players component
-  chatUnmount:    null, // cleanup for the persistent chat component
+  session:        null, // RoomSession handle - roster/lifecycle subscriptions +
+                         // the persistent players/chat panels (see shell/room-session.js)
 };
 
 let ws      = null;
@@ -822,26 +823,30 @@ async function joinRoom(roomId, code, game) {
 
     showApp();
     openRailRoom(payload.status);
-    shell.playersUnmount = mountPlayers($('room-players'), shell.sdk, []);
+
+    // Room-scoped for the whole session: roster/lifecycle listeners + the
+    // persistent players/chat panels. One handle, one close() in leaveRoom() -
+    // see shell/room-session.js.
+    shell.session = openRoomSession(emitter, [
+      ['roster',       onRoster],
+      ['playerLeft',   onPlayerLeftRoster],
+      ['playerKicked', onPlayerKickedRoster],
+      ['roleChanged',  onRoleChangedRoster],
+      ['playerKicked', onSelfKicked],
+      ['gameError',    onGameError],
+      ['started',      onStartedTopLevel],
+      ['finished',     onFinishedControls],
+      ['rematched',    onClearedControls],
+      ['roomReset',    onRoomResetTopLevel],
+      ['gameSwitched', onGameSwitchedTopLevel],
+    ]);
+    shell.session.defer(mountPlayers($('room-players'), shell.sdk, []));
     // A game can render its own chat UI (via sdk.chat) by declaring meta.ownsChat
     // - the platform still owns the transport/data, only the default panel is
     // skipped.
     const ownsChat = shell.gameModule?.meta?.ownsChat === true;
     $('rail-room').querySelector('.sh-rr-chat').hidden = ownsChat;
-    shell.chatUnmount = ownsChat ? null : mountChat($('room-chat'), shell.sdk);
-
-    // room-scoped listeners - all torn down together in leaveRoom()
-    emitter.on('roster',       onRoster);
-    emitter.on('playerLeft',   onPlayerLeftRoster);
-    emitter.on('playerKicked', onPlayerKickedRoster);
-    emitter.on('roleChanged',  onRoleChangedRoster);
-    emitter.on('playerKicked', onSelfKicked);
-    emitter.on('gameError',    onGameError);
-    emitter.on('started',      onStartedTopLevel);
-    emitter.on('finished',     onFinishedControls);
-    emitter.on('rematched',    onClearedControls);
-    emitter.on('roomReset',    onRoomResetTopLevel);
-    emitter.on('gameSwitched', onGameSwitchedTopLevel);
+    if (!ownsChat) shell.session.defer(mountChat($('room-chat'), shell.sdk));
 
     refreshLibraryActive();
     if (payload.status === 'lobby') showWaitingRoom();
@@ -859,21 +864,9 @@ function leaveRoom({ fromRoute = false } = {}) {
   sessionStorage.removeItem('room');
   shell.matchUnmount?.();   shell.matchUnmount = null;
   shell.waitingUnmount?.(); shell.waitingUnmount = null;
-  shell.playersUnmount?.(); shell.playersUnmount = null;
-  shell.chatUnmount?.();    shell.chatUnmount = null;
   renderMatchControls(false);
 
-  emitter.off('roster',       onRoster);
-  emitter.off('playerLeft',   onPlayerLeftRoster);
-  emitter.off('playerKicked', onPlayerKickedRoster);
-  emitter.off('roleChanged',  onRoleChangedRoster);
-  emitter.off('playerKicked', onSelfKicked);
-  emitter.off('gameError',    onGameError);
-  emitter.off('started',      onStartedTopLevel);
-  emitter.off('finished',     onFinishedControls);
-  emitter.off('rematched',    onClearedControls);
-  emitter.off('roomReset',    onRoomResetTopLevel);
-  emitter.off('gameSwitched', onGameSwitchedTopLevel);
+  shell.session?.close(); shell.session = null;   // roster/lifecycle listeners + players/chat panels
 
   shell.room = null;
   shell.me   = null;
