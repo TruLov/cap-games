@@ -1,16 +1,16 @@
 /**
- * Flip Fortune — turn engine (pure, no CAP imports).
+ * Flip Fortune - turn engine (pure, no CAP imports).
  *
  * One active player at a time takes a single decision per turn: Hit (flip the
  * top card) or Stay (bank, out for the round). Flipping a duplicate number busts
  * you (0 for the round) unless you hold a Second Chance. Collecting 7 unique
- * numbers is a Flip 7 — it ends the round immediately and adds +15. First to the
+ * numbers is a Flip 7 - it ends the round immediately and adds +15. First to the
  * target total (default 200) with the sole highest score wins; a tie at the top
  * plays another round.
  *
  * Deal note: rather than a separate up-front deal (which in the physical game can
  * trigger action cards mid-deal), each round simply starts in play and a player
- * may not Stay on an empty line — so everyone takes at least one flip, resolving
+ * may not Stay on an empty line - so everyone takes at least one flip, resolving
  * any action cards through the normal in-turn machinery. A deliberate, faithful
  * simplification (documented in the README).
  *
@@ -49,11 +49,11 @@ export function init(settings = {}, players = [], rng = Math.random) {
     drawPile: shuffle(buildDeck(), rng),
     discardPile: [],
     pending: null,          // { type:'freeze'|'flipthree'|'givesecond', by, card? }
-    forced: null,           // { idx, remaining } — current auto forced-flip context
+    forced: null,           // { idx, remaining } - current auto forced-flip context
     forcedStack: [],        // suspended forced contexts (nested Flip Three)
     resumeIdx: null,        // where normal play resumes once all forced work is done
     phase: 'playing',       // 'playing' | 'done'
-    lastCard: null,         // { user, card } — for the flip animation
+    lastCard: null,         // { user, card } - for the flip animation
     roundSummary: null,     // per-player breakdown of the last finished round
     winner: null,
   };
@@ -238,7 +238,7 @@ function endRound(state, _rng) {
     state.winner = winner;
     return { state, end: { winner, scores: { ...state.scores } } };
   }
-  // next round — the deck continues (discards reshuffle when the draw pile empties)
+  // next round - the deck continues (discards reshuffle when the draw pile empties)
   state.round += 1;
   state.startIdx = (state.startIdx + 1) % state.players.length;
   for (const u of state.players) state.lines[u] = freshLine();

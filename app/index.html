@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Gambito</title>
-  <!-- Set the theme before first paint — avoids a flash of the wrong theme. -->
-  <script>(function(){var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.dataset.theme=t;})();</script>
+  <!-- Set the theme before first paint - avoids a flash of the wrong theme. -->
+  <script>(function(){var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.dataset.theme=t;document.documentElement.dataset.palette=localStorage.getItem('palette')||'cold-brew';})();</script>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%233b82f6'/%3E%3Ctext x='32' y='46' font-size='38' text-anchor='middle' fill='white'%3E%E2%99%9F%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -13,8 +13,16 @@
 
   <!-- ── Shell Header (always visible) ────────────────────── -->
   <header class="sh-header">
-    <button id="sh-logo-btn" class="sh-logo" title="Back to start page">
-      <canvas id="sh-logo-canvas" width="520" height="170" role="img" aria-label="Gambito"></canvas>
+    <button id="sh-hamburger" class="sh-ham" title="Toggle sidebar" aria-label="Toggle sidebar" hidden>
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M3 6h18M3 12h18M3 18h18"/>
+      </svg>
+    </button>
+    <button id="sh-logo-btn" class="sh-logo" title="Back to start page" aria-label="gambit">
+      <span class="sh-logo-cup-wrap">
+        <img id="sh-logo-cup" class="sh-logo-cup" src="assets/coffee-anim/coffee-pot-idle.svg" alt="" aria-hidden="true">
+      </span>
+      <span class="gm-logo">gam<span class="gm-opt">[e]</span><span class="gm-sl">//</span>bit<span class="gm-opt">[s]</span></span>
     </button>
     <nav class="sh-nav">
       <code id="sh-room-id" hidden></code>
@@ -29,94 +37,180 @@
     </nav>
   </header>
 
-  <!-- ── Landing (public — shown to anonymous IAS visitors) ── -->
+  <!-- ── Landing (public - shown to anonymous IAS visitors) ── -->
   <main id="view-landing" class="sh-view sh-center" hidden>
-    <h1 class="sh-hero-logo">
-      <span class="sh-hero-plate">
-        <canvas id="landing-logo-canvas" width="1400" height="480" role="img" aria-label="Gambito — Multiplayer Arcade"></canvas>
-        <span class="sh-hero-rivet tl"></span><span class="sh-hero-rivet tr"></span>
-        <span class="sh-hero-rivet bl"></span><span class="sh-hero-rivet br"></span>
-      </span>
+    <h1 class="sh-hero-logo" aria-label="gambit">
+      <span class="gm-logo gm-logo-hero">gam<span class="gm-opt">[e]</span><span class="gm-sl">//</span>bit<span class="gm-opt">[s]</span><span class="gm-caret"></span></span>
     </h1>
-    <p>Multiplayer browser games — play right in your browser with friends.</p>
+    <p>Multiplayer browser games - play right in your browser with friends.</p>
     <ul class="sh-landing-games">
-      <li><strong>TicTacToe</strong> — the classic, 2 players.</li>
-      <li><strong>Ultimate Tic-Tac-Toe</strong> — a 3×3 grid of tic-tac-toe boards, 2–8 players.</li>
-      <li><strong>Kaiten</strong> — a sushi-drafting card game, 2–6 players.</li>
-      <li><strong>Kaffee-Kwest</strong> — an AI-hosted co-op adventure, 2–6 players.</li>
-      <li><strong>Flip Fortune</strong> — a press-your-luck card game, 2–8 players.</li>
-      <li><strong>Kaperfahrt</strong> — a pirate press-your-luck dice game, 2–5 players.</li>
+      <li><strong>TicTacToe</strong> - the classic, 2 players.</li>
+      <li><strong>Ultimate Tic-Tac-Toe</strong> - a 3×3 grid of tic-tac-toe boards, 2–8 players.</li>
+      <li><strong>Kaiten</strong> - a sushi-drafting card game, 2–6 players.</li>
+      <li><strong>Kaffee-Kwest</strong> - an AI-hosted co-op adventure, 2–6 players.</li>
+      <li><strong>Flip Fortune</strong> - a press-your-luck card game, 2–8 players.</li>
+      <li><strong>Kaperfahrt</strong> - a pirate press-your-luck dice game, 2–5 players.</li>
     </ul>
     <p class="sh-small">Use <strong>Log in</strong> (top right) to start playing.</p>
   </main>
 
-  <!-- ── Lobby ─────────────────────────────────────────────── -->
-  <main id="view-lobby" class="sh-view" hidden>
-    <h2>Lobby</h2>
+  <!-- ── App shell (logged in): persistent left rail + main content ── -->
+  <div id="view-app" class="sh-app" hidden>
 
-    <section>
-      <h3>Games</h3>
-      <ul id="sh-game-list" class="sh-list"></ul>
-    </section>
+    <aside id="sh-rail" class="sh-rail">
+      <div id="rail-profile" class="sh-rail-profile"></div>
 
-    <section>
-      <h3>Join a room</h3>
-      <div class="sh-row">
-        <input id="sh-join-input" placeholder="Room code" />
-        <button id="sh-btn-join">Join</button>
-        <button id="sh-btn-refresh-rooms" class="sh-small sh-ghost sh-icon-btn" title="Refresh open rooms">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 3v5h-5" />
-          </svg>
+      <nav id="rail-nav" class="sh-rail-nav">
+        <button class="sh-nav-item" data-page="library">
+          <span class="sh-nav-ico">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+              <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+            </svg>
+          </span>Library
         </button>
+        <button class="sh-nav-item" data-page="achievements">
+          <span class="sh-nav-ico">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/>
+              <path d="M7 5H4v2a4 4 0 0 0 4 4"/><path d="M17 5h3v2a4 4 0 0 1-4 4"/>
+              <path d="M9 20h6M12 15v5"/>
+            </svg>
+          </span>Achievements
+        </button>
+        <button class="sh-nav-item" data-page="leaderboard">
+          <span class="sh-nav-ico">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 20V13M10 20V8M16 20V4"/>
+            </svg>
+          </span>Leaderboard
+        </button>
+        <button class="sh-nav-item" data-page="profile">
+          <span class="sh-nav-ico">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="8" r="3.2"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/>
+            </svg>
+          </span>Edit profile
+        </button>
+      </nav>
+
+      <!-- Room panel - persistent for the room's whole lifetime, regardless of
+           which page you're browsing in the main column. -->
+      <div id="rail-room" class="sh-rail-room" hidden>
+        <div class="sh-rr-head">
+          <span id="rr-status" class="sh-rr-status">Waiting</span>
+          <code id="rr-code"></code>
+        </div>
+        <div id="room-players"></div>
+        <div id="room-waiting"></div>
+        <div id="room-match-controls"></div>
+        <div class="sh-rr-chat"><div id="room-chat"></div></div>
+        <button id="rr-leave" class="sh-ghost sh-small">Leave room</button>
       </div>
-    </section>
+    </aside>
 
-    <section>
-      <h3>Open rooms</h3>
-      <ul id="sh-room-list" class="sh-list"></ul>
-    </section>
-  </main>
+    <div id="sh-main" class="sh-main">
 
-  <!-- ── Edit profile — gamertag + avatar (own only) ─────────── -->
+      <!-- ── Library (start page) ──────────────────────────────── -->
+      <main id="view-lobby" class="sh-view">
+        <div class="sh-page-head">
+          <h2>Game Library</h2>
+          <div class="sh-row">
+            <input id="sh-join-input" class="sh-code-input" placeholder="Room code" maxlength="4" />
+            <button id="sh-btn-join" class="sh-small">Join</button>
+            <button id="sh-btn-empty-room" class="sh-small sh-ghost">＋ Open empty room</button>
+            <button id="sh-btn-refresh-rooms" class="sh-small sh-ghost sh-icon-btn" title="Refresh open rooms">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 3v5h-5" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div id="sh-switch-hint" class="sh-switch-hint" hidden></div>
+        <div id="sh-game-list" class="sh-card-grid"></div>
+
+        <h3 class="sh-sec-title">Open rooms</h3>
+        <ul id="sh-room-list" class="sh-list"></ul>
+      </main>
+
+  <!-- ── Edit profile - gamertag + avatar (own only) ─────────── -->
   <main id="view-profile" class="sh-view" hidden>
     <h2>Edit profile</h2>
     <div class="sh-row">
       <div id="profile-avatar-preview" class="sh-avatar-preview"></div>
       <div>
         <input type="file" id="profile-avatar-input" accept="image/png,image/jpeg,image/webp" />
-        <div class="sh-small">PNG/JPEG/WEBP — resized automatically, max 256 KB.</div>
+        <div class="sh-small">PNG/JPEG/WEBP - resized automatically, max 256 KB.</div>
       </div>
     </div>
     <div class="sh-row" style="margin-top:1rem">
       <input id="profile-gamertag-input" placeholder="Gamertag" maxlength="40" />
+    </div>
+    <h3 class="sh-sec-title">Pinned achievements</h3>
+    <div class="sh-small" style="margin-bottom:.5rem">Pick up to 5 to show on your rail badge row - otherwise your 5 latest are shown.</div>
+    <div id="profile-ach-picker" class="ach-picker"></div>
+
+    <h3 class="sh-sec-title">Appearance</h3>
+    <div class="pal-picker" id="pal-picker">
+      <button type="button" id="pal-picker-btn" class="pal-picker-btn">
+        <span id="pal-picker-swatches" class="pal-swatches"></span>
+        <span id="pal-picker-label"></span>
+        <svg class="pal-caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div id="pal-picker-menu" class="pal-picker-menu" hidden></div>
+    </div>
+
+    <div class="sh-row" style="justify-content:space-between; margin-top:2rem">
+      <button id="profile-back-btn" class="sh-ghost">Back to lobby</button>
       <button id="profile-save-btn">Save</button>
     </div>
-    <button id="profile-back-btn" class="sh-ghost sh-small" style="margin-top:1rem">Back to lobby</button>
   </main>
 
-  <!-- ── Room — persistent chrome (players + chat) live for the whole room
-       session; #game-root is the ONLY area a game module ever touches, and
-       only once a match is actually starting/active. Before that (status
-       'lobby'), the platform's own waiting-room controls render there. ── -->
-  <main id="view-room" class="sh-view" hidden>
-    <div id="room-match-controls"></div>
-    <div class="gm-layout" id="room-layout">
-      <div class="gm-main" id="game-root"></div>
-      <aside class="gm-roster">
-        <h3>Players</h3>
-        <div id="room-players"></div>
-      </aside>
-      <aside class="gm-chat">
-        <h3>Chat</h3>
-        <div id="room-chat"></div>
-      </aside>
+  <main id="view-achievements" class="sh-view" hidden>
+    <h2>Achievements</h2>
+    <div id="achievements-list"></div>
+    <button id="achievements-back-btn" class="sh-ghost sh-small" style="margin-top:1rem">Back to lobby</button>
+  </main>
+
+  <main id="view-leaderboard" class="sh-view" hidden>
+    <div class="sh-row" style="justify-content:space-between;align-items:baseline">
+      <h2>Leaderboard</h2>
+      <select id="leaderboard-game" class="sh-select"></select>
     </div>
+    <div id="leaderboard-table"></div>
+    <button id="leaderboard-back-btn" class="sh-ghost sh-small" style="margin-top:1rem">Back to lobby</button>
   </main>
 
-  <!-- Floating exit — bottom-left while in a room, overlays any game/shadow content -->
+  <main id="view-game-info" class="sh-view" hidden>
+    <div id="game-info-root"></div>
+    <button id="game-info-back-btn" class="sh-ghost sh-small" style="margin-top:1rem">Back to lobby</button>
+  </main>
+
+      <!-- ── Game stage - #game-root is the ONLY area a game module ever
+           touches, once a match is actually starting/active. Roster, chat and
+           host/match controls live in the left rail, not here. ── -->
+      <main id="view-game" class="sh-view" hidden>
+        <div id="game-root"></div>
+      </main>
+
+    </div><!-- /#sh-main -->
+  </div><!-- /#view-app -->
+
+  <!-- Floating exit - bottom-left while a match is mounted, overlays any game/shadow content -->
   <button id="sh-btn-exit" class="sh-exit" hidden title="Exit game">← Exit</button>
+
+  <!-- Lightweight confirm dialog - used before leaving a room via the Back button -->
+  <div id="sh-confirm" class="sh-confirm-backdrop" hidden>
+    <div class="sh-confirm" role="dialog" aria-modal="true" aria-labelledby="sh-confirm-msg">
+      <p id="sh-confirm-msg" class="sh-confirm-msg"></p>
+      <div class="sh-confirm-actions">
+        <button id="sh-confirm-cancel" class="sh-ghost">Cancel</button>
+        <button id="sh-confirm-ok" class="danger">Leave</button>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="platform.js"></script>
 </body>

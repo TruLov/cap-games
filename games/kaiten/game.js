@@ -1,8 +1,8 @@
 /**
- * Kaiten — pure game module (platform hook contract).
+ * Kaiten - pure game module (platform hook contract).
  *
  * Implements meta, settingsSchema, init, applyMove, score plus
- * publicState/privateState for hidden hands. Pure logic — no CAP imports (so
+ * publicState/privateState for hidden hands. Pure logic - no CAP imports (so
  * unit tests stay CAP-free). The heavy lifting lives in ./flow (turn engine)
  * and ./scoring (card strategies). Registered with the platform by
  * ./cds-plugin.js. Players are identified by their `user` id (the platform
@@ -35,10 +35,12 @@ export default {
   meta: {
     name: 'Kaiten',
     minPlayers: 2,
-    // Menu rules are defined for up to 8 players; kept at 6 until 7–8p is
+    // Menu rules are defined for up to 8 players; kept at 6 until 7-8p is
     // play-tested. No longer capped by the platform (which used to hand out a
-    // fixed set of symbols) — players are keyed by `user`.
+    // fixed set of symbols) - players are keyed by `user`.
     maxPlayers: 6,
+    help: 'A sushi-drafting card game for 2-6 players. Each round you are dealt a hand and pass cards around the table conveyor-belt style, picking one card to keep before passing the rest along. Build sets and combos (rolls, dumplings, sashimi, and more) across multiple rounds to score points. Highest total score after all rounds wins.',
+    gallery: ['gallery/cover-1.svg', 'gallery/cover-2.svg'],
   },
 
   settingsSchema: {
@@ -47,6 +49,22 @@ export default {
       values: [...Object.keys(MENUS), 'custom'],
       default: 'classic',
     },
+  },
+
+  // Game-declared achievements - SINGLE-MATCH, pure (see checkAchievements).
+  achievements: {
+    dessertMaster: { name: 'Dessert Master', desc: 'Score 6+ points from desserts in a match' },
+    bigAppetite:   { name: 'Big Appetite',   desc: 'Score 25+ points in a single match' },
+  },
+
+  // end.ranking: [{ symbol, score, desserts }] - symbol is the user id token.
+  checkAchievements(end, _state, user) {
+    const earned = [];
+    const mine = (end.ranking ?? []).find(r => r.symbol === user);
+    if (!mine) return earned;
+    if (mine.desserts >= 6) earned.push('dessertMaster');
+    if (mine.score >= 25) earned.push('bigAppetite');
+    return earned;
   },
 
   // players: ordered roster [{ user, isHost }] from the platform; flow keys on
@@ -62,7 +80,7 @@ export default {
 
   /**
    * Map the final ranking to leaderboard results.
-   * @param end     { winner, ranking:[{ symbol, score, desserts }] } — `symbol`
+   * @param end     { winner, ranking:[{ symbol, score, desserts }] } - `symbol`
    *                is the per-player token, i.e. the user id
    * @param players DB players [{ user, spectator }]
    */

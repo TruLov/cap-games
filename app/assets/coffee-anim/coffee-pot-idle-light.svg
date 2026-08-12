@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 84" shape-rendering="crispEdges" role="img" aria-label="Pixel espresso cup resting quietly, cursor blinking">
+  <style>
+    .wisp { animation: drift 6s steps(6, jump-none) infinite; opacity: 0; }
+    @keyframes drift {
+      0%   { transform: translate(0, 0);  opacity: 0; }
+      10%  { opacity: .5; }
+      55%  { transform: translate(-2px, -12px); opacity: .35; }
+      100% { transform: translate(0, -22px);     opacity: 0; }
+    }
+  </style>
+
+  <rect class="wisp" x="30" y="44" width="4" height="4" fill="#6b4f3d"/>
+
+  <rect x="20" y="52" width="24" height="28" fill="#7a4f3a"/>
+
+  <rect x="16" y="48" width="4" height="4" fill="#2c1f15"/>
+  <rect x="20" y="48" width="4" height="4" fill="#2c1f15"/>
+  <rect x="24" y="48" width="4" height="4" fill="#2c1f15"/>
+  <rect x="28" y="48" width="4" height="4" fill="#2c1f15"/>
+  <rect x="32" y="48" width="4" height="4" fill="#2c1f15"/>
+  <rect x="36" y="48" width="4" height="4" fill="#2c1f15"/>
+  <rect x="40" y="48" width="4" height="4" fill="#2c1f15"/>
+  <rect x="44" y="48" width="4" height="4" fill="#2c1f15"/>
+  <rect x="16" y="52" width="4" height="4" fill="#2c1f15"/>
+  <rect x="44" y="52" width="4" height="4" fill="#2c1f15"/>
+  <rect x="16" y="56" width="4" height="4" fill="#2c1f15"/>
+  <rect x="44" y="56" width="4" height="4" fill="#2c1f15"/>
+  <rect x="48" y="56" width="4" height="4" fill="#2c1f15"/>
+  <rect x="52" y="56" width="4" height="4" fill="#2c1f15"/>
+  <rect x="16" y="60" width="4" height="4" fill="#2c1f15"/>
+  <rect x="44" y="60" width="4" height="4" fill="#2c1f15"/>
+  <rect x="52" y="60" width="4" height="4" fill="#2c1f15"/>
+  <rect x="16" y="64" width="4" height="4" fill="#2c1f15"/>
+  <rect x="44" y="64" width="4" height="4" fill="#2c1f15"/>
+  <rect x="52" y="64" width="4" height="4" fill="#2c1f15"/>
+  <rect x="16" y="68" width="4" height="4" fill="#2c1f15"/>
+  <rect x="44" y="68" width="4" height="4" fill="#2c1f15"/>
+  <rect x="48" y="68" width="4" height="4" fill="#2c1f15"/>
+  <rect x="52" y="68" width="4" height="4" fill="#2c1f15"/>
+  <rect x="16" y="72" width="4" height="4" fill="#2c1f15"/>
+  <rect x="44" y="72" width="4" height="4" fill="#2c1f15"/>
+  <rect x="16" y="76" width="4" height="4" fill="#2c1f15"/>
+  <rect x="44" y="76" width="4" height="4" fill="#2c1f15"/>
+  <rect x="20" y="80" width="4" height="4" fill="#2c1f15"/>
+  <rect x="24" y="80" width="4" height="4" fill="#2c1f15"/>
+  <rect x="28" y="80" width="4" height="4" fill="#2c1f15"/>
+  <rect x="32" y="80" width="4" height="4" fill="#2c1f15"/>
+  <rect x="36" y="80" width="4" height="4" fill="#2c1f15"/>
+  <rect x="40" y="80" width="4" height="4" fill="#2c1f15"/>
+</svg>

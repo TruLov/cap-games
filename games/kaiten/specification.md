@@ -49,19 +49,19 @@
 ### Maki Roll
 - Number of cards: 12 (cards show 1, 2 or 3 maki icons)
 - Type: Sushi Roll
-- Points: End of round — player with most maki icons scores 6 pts, player with second most scores 3 pts. In a 6–8 player game: most = 6, second = 4, third = 2. Ties all receive the full points for that place.
+- Points: End of round - player with most maki icons scores 6 pts, player with second most scores 3 pts. In a 6–8 player game: most = 6, second = 4, third = 2. Ties all receive the full points for that place.
 - Special: A player must have at least 1 maki roll card to score any maki points.
 
 ### Temaki
 - Number of cards: 12
 - Type: Sushi Roll
-- Points: End of round — player with most Temaki cards scores 4 pts. Player with fewest (including 0) loses 4 pts. Ties all receive or lose the full points.
+- Points: End of round - player with most Temaki cards scores 4 pts. Player with fewest (including 0) loses 4 pts. Ties all receive or lose the full points.
 - Special: In a 2 player game no one loses points for fewest Temaki.
 
 ### Uramaki
 - Number of cards: 12 (cards show varying numbers of icons)
 - Type: Sushi Roll
-- Points: Mid-round scoring — first player to accumulate 10 or more Uramaki icons immediately scores 8 pts and discards their Uramaki cards. Second to reach 10 scores 5 pts, third scores 2 pts. At end of round, the player with the most remaining Uramaki icons scores the next unclaimed place (8/5/2/0). Ties both receive full points; next place is skipped.
+- Points: Mid-round scoring - first player to accumulate 10 or more Uramaki icons immediately scores 8 pts and discards their Uramaki cards. Second to reach 10 scores 5 pts, third scores 2 pts. At end of round, the player with the most remaining Uramaki icons scores the next unclaimed place (8/5/2/0). Ties both receive full points; next place is skipped.
 - Special: Scoring and discarding happens immediately mid-round when the threshold is reached.
 
 ### Tempura
@@ -95,7 +95,7 @@
 - Special: -
 
 ### Onigiri
-- Number of cards: 8 (4 shapes: circle, triangle, square, rectangle — 2 of each)
+- Number of cards: 8 (4 shapes: circle, triangle, square, rectangle - 2 of each)
 - Type: Appetizer
 - Points: Score based on number of unique shapes collected: 1 unique = 1 pt, 2 unique = 4 pts, 3 unique = 9 pts, 4 unique = 16 pts. Multiple complete sets may be scored.
 - Special: Only the number of distinct shapes matters, not total card count.
@@ -109,7 +109,7 @@
 ### Miso Soup
 - Number of cards: 8
 - Type: Appetizer
-- Points: Worth 3 pts at end of round — but only if it was the sole Miso Soup played in its turn. If 2 or more Miso Soups are played on the same turn, all of them are immediately discarded and score nothing.
+- Points: Worth 3 pts at end of round - but only if it was the sole Miso Soup played in its turn. If 2 or more Miso Soups are played on the same turn, all of them are immediately discarded and score nothing.
 - Special: Multiple Miso Soups may be scored in a single round (from different turns).
 
 ### Chopsticks
@@ -133,13 +133,13 @@
 ### Soy Sauce
 - Number of cards: 3
 - Type: Special
-- Points: End of round — worth 4 pts if the player has the most (or tied for most) different card background colors among all their played cards this round.
+- Points: End of round - worth 4 pts if the player has the most (or tied for most) different card background colors among all their played cards this round.
 - Special: The Soy Sauce card's own color counts. Multiple Soy Sauce cards may each score in a round.
 
 ### Tea
 - Number of cards: 3
 - Type: Special
-- Points: End of round — worth 1 pt per card in the player's largest single-color group of played cards this round.
+- Points: End of round - worth 1 pt per card in the player's largest single-color group of played cards this round.
 - Special: Multiple Tea cards may each score in a round.
 
 ### Menu
@@ -163,17 +163,17 @@
 ### Pudding
 - Number of cards: 15
 - Type: Dessert
-- Points: Scored at end of game — player with most Pudding cards scores 6 pts. Player with fewest (including 0) loses 6 pts. Ties all receive or lose the full points.
+- Points: Scored at end of game - player with most Pudding cards scores 6 pts. Player with fewest (including 0) loses 6 pts. Ties all receive or lose the full points.
 - Special: In a 2 player game no one loses points for fewest Pudding. Cards are kept in front of the player across all 3 rounds.
 
 ### Green Tea Ice Cream
 - Number of cards: 15
 - Type: Dessert
-- Points: Scored at end of game — sets of 4 Green Tea Ice Cream cards score 12 pts each. 1, 2, or 3 cards score 0. Multiple sets may be scored.
+- Points: Scored at end of game - sets of 4 Green Tea Ice Cream cards score 12 pts each. 1, 2, or 3 cards score 0. Multiple sets may be scored.
 - Special: Cards are kept in front of the player across all 3 rounds.
 
 ### Fruit
 - Number of cards: 15 (cards show Watermelon, Orange, and/or Pineapple icons)
 - Type: Dessert
-- Points: Scored at end of game — each of the 3 fruit types (Watermelon, Orange, Pineapple) is scored independently based on the number of icons of that type: 0 icons = -2 pts, 1 = 0, 2 = 1, 3 = 3, 4 = 6, 5+ = 10.
+- Points: Scored at end of game - each of the 3 fruit types (Watermelon, Orange, Pineapple) is scored independently based on the number of icons of that type: 0 icons = -2 pts, 1 = 0, 2 = 1, 3 = 3, 4 = 6, 5+ = 10.
 - Special: Cards are kept in front of the player across all 3 rounds. A player with 0 fruit cards loses 2 pts for each of the 3 types.

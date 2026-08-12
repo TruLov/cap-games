@@ -1,7 +1,7 @@
 _schema-version: 3.3.0
 ID: cap-games
 version: 1.0.0
-description: "Gambito — browser mini games with CAP backend"
+description: "Gambito - browser mini games with CAP backend"
 parameters:
   enable-parallel-deployments: true
 build-parameters:
@@ -9,14 +9,14 @@ build-parameters:
     - builder: custom
       commands:
         - npm ci
-        # --ws-pack: games/* are npm workspace deps ("*" version) — pack them
+        # --ws-pack: games/* are npm workspace deps ("*" version) - pack them
         # as tarballs instead of leaving lockfile workspace-symlink entries,
         # which break once gen/srv is built/packaged in isolation (no games/
         # sibling folder there for the symlink target to resolve against).
         - npx cds build --production --ws-pack
         # The approuter serves the shell UI statically from its resources/
         # folder. Source of truth stays in app/ (so `cds watch app` dev is
-        # unchanged); scripts/sync-approuter.mjs copies it in here — same
+        # unchanged); scripts/sync-approuter.mjs copies it in here - same
         # script `npm run dev`/`npm start` run locally, so there's exactly
         # one place that knows which files make up the shell.
         - node scripts/sync-approuter.mjs

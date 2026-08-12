@@ -120,7 +120,7 @@ describe('kaiten scoring', () => {
 
   describe('desserts', () => {
 
-    it('pudding: most +6, fewest -6 — zero counts as fewest, no 2-player exception', () => {
+    it('pudding: most +6, fewest -6 - zero counts as fewest, no 2-player exception', () => {
       const players = [player('X',[],[card('pudding'),card('pudding')]), player('O',[],[card('pudding')]), player('A',[],[])];
       const g = scoreGame(players, 3, 'pudding');
       expect(g.X).to.equal(6);

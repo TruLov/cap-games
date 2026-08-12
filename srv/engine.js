@@ -8,23 +8,17 @@
  *   - Status transition guard
  *   - Host guard
  *   - Host succession
- *   - Reconnect grace timers
  *   - Transient board state (current move state, per room)
  *   - Scoring dispatch
+ *
+ * Reconnect grace + disconnect-announce debounce live in presence.js.
  */
 
 import { get as registryGet } from './registry.js';
 
-const GRACE_MS = 60_000;
-
-// Transient board state (non-persistent, lost on restart — intentional)
+// Transient board state (non-persistent, lost on restart - intentional)
 // roomId → { game, state, turn }
 const boardState = {};
-
-// Reconnect grace timers — kept independent of board state so they work in
-// ANY room status (lobby/playing/paused/finished), not just while a board
-// exists. roomId → Map<userId, timer>
-const graceTimers = {};
 
 // --- Status transitions ---
 const TRANSITIONS = {
@@ -58,29 +52,7 @@ function initBoard(roomId, game, settings, players = []) {
   return boardState[roomId];
 }
 
-// --- Reconnect grace ---
-function setGraceTimer(roomId, userId, callback) {
-  const timer = setTimeout(callback, GRACE_MS);
-  (graceTimers[roomId] ??= new Map()).set(userId, timer);
-}
-
-function clearGraceTimer(roomId, userId) {
-  const m = graceTimers[roomId];
-  if (!m) return;
-  clearTimeout(m.get(userId));
-  m.delete(userId);
-  if (m.size === 0) delete graceTimers[roomId];
-}
-
-function hasGraceTimer(roomId, userId) {
-  return graceTimers[roomId]?.has(userId) ?? false;
-}
-
-function allGraceTimers(roomId) {
-  return [...(graceTimers[roomId]?.keys() ?? [])];
-}
-
-// --- Default scoring — used if game.score() not provided ---
+// --- Default scoring - used if game.score() not provided ---
 // end.winner is a `user` id (or 'draw'); result keys on user (W/D/L). Points
 // default to W:3 D:1 L:0, but a game that carries its own tally can pass
 // `pointsOf(user) → number` to attach real points while reusing this W/D/L
@@ -101,6 +73,5 @@ function defaultScore(end, players, { pointsOf } = {}) {
 export {
   guardStatus, guardHost,
   getBoard, deleteBoard, initBoard,
-  setGraceTimer, clearGraceTimer, hasGraceTimer, allGraceTimers,
   defaultScore,
 };

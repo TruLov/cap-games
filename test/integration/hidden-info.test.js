@@ -1,7 +1,7 @@
 
 
 /**
- * Integration test — hidden-information projection.
+ * Integration test - hidden-information projection.
  *
  * Boots the CAP server in-memory via cds.test, connects two WebSocket clients
  * (alice, bob), plays through the start of a Kaiten game, and asserts that an
@@ -9,7 +9,7 @@
  * wire, while each player privately receives their own hand.
  */
 
-// cds.test() must be first — before any cds submodule access (docs requirement)
+// cds.test() must be first - before any cds submodule access (docs requirement)
 import cds from '@sap/cds';
 import { describe, it, before, after } from 'node:test';
 import WebSocket from 'ws';
@@ -93,7 +93,7 @@ describe('hidden-info projection', () => {
   });
 
   it('start: opponents receive public state only; own hand arrives privately', async () => {
-    // roster (users alice/bob) comes from the platform — no players list needed
+    // roster (users alice/bob) comes from the platform - no players list needed
     send(alice, 'configure', { room: roomId, settings: JSON.stringify({ preset: 'classic' }) });
     send(alice, 'start', { room: roomId });
 

@@ -1,5 +1,5 @@
 /**
- * Kaperfahrt — turn engine (pure, no CAP imports).
+ * Kaperfahrt - turn engine (pure, no CAP imports).
  *
  * One active player at a time takes many sub-moves within a turn: draw a card
  * (automatic), roll all 8 dice, then repeatedly reroll >= 2 active dice or stop
@@ -8,11 +8,11 @@
  * so everyone has had an equal number of turns; highest total then wins.
  *
  * Die shape: { face, status, bench }
- *   status 'active' — rollable/rerollable, not a skull
- *          'skull'  — a skull, locked, counts toward the bust
- *          'locked' — a fixed scoring die (the coin/diamond card's 9th die)
- *          'chest'  — stored in the treasure chest; scores even on a bust
- *   bench — UI-only "set aside" flag, meaningful only while status is
+ *   status 'active' - rollable/rerollable, not a skull
+ *          'skull'  - a skull, locked, counts toward the bust
+ *          'locked' - a fixed scoring die (the coin/diamond card's 9th die)
+ *          'chest'  - stored in the treasure chest; scores even on a bust
+ *   bench - UI-only "set aside" flag, meaningful only while status is
  *          'active'; locked/chest dice are always benched by virtue of their
  *          status. Advisory: reroll/sorceress/chest still validate by status
  *          alone, so a stale bench flag can never soft-lock a move.

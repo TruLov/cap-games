@@ -1,15 +1,15 @@
 /**
- * Kaperfahrt — the card deck (pure, no CAP imports).
+ * Kaperfahrt - the card deck (pure, no CAP imports).
  *
  * Each turn the active player draws one card that shapes the round. Faithful to
  * the physical game's card types, with one deliberate simplification: cards are
  * drawn uniformly at random every turn rather than from a depleting/reshuffled
- * pile — a digital game has effectively unlimited turns and no visible deck.
+ * pile - a digital game has effectively unlimited turns and no visible deck.
  *
  * Card shapes:
  *   { type: 'sorceress' }                once per turn, reroll any dice incl. a skull
  *   { type: 'captain'   }                final turn score is doubled
- *   { type: 'seabattle', need, bonus }   collect >= `need` sabers → +bonus, else −bonus
+ *   { type: 'seabattle', need, bonus }   collect >= `need` sabers → +bonus, else -bonus
  *   { type: 'chest'     }                dice moved into the chest survive a bust
  *   { type: 'coin'      }                start with a 9th die showing a coin
  *   { type: 'diamond'   }                start with a 9th die showing a diamond

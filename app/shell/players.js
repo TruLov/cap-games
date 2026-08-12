@@ -1,12 +1,13 @@
 /**
- * shell/players.js — Platform Players component
+ * shell/players.js - Platform Players component
  *
  * Mounted once by platform.js for the room's whole session (never by a game
- * directly) — lives in the persistent room chrome alongside chat, so it's
+ * directly) - lives in the persistent room chrome alongside chat, so it's
  * never torn down across a switchGame/start/finish/rematch cycle.
  */
 
 import { initials } from '/shell/util.js';
+import { subscribeMany } from './subscriptions.js';
 
 export function mountPlayers(el, sdk, initialPlayers = []) {
   const players = [...initialPlayers];
@@ -19,7 +20,7 @@ export function mountPlayers(el, sdk, initialPlayers = []) {
         return `
         <li class="sh-player${p.user === sdk.me.user ? ' me' : ''}${p.spectator ? ' sh-spectator' : ''}">
           <span class="sh-sym">${avUrl ? `<img src="${avUrl}" alt="">` : initials(name)}</span>
-          <span class="sh-name">${name}${p.user === sdk.me.user ? ' (you)' : ''}${p.spectator ? ' — spectator' : ''}</span>
+          <span class="sh-name">${name}${p.user === sdk.me.user ? ' (you)' : ''}${p.spectator ? ' - spectator' : ''}</span>
           ${sdk.me.isHost && p.user !== sdk.me.user
             ? `<button class="sh-role sh-small" data-user="${p.user}" data-spectator="${!p.spectator}">${p.spectator ? '→ player' : '→ spectator'}</button>
                <button class="sh-kick sh-small danger" data-user="${p.user}">kick</button>`
@@ -56,7 +57,7 @@ export function mountPlayers(el, sdk, initialPlayers = []) {
     render();
   }
 
-  // Full authoritative resync — sent by the server on join/reconnect and on
+  // Full authoritative resync - sent by the server on join/reconnect and on
   // switchGame. Replaces the local list wholesale (belt-and-braces alongside
   // the incremental joined/playerLeft/playerKicked/roleChanged deltas above).
   function onRoster({ players: json }) {
@@ -67,21 +68,16 @@ export function mountPlayers(el, sdk, initialPlayers = []) {
     render();
   }
 
-  sdk.on('joined',       onJoined);
-  sdk.on('playerLeft',   onLeft);
-  sdk.on('playerKicked', onKicked);
-  sdk.on('roleChanged',  onRoleChanged);
-  sdk.on('roster',       onRoster);
-  sdk.on('profilesUpdated', render); // gamertag/avatar can resolve after initial render
+  const unsubscribe = subscribeMany(sdk, [
+    ['joined',          onJoined],
+    ['playerLeft',      onLeft],
+    ['playerKicked',    onKicked],
+    ['roleChanged',     onRoleChanged],
+    ['roster',          onRoster],
+    ['profilesUpdated', render], // gamertag/avatar can resolve after initial render
+  ]);
 
   render();
 
-  return () => {
-    sdk.off('joined',       onJoined);
-    sdk.off('playerLeft',   onLeft);
-    sdk.off('playerKicked', onKicked);
-    sdk.off('roleChanged',  onRoleChanged);
-    sdk.off('roster',       onRoster);
-    sdk.off('profilesUpdated', render);
-  };
+  return unsubscribe;
 }

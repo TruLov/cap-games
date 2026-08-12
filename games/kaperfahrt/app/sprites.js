@@ -1,10 +1,10 @@
 /**
- * Kaperfahrt — pixel-art sprites.
+ * Kaperfahrt - pixel-art sprites.
  *
  * Each icon is hand-authored on a 16×16 grid: an array of 16 strings, one char
  * per pixel. A char keys into the sprite's palette; '.' / ' ' are transparent.
  * `grid()` merges horizontal runs into <rect>s and returns a crisp, scalable
- * SVG string (no binary assets, fully diffable, recolour-free — each sprite owns
+ * SVG string (no binary assets, fully diffable, recolour-free - each sprite owns
  * its palette). Consumers drop the string into a sized box; `shape-rendering:
  * crispEdges` keeps every pixel hard-edged at any scale.
  *

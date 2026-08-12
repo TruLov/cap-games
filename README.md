@@ -1,6 +1,6 @@
 # cap-games
 
-Multiplayer browser game platform on SAP BTP — built with CAP Node.js.
+Multiplayer browser game platform on SAP BTP - built with CAP Node.js.
 Games are plugin packages. Add a game: 4 files, one dependency line, done.
 
 **Included:** TicTacToe, Ultimate Tic-Tac-Toe (teams + blitz), Kaiten, Kaperfahrt, Flip Fortune
@@ -17,7 +17,7 @@ flowchart TB
     subgraph CAP["CAP Server (app/)"]
         Lobby["LobbyService<br/>OData /odata/v4/lobby<br/>browse games · create rooms · leaderboard"]
         Play["PlayService<br/>WebSocket /ws/play<br/>join · play · chat · host controls"]
-        Registry["registry.js<br/>cds.games — games self-register via cds-plugin.js"]
+        Registry["registry.js<br/>cds.games - games self-register via cds-plugin.js"]
         Engine["engine.js<br/>transient board state · reconnect grace · scoring"]
     end
 
@@ -34,12 +34,12 @@ flowchart TB
     Registry --> Games
 ```
 
-Room isolation via `@ws.context` — plugin broadcasts events only to clients in the same room.
+Room isolation via `@ws.context` - plugin broadcasts events only to clients in the same room.
 Persistent state: Rooms, Players, Matches, Leaderboard in SQLite (dev) / Postgres (prod).
-Transient: live board state, chat (not persisted — intentional).
+Transient: live board state, chat (not persisted - intentional).
 
 Games are CAP plugins: each ships a `cds-plugin.js` that self-registers it onto
-`cds.games` at boot — no platform code or config to touch (see "Adding a new
+`cds.games` at boot - no platform code or config to touch (see "Adding a new
 game" below).
 
 ---
@@ -58,7 +58,7 @@ cds watch app
 ### Tools
 
 ```sh
-# websocat for WebSocket testing — install via your package manager, e.g.:
+# websocat for WebSocket testing - install via your package manager, e.g.:
 brew install websocat        # macOS
 cargo install websocat       # or download a release binary
 ```
@@ -69,16 +69,16 @@ cargo install websocat       # or download a release binary
 
 See [`games/tictactoe/README.md`](games/tictactoe/README.md) for a full
 copy-paste walkthrough (create room → join → play → finish) using the
-reference game — the same file new game authors start from when copying
+reference game - the same file new game authors start from when copying
 `games/tictactoe/` as a template.
 
 ---
 
 ## Lobby REST API
 
-`GET /odata/v4/lobby/Games` — game catalogue
-`GET /odata/v4/lobby/Rooms` — active rooms
-`GET /odata/v4/lobby/Leaderboard` — leaderboard
+`GET /odata/v4/lobby/Games` - game catalogue
+`GET /odata/v4/lobby/Rooms` - active rooms
+`GET /odata/v4/lobby/Leaderboard` - leaderboard
 `POST /odata/v4/lobby/createRoom` body: `{"game":"tictactoe"}` → roomId
 
 Auth header: `Authorization: Basic <base64(user:user)>` (dev mocked)
@@ -105,9 +105,9 @@ Auth header: `Authorization: Basic <base64(user:user)>` (dev mocked)
 |-------|-------------|
 | `joined` | `{ room, player, spectator, host, status }` |
 | `configured` | `{ room, settings }` |
-| `started` | `{ room, firstTurn }` — `firstTurn` is a `user` id |
-| `moved` | `{ room, data }` — JSON game state |
-| `finished` | `{ room, winner, state }` — `winner` is a `user` id or `'draw'` |
+| `started` | `{ room, firstTurn }` - `firstTurn` is a `user` id |
+| `moved` | `{ room, data }` - JSON game state |
+| `finished` | `{ room, winner, state }` - `winner` is a `user` id or `'draw'` |
 | `rematched` | `{ room, firstTurn }` |
 | `roomReset` | `{ room }` |
 | `playerLeft` | `{ room, player, newHost }` |
@@ -133,7 +133,7 @@ Room auto-deleted when all players gone.
 ## Adding a new game (Plugin)
 
 Copy `games/tictactoe/` as a starting point. Four files, no platform code to touch.
-The full hook contract lives in [AGENTS.md](AGENTS.md#game-interface-contract) —
+The full hook contract lives in [AGENTS.md](AGENTS.md#game-interface-contract) -
 this is the shape:
 
 **1. `games/mygame/package.json`**
@@ -141,7 +141,7 @@ this is the shape:
 { "name": "@cap-games/mygame", "version": "1.0.0", "type": "module" }
 ```
 
-**2. `games/mygame/cds-plugin.js`** — the game's CAP hook: imports the pure
+**2. `games/mygame/cds-plugin.js`** - the game's CAP hook: imports the pure
 module and self-registers it onto `cds.games` (CAP runs this at boot).
 ```js
 import cds from '@sap/cds';
@@ -150,7 +150,7 @@ import game from './game.js';
 ```
 The platform then serves the game's `app/` at `/games/mygame` automatically.
 
-**3. `games/mygame/game.js`** — pure backend logic, no CAP imports. Players are
+**3. `games/mygame/game.js`** - pure backend logic, no CAP imports. Players are
 identified by their `user` id (the platform assigns no symbols; derive marks
 like X/O yourself from the `players` roster in `init`).
 ```js
@@ -158,7 +158,7 @@ export default {
   meta: { name: 'My Game', minPlayers: 2, maxPlayers: 4 },
   settingsSchema: { /* optional */ },
 
-  // players: ordered roster [{ user, isHost }]; set state.turn to a user id —
+  // players: ordered roster [{ user, isHost }]; set state.turn to a user id -
   // the platform reads it to track whose move it is
   init(settings = {}, players = []) { return { turn: players[0]?.user, /* your state */ }; },
 
@@ -169,17 +169,17 @@ export default {
     // return { state: newState, end: { winner: user|'draw' } }
   },
   // optional: score / pointsOf / publicState+privateState / onTick / extendService
-  // — see AGENTS.md
+  // - see AGENTS.md
 };
 ```
 
-**4. `games/mygame/app/index.js`** — frontend (ES module, full UI control)
+**4. `games/mygame/app/index.js`** - frontend (ES module, full UI control)
 ```js
 export default {
   mount(rootEl, sdk) {
     // Build your complete game UI into rootEl.
-    // sdk.onState((state) => redraw(state))  — state lifecycle, pre-parsed
-    // sdk.send('move', payload)              — send moves
+    // sdk.onState((state) => redraw(state))  - state lifecycle, pre-parsed
+    // sdk.send('move', payload)              - send moves
     return () => { /* cleanup */ };
   }
 };
@@ -187,9 +187,9 @@ export default {
 
 **Activate:** add `"@cap-games/mygame": "*"` to root `package.json` dependencies, then `npm install`.
 
-The platform provides: lobby, host, join, kick, settings, chat, reconnect, status machine, leaderboard — automatically. Your game only implements the rules and the board UI.
+The platform provides: lobby, host, join, kick, settings, chat, reconnect, status machine, leaderboard - automatically. Your game only implements the rules and the board UI.
 
-**Optional — own persistence/service:** a game can bring its own CDS model
+**Optional - own persistence/service:** a game can bring its own CDS model
 (entities + OData service) with a `cds` section in its `package.json`:
 ```json
 "cds": { "requires": { "mygame": { "model": "@cap-games/mygame/srv/service.cds" } } }
@@ -214,17 +214,17 @@ cf deploy mta_archives/cap-games_1.0.0.mtar -e trial.mtaext
 ```
 
 Creates:
-- `cap-games-srv` — CAP server
-- `cap-games` — Approuter (IAS auth)
-- `cap-games-ias` — IAS identity service
-- `cap-games-postgres` — PostgreSQL database (`postgresql-db`/`trial`)
+- `cap-games-srv` - CAP server
+- `cap-games` - Approuter (IAS auth)
+- `cap-games-ias` - IAS identity service
+- `cap-games-postgres` - PostgreSQL database (`postgresql-db`/`trial`)
 
 **Trial-account data is ephemeral by design:** BTP trial subaccounts expire
 and get deleted, wiping every service instance in them regardless of which
-database is used. No backup/export strategy is implemented — this deployment
+database is used. No backup/export strategy is implemented - this deployment
 is a demo/showcase, not a durable store.
 
-**Post-deploy — IAS Self-Registration:**
+**Post-deploy - IAS Self-Registration:**
 1. BTP Cockpit → Services → Instances → `cap-games-ias` → open IAS Admin Console
 2. Applications → `cap-games` → Authentication & Access
 3. Enable **Self-Registration** → Save

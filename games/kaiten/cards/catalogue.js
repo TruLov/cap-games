@@ -1,5 +1,5 @@
 /**
- * Kaiten — Card catalogue (static data for the full 181-card pool).
+ * Kaiten - Card catalogue (static data for the full 181-card pool).
  *
  * Pure data + pool builders. No CAP imports, no game state.
  *
@@ -108,7 +108,7 @@ const FRUIT_CARDS = Object.freeze([
   ['pineapple', 'watermelon'],
 ]);
 
-/** Repeat helper — build an array of `n` cards produced by `factory`. */
+/** Repeat helper - build an array of `n` cards produced by `factory`. */
 function repeat(n, factory) {
   return Array.from({ length: n }, (_, i) => factory(i));
 }

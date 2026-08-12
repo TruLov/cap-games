@@ -1,13 +1,11 @@
 import cds from '@sap/cds';
 import * as eng from './engine.js';
+import * as presence from './presence.js';
 import * as reg from './registry.js';
+import { settleMatch } from './settle-match.js';
+import * as projection from './projection.js';
 
 const LOG  = cds.log('game');
-
-const _hasProjection = g => typeof g.publicState === 'function' && typeof g.privateState === 'function';
-// Player identity is the `user`; spectators only ever see the public view.
-const _sliceFor = (game, state, user, isSpectator, pub) =>
-  isSpectator ? pub : JSON.stringify(game.privateState(state, user));
 
 class PlayService extends cds.ApplicationService {
 
@@ -24,29 +22,35 @@ class PlayService extends cds.ApplicationService {
         .columns('ID','game','host','status','settings');
       if (!room) return this._error(req, roomId, 'room not found');
 
-      const game = reg.get(room.game);
-      if (!game) return this._error(req, roomId, `unknown game: ${room.game}`);
+      // An empty room (game === '') is valid — the host picks a game later via
+      // switchGame. Only a *specified but unknown* game is an error.
+      const game = room.game ? reg.get(room.game) : null;
+      if (room.game && !game) return this._error(req, roomId, `unknown game: ${room.game}`);
 
       await req.context.ws.service.enter(roomId);
 
-      // -- reconnect: had grace timer running
-      if (eng.hasGraceTimer(roomId, user)) {
-        eng.clearGraceTimer(roomId, user);
+      // -- reconnect: had a grace clock running
+      if (presence.isPending(roomId, user)) {
+        // Resolves the refresh-vs-drop debounce: 'silent' if the disconnect
+        // was never broadcast (quick refresh), 'announce' if it was.
+        const decision = presence.reconnect(roomId, user);
         const player = await SELECT.one.from(Players)
           .where({ room_ID: roomId, user });
         if (room.status === 'paused') {
           await UPDATE(Rooms, roomId).with({ status: 'playing' });
         }
         // 'joined' is what the reconnecting client itself waits on to (re)build
-        // its room UI (app/platform.js's onFirstJoin) — 'playerReconnected' alone
+        // its room UI (app/platform.js's onFirstJoin) - 'playerReconnected' alone
         // only reaches OTHER clients already in the room, never this one.
         await this.emit('joined', {
           room: roomId, player: user, spectator: player?.spectator ?? true,
           host: player?.isHost ?? false, status: room.status,
         });
-        await this.emit('playerReconnected', { room: roomId, player: user });
-        await this._sysMsg(roomId, `${user} reconnected.`);
-        await this._snapshotTo(roomId, room.game, user, player?.spectator ?? true);
+        if (decision === 'announce') {
+          await this.emit('playerReconnected', { room: roomId, player: user });
+          await this._sysMsg(roomId, `${user} reconnected.`);
+        }
+        await projection.snapshotTo(this, { roomId, gameId: room.game, user, isSpectator: player?.spectator ?? true });
         await this._rosterBroadcast(roomId);
         LOG.info('RECONNECT', roomId, user);
         return this._role(player);
@@ -59,7 +63,7 @@ class PlayService extends cds.ApplicationService {
           room: roomId, player: user, spectator: existing.spectator,
           host: existing.isHost, status: room.status,
         });
-        await this._snapshotTo(roomId, room.game, user, existing.spectator);
+        await projection.snapshotTo(this, { roomId, gameId: room.game, user, isSpectator: existing.spectator });
         await this._rosterBroadcast(roomId);
         return this._role(existing);
       }
@@ -70,7 +74,10 @@ class PlayService extends cds.ApplicationService {
       // setRole once they've seen the room)
       const players = await SELECT.from(Players).where({ room_ID: roomId });
       const seatsTaken = players.filter(p => !p.spectator).length;
-      const spectator = room.status !== 'lobby' || seatsTaken >= game.meta.maxPlayers;
+      // No game yet (empty room) → no seat cap; everyone waits as a player until
+      // a game is chosen, then switchGame re-splits against its maxPlayers.
+      const maxSeats = game ? game.meta.maxPlayers : Infinity;
+      const spectator = room.status !== 'lobby' || seatsTaken >= maxSeats;
 
       const isHost = players.length === 0;  // first to join is host
       await INSERT.into(Players).entries({ room_ID: roomId, user, spectator, isHost });
@@ -85,7 +92,7 @@ class PlayService extends cds.ApplicationService {
         host: isHost, status: room.status,
       });
       await this._sysMsg(roomId, `${user} joined.`);
-      if (room.status === 'playing') await this._snapshotTo(roomId, room.game, user, spectator);
+      if (room.status === 'playing') await projection.snapshotTo(this, { roomId, gameId: room.game, user, isSpectator: spectator });
       await this._rosterBroadcast(roomId);
       LOG.info('JOIN', roomId, user, '→', spectator ? 'spectator' : 'player', isHost ? '(host)' : '');
       return this._role({ spectator });
@@ -109,6 +116,7 @@ class PlayService extends cds.ApplicationService {
 
       const players = await SELECT.from(Players).where({ room_ID: roomId });
       const game = reg.get(room.game);
+      if (!game) return this._error(req, roomId, 'pick a game before starting');
       const realPlayers = players.filter(p => !p.spectator);
 
       if (realPlayers.length < game.meta.minPlayers)
@@ -117,7 +125,7 @@ class PlayService extends cds.ApplicationService {
       const b = eng.initBoard(roomId, room.game, room.settings, await this._roster(roomId));
       await UPDATE(Rooms, roomId).with({ status: 'playing' });
 
-      await this._broadcastState(roomId, room.game, b, 'started', { firstTurn: b.turn });
+      await projection.broadcastState(this, { roomId, gameId: room.game, board: b, event: 'started', extra: { firstTurn: b.turn } });
       LOG.info('START', roomId, 'firstTurn=' + b.turn);
     });
 
@@ -150,11 +158,11 @@ class PlayService extends cds.ApplicationService {
       if (result.end) {
         await UPDATE(Rooms, roomId).with({ status: 'finished' });
         const allPlayers = await SELECT.from(Players).where({ room_ID: roomId });
-        await this._persistMatch(room, roomId, result, allPlayers);
-        await this._broadcastState(roomId, room.game, b, 'finished', { winner: result.end.winner });
+        await settleMatch(this, { room, roomId, result, players: allPlayers });
+        await projection.broadcastState(this, { roomId, gameId: room.game, board: b, event: 'finished', extra: { winner: result.end.winner } });
         LOG.info('END', roomId, 'winner=' + result.end.winner);
       } else {
-        await this._broadcastState(roomId, room.game, b, 'moved', {});
+        await projection.broadcastState(this, { roomId, gameId: room.game, board: b, event: 'moved', extra: {} });
         LOG.info('MOVE', roomId, user, 'next=' + b.turn);
       }
     });
@@ -166,7 +174,7 @@ class PlayService extends cds.ApplicationService {
       if (err) return;
       const b = eng.initBoard(roomId, room.game, room.settings, await this._roster(roomId));
       await UPDATE(Rooms, roomId).with({ status: 'playing' });
-      await this._broadcastState(roomId, room.game, b, 'rematched', { firstTurn: b.turn });
+      await projection.broadcastState(this, { roomId, gameId: room.game, board: b, event: 'rematched', extra: { firstTurn: b.turn } });
       LOG.info('REMATCH', roomId, 'by', req.user.id);
     });
 
@@ -309,14 +317,14 @@ class PlayService extends cds.ApplicationService {
         if (room.status === 'playing' && !player.spectator) {
           await UPDATE(Rooms, room.ID).with({ status: 'paused' });
         }
-        eng.setGraceTimer(room.ID, user, () => {
-          this._doLeave(user, room.ID, true).catch(() => {});
+        presence.disconnect(room.ID, user, {
+          onDrop:     () => this._doLeave(user, room.ID, true).catch(() => {}),
+          onAnnounce: () => {
+            this.emit('playerDisconnected', { room: room.ID, player: user }).catch(() => {});
+            this._sysMsg(room.ID, `${user} disconnected.`).catch(() => {});
+          },
         });
-        await this.emit('playerDisconnected', {
-          room: room.ID, player: user,
-        });
-        await this._sysMsg(room.ID, `${user} disconnected.`);
-        LOG.info('DISCONNECT', room.ID, user, `→ status=${room.status} (60s grace)`);
+        LOG.info('DISCONNECT', room.ID, user, `→ status=${room.status} (60s grace, 3s announce)`);
       }
     });
 
@@ -359,12 +367,12 @@ class PlayService extends cds.ApplicationService {
       if (res.end) {
         await UPDATE(Rooms, roomId).with({ status: 'finished' });
         const players = await SELECT.from(Players).where({ room_ID: roomId });
-        await this._persistMatch({ game: b.game }, roomId, { end: res.end }, players);
-        await this._broadcastState(roomId, b.game, b, 'finished', { winner: res.end.winner });
+        await settleMatch(this, { room: { game: b.game }, roomId, result: { end: res.end }, players });
+        await projection.broadcastState(this, { roomId, gameId: b.game, board: b, event: 'finished', extra: { winner: res.end.winner } });
         clearTick(roomId);
         LOG.info('TICK-END', roomId, 'winner=' + res.end.winner);
       } else {
-        await this._broadcastState(roomId, b.game, b, 'moved', {});
+        await projection.broadcastState(this, { roomId, gameId: b.game, board: b, event: 'moved', extra: {} });
       }
       if (res.sys) await this._sysMsg(roomId, res.sys);
     };
@@ -447,54 +455,6 @@ class PlayService extends cds.ApplicationService {
   }
 
   /**
-   * Broadcast game state, redacting hidden information when the game opts in.
-   *
-   * If the game defines publicState()/privateState(), the room-scoped event
-   * carries only the public projection, and each player additionally receives a
-   * `privateState` event (delivered to that user only) with their private slice.
-   * Otherwise the full state is broadcast (unchanged legacy behaviour).
-   *
-   * @param extra event-specific public fields, e.g. { firstTurn } or { winner }
-   */
-  async _broadcastState(roomId, gameId, b, event, extra = {}) {
-    const game = reg.get(gameId);
-    if (!_hasProjection(game)) {
-      const full = JSON.stringify(b.state);
-      await this.emit(event, { room: roomId, ...extra, state: full, data: full });
-      return;
-    }
-
-    const pub = JSON.stringify(game.publicState(b.state));
-    await this.emit(event, { room: roomId, ...extra, state: pub, data: pub });
-
-    const players = await SELECT.from('cap.games.Players').where({ room_ID: roomId });
-    for (const p of players) {
-      const slice = _sliceFor(game, b.state, p.user, p.spectator, pub);
-      await this.emit('privateState', { room: roomId, data: slice }, { user: { include: [p.user] } });
-    }
-  }
-
-  /**
-   * Send the current state snapshot to a single (re)joining user: their private
-   * slice plus the public table, so they can render immediately. No-op if the
-   * game has no active board or does not use projection.
-   */
-  async _snapshotTo(roomId, gameId, user, isSpectator) {
-    const b = eng.getBoard(roomId);
-    if (!b) return;
-    const game = reg.get(gameId);
-    if (!_hasProjection(game)) {
-      // legacy games: resend full state to this user only
-      const full = JSON.stringify(b.state);
-      await this.emit('moved', { room: roomId, data: full }, { user: { include: [user] } });
-      return;
-    }
-    const pub = JSON.stringify(game.publicState(b.state));
-    await this.emit('privateState', { room: roomId, data: _sliceFor(game, b.state, user, isSpectator, pub) }, { user: { include: [user] } });
-    await this.emit('moved', { room: roomId, data: pub }, { user: { include: [user] } });
-  }
-
-  /**
    * Full current roster (players + spectators), JSON-encoded — sent to (re)sync
    * a client's player list, e.g. on join to an existing room or a game switch,
    * where the client's UI (re)initializes and would otherwise only ever see
@@ -512,7 +472,7 @@ class PlayService extends cds.ApplicationService {
   async _doLeave(user, roomId, fromTimeout = false) {
     const { Rooms, Players } = cds.entities('cap.games');
 
-    eng.clearGraceTimer(roomId, user);
+    presence.leave(roomId, user);   // no stale "disconnected" after they're gone
 
     const room = await SELECT.one.from(Rooms, roomId)
       .columns('status','host','game','settings');
@@ -559,60 +519,11 @@ class PlayService extends cds.ApplicationService {
   async _autoDelete(roomId) {
     const { Rooms, Players } = cds.entities('cap.games');
     const count = await SELECT.one.from(Players).where({ room_ID: roomId }).columns('count(*) as n');
-    const gracePending = eng.allGraceTimers(roomId).length > 0;
+    const gracePending = presence.pendingUsers(roomId).length > 0;
     if ((count?.n ?? 0) === 0 && !gracePending) {
       await DELETE.from(Rooms, roomId);
       eng.deleteBoard(roomId);
       LOG.info('ROOM', roomId, 'deleted (empty)');
-    }
-  }
-
-  async _persistMatch(room, roomId, result, players) {
-    const { Matches, Leaderboard } = cds.entities('cap.games');
-
-    await INSERT.into(Matches).entries({
-      game: room.game,
-      room: roomId,
-      winner: result.end.winner,
-      players: JSON.stringify(players.map(p => ({ user: p.user, spectator: p.spectator }))),
-      state: JSON.stringify(eng.getBoard(roomId)?.state ?? {}),
-    });
-
-    const game = reg.get(room.game);
-    const scores = typeof game.score === 'function'
-      ? game.score(result.end, players)
-      : eng.defaultScore(result.end, players,
-          game.pointsOf ? { pointsOf: u => game.pointsOf(result.end, u) } : {});
-
-    for (const s of scores) {
-      // DB-side increments instead of read-modify-write: avoids a lost update
-      // if two matches for the same user/game finish concurrently. The
-      // returned affected-row count tells us whether a row existed to bump;
-      // if not, insert the first one. (Plain UPDATE against the db — not
-      // through a service — returns a bare number, not `{ affected }`.)
-      const winsDelta   = s.result === 'win'  ? 1 : 0;
-      const lossesDelta = s.result === 'loss' ? 1 : 0;
-      const drawsDelta  = s.result === 'draw' ? 1 : 0;
-      const pointsDelta = s.points ?? 0;
-
-      const affected = await UPDATE(Leaderboard)
-        .set({
-          wins:   { '+=': winsDelta },
-          losses: { '+=': lossesDelta },
-          draws:  { '+=': drawsDelta },
-          points: { '+=': pointsDelta },
-        })
-        .where({ user: s.user, game: room.game });
-
-      if (!affected) {
-        await INSERT.into(Leaderboard).entries({
-          user: s.user, game: room.game,
-          wins:   winsDelta,
-          losses: lossesDelta,
-          draws:  drawsDelta,
-          points: pointsDelta,
-        });
-      }
     }
   }
 }

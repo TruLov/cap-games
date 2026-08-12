@@ -1,14 +1,14 @@
 /**
- * Ultimate Tic-Tac-Toe UI — mount(rootEl, sdk) / renderSettings(el, sdk)
+ * Ultimate Tic-Tac-Toe UI - mount(rootEl, sdk) / renderSettings(el, sdk)
  *
  * Design ported from https://github.com/mschleeweiss/mttt by mschleeweiss
- * (Marc) — used with his permission. Thanks, Marc!
+ * (Marc) - used with his permission. Thanks, Marc!
  */
 
 const REPO_URL = 'https://github.com/mschleeweiss/mttt';
 
 /* Self-contained Tokyo-neon skin, independent of the shell's gunmetal
-   theme — this board is meant to read like a night-market arcade cabinet,
+   theme - this board is meant to read like a night-market arcade cabinet,
    so it hardcodes its own cyan/magenta/violet palette rather than
    inheriting the shell's var(--accent) etc. */
 const STYLE = `
@@ -27,13 +27,13 @@ const STYLE = `
                 text-transform: uppercase; letter-spacing: .1em; color: var(--mt-cyan);
                 text-shadow: 0 0 6px var(--mt-cyan-soft); }
   .mt-team ul { list-style: none; margin: 0 0 .5rem; padding: 0; font-size: .85rem; }
-  /* aspect-ratio lives ONLY on the outermost grid — its height is then
+  /* aspect-ratio lives ONLY on the outermost grid - its height is then
      immediately derivable from its own width, so nothing below needs a
      second layout pass to converge (a chained aspect-ratio at every nesting
      level needs 2+ layout passes to settle, which read as "tiny until the
-     first click" — whatever triggered the next reflow). Every level below
+     first click" - whatever triggered the next reflow). Every level below
      just stretches to fill its known grid cell.
-     #game-root (this mounts into it directly) is a column flexbox — a
+     #game-root (this mounts into it directly) is a column flexbox - a
      flex item's width normally comes from cross-axis stretch, which
      itself depends on layout being resolved first; combined with
      aspect-ratio that's a second, browser-quirky source of the same
@@ -56,7 +56,7 @@ const STYLE = `
   .mt-inner.preview-target { border-color: var(--mt-pink); box-shadow: 0 0 14px var(--mt-pink-soft), inset 0 0 10px var(--mt-pink-soft); }
   .mt-inner.won-X, .mt-inner.won-O { opacity: .55; animation: none; }
   .mt-inner.won-draw { opacity: .25; animation: none; }
-  /* Big mark layered over a won sub-board — the grid of small cell marks
+  /* Big mark layered over a won sub-board - the grid of small cell marks
      stays visible underneath (dimmed via won-X/won-O above). */
   .mt-board-mark { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
                     font-family: var(--font-mono); font-weight: 900; font-size: 3.2rem; line-height: 1;
@@ -79,7 +79,7 @@ const STYLE = `
   .mt-status { margin-bottom: .5rem; font-family: var(--font-mono); letter-spacing: .02em; color: #d8cfff; }
   .mt-status #mt-clock { color: var(--mt-pink); text-shadow: 0 0 8px var(--mt-pink-soft); }
 
-  /* Match-over screen — winner banner + final team rosters, shown under
+  /* Match-over screen - winner banner + final team rosters, shown under
      the board once state.winner is set (started/moved/finished/rematched
      all funnel through renderBoard → renderResults). */
   .mt-results { margin-top: 1rem; }
@@ -100,7 +100,7 @@ function creditFooter(sdk) {
   const el = document.createElement('div');
   el.className = 'mt-credit';
   el.innerHTML = `♟ Ultimate Tic-Tac-Toe design by <a href="${REPO_URL}" target="_blank" rel="noopener">mschleeweiss</a>`;
-  el.querySelector('a').addEventListener('click', () => sdk.toast('Design by Marc — thanks! 🙌'));
+  el.querySelector('a').addEventListener('click', () => sdk.toast('Design by Marc - thanks! 🙌'));
   return el;
 }
 
@@ -127,14 +127,14 @@ function renderTeamPanel(el, sdk, teams) {
   if (leaveBtn) leaveBtn.disabled = !myMark;
 }
 
-// Host-editable, read-only for everyone else — settings are locked once the
+// Host-editable, read-only for everyone else - settings are locked once the
 // host clicks Start, same as team picks.
 function renderBlitzPanel(el, sdk, blitz) {
   const host = sdk.me.isHost;
   el.querySelector('#mt-blitz').innerHTML = `
     <label class="sh-small">
       <input type="checkbox" id="mt-blitz-enabled" ${blitz.enabled ? 'checked' : ''} ${host ? '' : 'disabled'}>
-      Blitz — per-move timer
+      Blitz - per-move timer
     </label>
     <input type="number" id="mt-blitz-seconds" value="${blitz.seconds}" min="5" max="120"
            style="width:4.5rem" ${host ? '' : 'disabled'}> sec/move
@@ -158,7 +158,7 @@ export default {
     el.classList.add('mt-root');
     el.innerHTML = `
       <style>${STYLE}</style>
-      <p class="sh-small">Pick a team — you can switch until the host starts.</p>
+      <p class="sh-small">Pick a team - you can switch until the host starts.</p>
       <div id="mt-teams" class="mt-teams"></div>
       <div class="sh-row" id="mt-blitz"></div>
       <div class="sh-row" style="margin-top:.5rem">
@@ -206,12 +206,12 @@ export default {
 
     function setStatus(msg) { statusEl.textContent = msg; }
 
-    // Rare flavor line on game over — a small nod to the game's designer.
+    // Rare flavor line on game over - a small nod to the game's designer.
     function winFlavor() {
       return Math.random() < (1 / 15) ? ' (Marc-approved victory 🎉)' : '';
     }
 
-    // Purely a client-side display — the server enforces the actual skip
+    // Purely a client-side display - the server enforces the actual skip
     // regardless of what this shows. Reset to a fresh deadline whenever a
     // new turn starts; cleared once the match ends.
     const clockEl = rootEl.querySelector('#mt-clock');
@@ -253,7 +253,7 @@ export default {
         b.addEventListener('click', () =>
           sdk.send('move', { room: sdk.room.id, data: JSON.stringify({ cell }) }));
 
-        // Preview which board this move sends the opponent to next — the
+        // Preview which board this move sends the opponent to next - the
         // inner cell position (cell % 9) dictates the outer board, unless
         // that board is already decided, in which case they're free to
         // play anywhere (so every still-open board is highlighted instead).
@@ -274,12 +274,12 @@ export default {
       const winMsg = winner ? (winner === 'draw' ? `Draw!${winFlavor()}` : `Team ${winner} wins!${winFlavor()}`) : '';
       if (!myMark) setStatus('Spectating');
       else if (winner) setStatus(winMsg);
-      else setStatus(`Turn: ${sdk.nameOf(turn)} (Team ${markOfUser(teams, turn)})${myTurn ? ' — your move' : ''}`);
+      else setStatus(`Turn: ${sdk.nameOf(turn)} (Team ${markOfUser(teams, turn)})${myTurn ? ' - your move' : ''}`);
       armClock(state);
       renderResults(winner, teams, winMsg);
     }
 
-    // Match-over screen — winner banner + final team rosters. Cleared
+    // Match-over screen - winner banner + final team rosters. Cleared
     // automatically on a fresh match/rematch (winner is null again).
     function renderResults(winner, teams, winMsg) {
       if (!winner) { resultsEl.innerHTML = ''; return; }
@@ -295,7 +295,7 @@ export default {
     }
 
     const stopState = sdk.onState(state => renderBoard(state));
-    function onDisconnected({ player }) { setStatus(`${sdk.nameOf(player)} disconnected — waiting 60s…`); }
+    function onDisconnected({ player }) { setStatus(`${sdk.nameOf(player)} disconnected - waiting 60s…`); }
     function onReconnected({ player })  { setStatus(`${sdk.nameOf(player)} reconnected`); }
 
     sdk.on('playerDisconnected',  onDisconnected);

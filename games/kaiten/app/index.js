@@ -1,12 +1,12 @@
 /**
- * Kaiten — Game UI.
+ * Kaiten - Game UI.
  *
- * renderSettings(el, sdk) — shown to everyone in the platform's waiting room
+ * renderSettings(el, sdk) - shown to everyone in the platform's waiting room
  *   before the match starts; only the host gets a real picker (menu preset,
- *   then configure()+start()) — Kaiten has nothing else pre-start for anyone
- *   else. Reads sdk.players (the platform's live roster) at click time —
+ *   then configure()+start()) - Kaiten has nothing else pre-start for anyone
+ *   else. Reads sdk.players (the platform's live roster) at click time -
  *   never tracks its own copy.
- * mount(rootEl, sdk) — called only once the match is actually starting/
+ * mount(rootEl, sdk) - called only once the match is actually starting/
  *   active; renders hand/tableau/scores/results only. Players + chat live in
  *   the platform's persistent room chrome.
  */
@@ -92,17 +92,17 @@ const CARD_EMOJI = {
   fruit:               '🍉',
 };
 
-// Short scoring rule per card type — shown on full cards
+// Short scoring rule per card type - shown on full cards
 function cardPoints(type) {
   switch (type) {
     case 'nigiri':              return 'Egg 1 · Salmon 2 · Squid 3 (×3 on Wasabi)';
     case 'maki':                return 'Most icons: 6pts (2nd: 3)';
-    case 'temaki':              return 'Most: +4 · Fewest: −4';
+    case 'temaki':              return 'Most: +4 · Fewest: -4';
     case 'uramaki':             return 'Top 3 in game: 8 / 5 / 2';
     case 'tempura':             return 'Set of 2 = 5';
     case 'sashimi':             return 'Set of 3 = 10';
-    case 'dumpling':            return '1/3/6/10/15 (1–5 cards)';
-    case 'eel':                 return '1 card = −3 · 2+ = 7';
+    case 'dumpling':            return '1/3/6/10/15 (1-5 cards)';
+    case 'eel':                 return '1 card = -3 · 2+ = 7';
     case 'tofu':                return '1 = 2 · 2 = 6 · 3+ = 0';
     case 'onigiri':             return 'Unique shape sets: 1/4/9/16';
     case 'edamame':             return '1pt per opponent with Edamame';
@@ -115,9 +115,9 @@ function cardPoints(type) {
     case 'menu':                return 'Pick 1 of 4 from draw pile';
     case 'special_order':       return 'Copy any card you played';
     case 'takeout_box':         return 'Flip cards for 2pts each';
-    case 'pudding':             return 'Game end: Most +6 · Fewest −6';
+    case 'pudding':             return 'Game end: Most +6 · Fewest -6';
     case 'green_tea_ice_cream': return 'Game end: Set of 4 = 12';
-    case 'fruit':               return 'Game end: icons per type −2/0/1/3/6/10';
+    case 'fruit':               return 'Game end: icons per type -2/0/1/3/6/10';
     default:                    return '';
   }
 }
@@ -175,7 +175,7 @@ function cardStyle(c) {
 
 export default {
   // ---- pre-start settings (shown to everyone in the platform waiting room;
-  // only the host gets an actual picker — Kaiten has nothing else to offer
+  // only the host gets an actual picker - Kaiten has nothing else to offer
   // non-hosts pre-start) --------------------------------------------------
   renderSettings(el, sdk) {
     if (!sdk.me.isHost) {
@@ -208,9 +208,9 @@ export default {
   // ---- gameplay (mounted only once the match is starting/active) ----------
   mount(rootEl, sdk) {
     const me = sdk.me;
-    let pub = null;           // public state (played, counts, scores) — seen by everyone
-    let myHand = [];           // this player's own hand — delivered privately
-    let menuOffer = null;      // 4 cards revealed by a Menu — delivered privately
+    let pub = null;           // public state (played, counts, scores) - seen by everyone
+    let myHand = [];           // this player's own hand - delivered privately
+    let menuOffer = null;      // 4 cards revealed by a Menu - delivered privately
     let chopFirstPick = null;  // index of first card picked when using Chopsticks
     let chopsticksActive = false; // player clicked their tableau Chopsticks to use it
 
@@ -239,10 +239,10 @@ export default {
       const mine = Boolean(pub.selected?.[me.user]);
       const waiting = pub.pendingCount ?? 0;
 
-      // Menu: 4 cards offered — choose one to play
+      // Menu: 4 cards offered - choose one to play
       if (menuOffer && menuOffer.length) {
         el.innerHTML = `
-          <div class="sg-status">Menu — choose one card to play:</div>
+          <div class="sg-status">Menu - choose one card to play:</div>
           <div class="sg-hand">
             ${menuOffer.map((c, i) =>
               `<button class="sg-card play" data-mi="${i}" ${c.type === 'menu' ? 'disabled' : ''}>${cardLabel(c)}</button>`
@@ -258,17 +258,17 @@ export default {
 
       const spoonCtl = (!mine && hasSpoon) ? `
         <div class="sg-spoon">
-          <label><input type="checkbox" id="sg-spoon-on"> Use Spoon — take a
+          <label><input type="checkbox" id="sg-spoon-on"> Use Spoon - take a
             <select id="sg-spoon-type">${menuTypes().map(t => `<option value="${t}">${prettify(t)}</option>`).join('')}</select>
             from a neighbour when you keep your card</label>
         </div>` : '';
 
       const chopBanner = (!mine && chopsticksActive) ? `
-        <div class="sg-chopsticks">Chopsticks active — pick <b>two</b> cards to play both
+        <div class="sg-chopsticks">Chopsticks active - pick <b>two</b> cards to play both
           (click your Chopsticks again to cancel)</div>` : '';
 
       el.innerHTML = `
-        <div class="sg-status">Round ${pub.round}/3 —
+        <div class="sg-status">Round ${pub.round}/3 -
           ${mine ? `<span class="sg-waiting">selected, waiting for others (${waiting}/${pub.symbols.length})</span>`
                  : 'pick a card to keep'}</div>
         ${spoonCtl}${chopBanner}
@@ -325,7 +325,7 @@ export default {
         const chips = sorted.map(c => {
           const label = cardLabel(c).replace(/<[^>]+>/g, ' ').trim();
           if (isMe && canUseChop && c.type === 'chopsticks') {
-            return `<button class="sg-chop-chip${chopsticksActive ? ' active' : ''}" data-chop="1">${label} — ${chopsticksActive ? 'active (pick 2)' : 'click to use'}</button>`;
+            return `<button class="sg-chop-chip${chopsticksActive ? ' active' : ''}" data-chop="1">${label} - ${chopsticksActive ? 'active (pick 2)' : 'click to use'}</button>`;
           }
           return `<span class="sg-chip" style="${cardStyle(c)}">${label}</span>`;
         }).join('');
@@ -334,14 +334,14 @@ export default {
           const pts = pub.roundScores?.[s]?.[ri] ?? 0;
           const cardChips = cards.map(c => `<span class="sg-history-chip" style="${cardStyle(c)}">${cardText(c)}</span>`).join('');
           return `<details class="sg-history-details">
-            <summary>Round ${ri + 1}: ${pts} pts — click to see cards</summary>
+            <summary>Round ${ri + 1}: ${pts} pts - click to see cards</summary>
             <div class="sg-history-chips">${cardChips}</div>
           </details>`;
         }).join('');
         return `<div class="sg-row">
             <h4><span>${initials(s)}${isMe ? ' (you)' : ''}</span><span>${total} pts</span></h4>
             ${historyHtml}
-            <div class="sg-played">${chips || (pub.phase === 'playing' ? '<em>—</em>' : '')}</div>
+            <div class="sg-played">${chips || (pub.phase === 'playing' ? '<em>-</em>' : '')}</div>
           </div>`;
       }).join('');
 
@@ -368,7 +368,7 @@ export default {
               const rs = pub.roundScores?.[s] ?? [];
               const dpts = pub.dessertScores?.[s] ?? 0;
               const cells = [initials(s) + (s === me.user ? ' ✓' : '')]
-                .concat([0,1,2].map(i => rs[i] != null ? rs[i] : '—'))
+                .concat([0,1,2].map(i => rs[i] != null ? rs[i] : '-'))
                 .concat(isOver ? [dpts] : [])
                 .concat([pub.totals?.[s] ?? 0]);
               return `<tr class="${s === me.user ? 'me' : ''}">
@@ -389,7 +389,7 @@ export default {
       const top = ranking[0];
       el.innerHTML = `
         <div class="sg-results">
-          <h3 style="margin:0 0 .5rem">${top.symbol === (ranking[1]?.symbol ?? '') ? 'Draw!' : initials(top.symbol) + ' wins!'} — Final Scores</h3>
+          <h3 style="margin:0 0 .5rem">${top.symbol === (ranking[1]?.symbol ?? '') ? 'Draw!' : initials(top.symbol) + ' wins!'} - Final Scores</h3>
           <table>
             <thead><tr><th>Player</th><th>Rd 1</th><th>Rd 2</th><th>Rd 3</th><th>🍰</th><th>Total</th></tr></thead>
             <tbody>
@@ -399,7 +399,7 @@ export default {
                 const isWinner = score === top.score && dessertCount === top.desserts;
                 return `<tr class="${isWinner ? 'winner' : ''}">
                   <td>${initials(s)}${s === me.user ? ' (you)' : ''}</td>
-                  ${[0,1,2].map(i => `<td>${rs[i] ?? '—'}</td>`).join('')}
+                  ${[0,1,2].map(i => `<td>${rs[i] ?? '-'}</td>`).join('')}
                   <td>${dpts}</td>
                   <td>${score}</td>
                 </tr>`;
@@ -418,7 +418,7 @@ export default {
       if (ev !== 'finished') { chopFirstPick = null; chopsticksActive = false; }
       if (ev === 'started')   setStatus('Game started!');
       if (ev === 'rematched') setStatus('Rematch!');
-      if (ev === 'finished')  setStatus(`Game over — ${raw.winner === 'draw' ? 'Draw!' : `${initials(raw.winner)} wins!`}`);
+      if (ev === 'finished')  setStatus(`Game over - ${raw.winner === 'draw' ? 'Draw!' : `${initials(raw.winner)} wins!`}`);
       redraw();
     });
     const stopError = sdk.onError(e => sdk.toast(e.message));

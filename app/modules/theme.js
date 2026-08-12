@@ -1,10 +1,10 @@
 /**
- * theme.js — light/dark theme toggle.
+ * theme.js - light/dark theme toggle.
  *
  * Applied via [data-theme] on <html>; style.css defines both palettes under the
  * same variable names. index.html/logout.html set the initial value inline
  * (before first paint, no flash); this handles runtime toggling + persistence
- * and syncs the header toggle button's glyph. Extracted from platform.js — it
+ * and syncs the header toggle button's glyph. Extracted from platform.js - it
  * shares no application state, only the DOM + localStorage.
  */
 const ICON_SUN =

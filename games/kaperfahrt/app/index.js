@@ -282,7 +282,7 @@ const STYLE = `
 
 export default {
   mount(rootEl, sdk) {
-    // @font-face must be registered on the document — it's ignored inside the
+    // @font-face must be registered on the document - it's ignored inside the
     // shadow root the platform mounts us in. Absolute URL via import.meta.url.
     sdk.loadFont(`@font-face{font-family:'Pixelify Sans';src:url('${new URL('./pixelify.ttf', import.meta.url).href}') format('truetype');font-weight:400 700;font-display:swap}`);
     const me = sdk.me.user;
@@ -605,7 +605,7 @@ export default {
       $('#kf-logrows').innerHTML = rows.length ? rows.map(e => {
         const dice = e.dice.map(d => `<span>${sprite(d.face)}</span>`).join('');
         let res, cls;
-        if (e.island) { res = `−${(e.skulls || 0) * 100}`; cls = 'isl'; }
+        if (e.island) { res = `-${(e.skulls || 0) * 100}`; cls = 'isl'; }
         else if (e.busted) { res = 'BUST'; cls = 'neg'; }
         else if (e.points > 0) { res = `+${e.points}`; cls = 'pos'; }
         else if (e.points < 0) { res = `${e.points}`; cls = 'neg'; }

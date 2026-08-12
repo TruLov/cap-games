@@ -7,7 +7,7 @@ import { applyMove, init } from '../flow.js';
 // ---- scripted RNG ---------------------------------------------------------
 // rollFace maps rng() -> FACES[floor(rng()*6)]. Emit the midpoint of a face's
 // slot to roll it deterministically; once the script runs dry, return 0 (a
-// harmless default — the parrot face / first deck card).
+// harmless default - the parrot face / first deck card).
 const faceVal = name => (FACES.indexOf(name) + 0.5) / FACES.length;
 const faceRng = names => {
   const q = names.map(faceVal);
@@ -228,7 +228,7 @@ test('init seats players in order and starts on the first player', () => {
   assert.equal(s.phase, 'awaitRoll');
 });
 
-// (leaderboard scoring is the platform's defaultScore — covered in
+// (leaderboard scoring is the platform's defaultScore - covered in
 // test/unit/engine.test.js; kaperfahrt no longer defines its own score())
 
 // ---- Island of Skulls -----------------------------------------------------

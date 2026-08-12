@@ -1,5 +1,5 @@
 /**
- * Snake & Ladder — CAP-touching service extension.
+ * Snake & Ladder - CAP-touching service extension.
  *
  * The pure reducer (./game.js) can't reach the DB; this is the documented
  * escape hatch (same role as games/mttt/extend.js) for the two things that need
@@ -7,7 +7,7 @@
  *
  *   1. Load the board. The snakes/ladders live in this plugin's own
  *      `snakeladder.BoardSquares` table (CSV-seeded). We read it once at
- *      `served` — before any match can start — and hand it to the reducer via
+ *      `served` - before any match can start - and hand it to the reducer via
  *      setBoard(), so the table stays the single source of truth for the board.
  *
  *   2. Persist move history. Every resolved move is appended to this plugin's

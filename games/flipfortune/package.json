@@ -1,7 +1,7 @@
 {
   "name": "@cap-games/flipfortune",
   "version": "1.0.0",
-  "description": "Flip Fortune — a press-your-luck card game plugin for cap-games",
+  "description": "Flip Fortune - a press-your-luck card game plugin for cap-games",
   "type": "module",
   "scripts": {
     "test": "node --test-reporter=tap --test \"test/**/*.test.js\""

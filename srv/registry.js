@@ -1,13 +1,13 @@
 import cds from '@sap/cds';
 
 /**
- * Game registry — games self-register as CAP plugins.
+ * Game registry - games self-register as CAP plugins.
  *
  * Every `@cap-games/*` package ships a `cds-plugin.js`, which CAP's plugin
  * loader auto-executes during `cds.plugins` (before serving). That file is the
  * game's hook into the platform: it imports the game's pure module and writes
  * it onto `cds.games` (the `@sap/cds` facade is the ONE thing every package can
- * reach in both dev and packed-deploy layouts — a game cannot import platform
+ * reach in both dev and packed-deploy layouts - a game cannot import platform
  * files relatively once packed, so it touches the platform only through `cds`).
  * No root-package scanning, no `main` entry, no config.
  *
@@ -21,7 +21,7 @@ import cds from '@sap/cds';
  * `app/` UI). Tests can register programmatically the same way:
  *   ((cds.games ??= {}).mygame = { mod });
  *
- * Interface contract (the per-player token is the `user` id — the platform
+ * Interface contract (the per-player token is the `user` id - the platform
  * assigns no game symbols; a game that wants marks derives them from `players`):
  *   meta: { name, minPlayers, maxPlayers }
  *   settingsSchema?: { [key]: { type, values?, default } }
@@ -35,7 +35,7 @@ import cds from '@sap/cds';
  *   onTick?(state, elapsedMs)        → { state, end?, sys? } | null  (server-
  *     driven turn; requires meta.tick = { everyMs }. The platform calls it on
  *     an interval while the match is playing, passing how long the current turn
- *     has run, and broadcasts any returned state like a real move — so a timed
+ *     has run, and broadcasts any returned state like a real move - so a timed
  *     game stays a pure reducer instead of reaching into engine.js)
  *   extendService?(srv)              → void  (optional extra WS actions/events)
  */
