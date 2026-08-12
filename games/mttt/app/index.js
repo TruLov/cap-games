@@ -78,6 +78,10 @@ const STYLE = `
   .mt-cell:disabled { cursor: default; }
   .mt-status { margin-bottom: .5rem; font-family: var(--font-mono); letter-spacing: .02em; color: #d8cfff; }
   .mt-status #mt-clock { color: var(--mt-pink); text-shadow: 0 0 8px var(--mt-pink-soft); }
+  .mt-status #mt-turn-counter { color: var(--mt-cyan); text-shadow: 0 0 6px var(--mt-cyan-soft); margin-right: .5rem; }
+  .mt-avg-times { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .75rem; }
+  .mt-avg-chip { font-family: var(--font-mono); font-size: .72rem; color: #9a8fc2; letter-spacing: .02em;
+                 border: 1px solid rgba(139,47,255,.3); border-radius: var(--radius-sm); padding: .15rem .5rem; }
 
   /* Match-over screen - winner banner + final team rosters, shown under
      the board once state.winner is set (started/moved/finished/rematched
@@ -196,11 +200,16 @@ export default {
     rootEl.classList.add('mt-root');
     rootEl.innerHTML = `
       <style>${STYLE}</style>
-      <div class="mt-status" id="mt-status"><span id="mt-status-text"></span><span id="mt-clock"></span></div>
+      <div class="mt-status" id="mt-status">
+        <span id="mt-turn-counter"></span><span id="mt-status-text"></span><span id="mt-clock"></span>
+      </div>
+      <div class="mt-avg-times" id="mt-avg-times"></div>
       <div class="mt-outer" id="mt-outer"></div>
       <div class="mt-results" id="mt-results"></div>
     `;
     const statusEl  = rootEl.querySelector('#mt-status-text');
+    const turnCountEl = rootEl.querySelector('#mt-turn-counter');
+    const avgTimesEl  = rootEl.querySelector('#mt-avg-times');
     const outerEl   = rootEl.querySelector('#mt-outer');
     const resultsEl = rootEl.querySelector('#mt-results');
 
@@ -211,27 +220,71 @@ export default {
       return Math.random() < (1 / 15) ? ' (Marc-approved victory 🎉)' : '';
     }
 
-    // Purely a client-side display - the server enforces the actual skip
-    // regardless of what this shows. Reset to a fresh deadline whenever a
-    // new turn starts; cleared once the match ends.
+    // Purely a client-side display - the server enforces the actual blitz
+    // skip regardless of what this shows. When blitz is off this instead
+    // counts up, so there's always a live per-move clock on screen.
     const clockEl = rootEl.querySelector('#mt-clock');
-    let deadline = null;
+    let deadline = null;      // blitz countdown target, or null when blitz is off
+    let turnStartedAt = null; // count-up base for the current turn
+    let matchOver = false;
     const clockInterval = setInterval(() => {
-      if (!clockEl || deadline == null) return;
-      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-      clockEl.textContent = ` ⏱ ${remaining}s`;
+      if (!clockEl || matchOver) return;
+      if (deadline != null) {
+        const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+        clockEl.textContent = ` ⏱ ${remaining}s`;
+      } else if (turnStartedAt != null) {
+        const elapsed = Math.floor((Date.now() - turnStartedAt) / 1000);
+        clockEl.textContent = ` ⏱ ${elapsed}s`;
+      }
     }, 250);
 
     function armClock(state) {
+      matchOver = !!state.winner;
       if (!clockEl) return;
-      if (state.winner || !state.blitz?.enabled) { deadline = null; clockEl.textContent = ''; return; }
-      deadline = Date.now() + state.blitz.seconds * 1000;
+      if (matchOver) { deadline = null; clockEl.textContent = ''; return; }
+      deadline = state.blitz?.enabled ? Date.now() + state.blitz.seconds * 1000 : null;
+    }
+
+    // Per-player average think-time, derived purely from state transitions:
+    // whenever moveCount advances, the time since the previous state landed
+    // is charged to whoever's turn it just was (a blitz skip counts too -
+    // that's genuinely how long they took). Reset whenever moveCount rewinds
+    // to 0, i.e. a fresh match/rematch.
+    const moveStats = Object.create(null); // user -> { totalMs, count }
+    let lastMoveCount = null;
+    let lastTurnUser = null;
+
+    function trackTurn(state) {
+      const now = Date.now();
+      if (lastMoveCount == null || state.moveCount < lastMoveCount) {
+        for (const k of Object.keys(moveStats)) delete moveStats[k];
+      } else if (state.moveCount > lastMoveCount && lastTurnUser) {
+        const s = moveStats[lastTurnUser] ?? (moveStats[lastTurnUser] = { totalMs: 0, count: 0 });
+        s.totalMs += now - turnStartedAt;
+        s.count += 1;
+      }
+      lastMoveCount = state.moveCount;
+      lastTurnUser = state.turn;
+      turnStartedAt = now;
+    }
+
+    function renderAvgTimes(teams) {
+      const users = [...teams.X, ...teams.O];
+      avgTimesEl.innerHTML = users.map(u => {
+        const s = moveStats[u];
+        const avg = s?.count ? `${(s.totalMs / s.count / 1000).toFixed(1)}s avg` : '-';
+        return `<span class="mt-avg-chip">${sdk.nameOf(u)}: ${avg}</span>`;
+      }).join('');
     }
 
     function renderBoard(state) {
-      const { cells, boardWinners, activeBoard, teams, turn, winner } = state;
+      const { cells, boardWinners, activeBoard, teams, turn, winner, moveCount } = state;
       const myMark  = markOfUser(teams, sdk.me.user);
       const myTurn  = !winner && turn === sdk.me.user;
+
+      trackTurn(state);
+      turnCountEl.textContent = winner ? `${moveCount} moves played` : `Turn ${moveCount + 1}`;
+      renderAvgTimes(teams);
 
       outerEl.innerHTML = Array.from({ length: 9 }, (_, board) => {
         const bWin = boardWinners[board];
