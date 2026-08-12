@@ -8,6 +8,7 @@ export default [
     languageOptions: { globals: {
       WebSocket: 'readonly', navigator: 'readonly',
       createImageBitmap: 'readonly', FileReader: 'readonly',
+      MutationObserver: 'readonly',
     } },
   },
   // scripts/ are CLI diagnostic tools - console output is the whole point.
