@@ -75,6 +75,7 @@ flowchart TB
 | `srv/engine.js` | Transient board state, status/host guards, default scoring, server-tick driver support |
 | `srv/presence.js` | Reconnect grace clock + disconnect-announce debounce (a refresh stays silent; only a drop that outlasts the announce window is broadcast) |
 | `srv/settle-match.js` | Match-end settlement: persist Matches, dispatch scoring into Leaderboard, award/notify achievements - one interface for both a real move and a server-tick finish |
+| `srv/projection.js` | Hidden-information redaction: public/private state slicing for games that opt in, plus the state/data wire-field split per event (see play-service.cds) |
 | `srv/registry.js` | Thin helpers over the `cds.games` facade registry (`get`/`entry`/`all`/`ids`/`validate`) - games self-register, nothing is scanned |
 | `srv/server.js` | Custom bootstrap - serves each game's `app/` at `/games/<id>` from its registered dir |
 | `app/` | Shell: login, lobby, header/nav. Static files served by CAP. |
